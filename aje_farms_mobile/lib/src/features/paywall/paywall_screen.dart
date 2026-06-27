@@ -64,7 +64,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(28),
               image: DecorationImage(
-                image: NetworkImage(demoCourses.first.imageUrl),
+                image: NetworkImage(_demoRepository.featuredCourse.imageUrl),
                 fit: BoxFit.cover,
                 colorFilter: ColorFilter.mode(
                     Colors.black.withValues(alpha: 0.42), BlendMode.darken),
@@ -93,7 +93,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),
-          ...planOptions.map((plan) => _PlanTile(plan: plan)),
+          ..._demoRepository.plans.map((plan) => _PlanTile(plan: plan)),
           const SizedBox(height: 24),
           Card(
             child: Padding(

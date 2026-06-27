@@ -5,7 +5,7 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeCourse = demoCourses.first;
+    final activeCourse = _demoRepository.featuredCourse;
 
     return Scaffold(
       appBar: AppBar(

@@ -3,7 +3,7 @@ part of '../../app.dart';
 class CourseDetailScreen extends StatelessWidget {
   const CourseDetailScreen({required this.course, super.key});
 
-  final DemoCourse course;
+  final Course course;
 
   @override
   Widget build(BuildContext context) {

@@ -117,7 +117,7 @@ class _MiniActionCard extends StatelessWidget {
 class _CourseProgressCard extends StatelessWidget {
   const _CourseProgressCard({required this.course, required this.onTap});
 
-  final DemoCourse course;
+  final Course course;
   final VoidCallback onTap;
 
   @override

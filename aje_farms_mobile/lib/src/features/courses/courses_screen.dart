@@ -21,7 +21,7 @@ class CoursesScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),
-          ...demoCourses.map(
+          ..._demoRepository.courses.map(
             (course) => Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: _CourseCard(course: course),

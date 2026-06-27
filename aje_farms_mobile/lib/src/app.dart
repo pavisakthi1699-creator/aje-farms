@@ -2,7 +2,12 @@ library aje_farms_mobile_app;
 
 import 'package:flutter/material.dart';
 
-import 'data/demo_content.dart';
+import 'models/community_post.dart';
+import 'models/course.dart';
+import 'models/plan_option.dart';
+import 'models/problem_category.dart';
+import 'repositories/demo_app_repository.dart';
+import 'services/demo_mwalimu_ai_service.dart';
 import 'theme/app_theme.dart';
 
 part 'app/aje_farms_app.dart';
@@ -36,3 +41,6 @@ part 'features/paywall/payment_badge.dart';
 part 'features/profile/profile_widgets.dart';
 part 'shared/widgets/network_photo.dart';
 part 'shared/widgets/snack.dart';
+
+const _demoRepository = DemoAppRepository();
+const _mwalimuAiService = DemoMwalimuAiService();

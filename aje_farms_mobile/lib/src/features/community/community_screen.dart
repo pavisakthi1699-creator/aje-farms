@@ -17,7 +17,7 @@ class CommunityScreen extends StatelessWidget {
         children: [
           const _CommunityFilters(),
           const SizedBox(height: 18),
-          ...communityPosts.map(
+          ..._demoRepository.posts.map(
             (post) => Padding(
               padding: const EdgeInsets.only(bottom: 18),
               child: _CommunityPostCard(post: post),

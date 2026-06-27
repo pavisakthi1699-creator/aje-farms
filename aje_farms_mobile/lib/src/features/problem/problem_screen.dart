@@ -30,7 +30,7 @@ class ProblemScreen extends StatelessWidget {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: problemCategories.length,
+            itemCount: _demoRepository.problemCategories.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 14,
@@ -38,7 +38,7 @@ class ProblemScreen extends StatelessWidget {
               childAspectRatio: 1.18,
             ),
             itemBuilder: (context, index) {
-              final category = problemCategories[index];
+              final category = _demoRepository.problemCategories[index];
               return _ProblemCategoryTile(
                 category: category,
                 onTap: () => _openChat(context, category.topic),
@@ -64,7 +64,8 @@ class ProblemScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                  builder: (_) => CourseDetailScreen(course: demoCourses.last)),
+                  builder: (_) => CourseDetailScreen(
+                      course: _demoRepository.suggestedCourse)),
             ),
           ),
         ],

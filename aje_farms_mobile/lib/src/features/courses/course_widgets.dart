@@ -3,7 +3,7 @@ part of '../../app.dart';
 class _CourseCard extends StatelessWidget {
   const _CourseCard({required this.course});
 
-  final DemoCourse course;
+  final Course course;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +85,7 @@ class _CourseCard extends StatelessWidget {
 class _LessonTile extends StatelessWidget {
   const _LessonTile({required this.lesson, required this.onTap});
 
-  final DemoLesson lesson;
+  final Lesson lesson;
   final VoidCallback onTap;
 
   @override
