@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F4F7F6;
+  --color-surface: #FFFFFF;
+  --color-surface-dim: #F8FAFC;
+  --color-primary: #1C4D32;
+  --color-primary-container: #E6F0EB;
+  --color-on-primary-container: #103020;
+  --color-secondary: #C85A3C;
+  --color-secondary-container: #FDF1ED;
+  
+  /* Soft Pastel Accents for Learning Modules */
+  --color-accent-mint: #E2EFE9;
+  --color-accent-blue: #E5EEF5;
+  --color-accent-peach: #F4EBE6;
+  --color-accent-dark: #1F2937;
+  
+  --color-on-primary: #ffffff;
+  --color-on-surface: #1E293B;
+  --color-on-surface-variant: #64748B;
+  --color-on-background: #0F172A;
+  --color-outline: #E2E8F0;
+  --color-outline-variant: #F1F5F9;
+
+  --font-sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-label: 'Work Sans', system-ui, sans-serif;
+
+  --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.05);
+  --shadow-float: 0 20px 40px -10px rgba(0,0,0,0.1);
+  --shadow-button: 0 8px 20px -6px rgba(28, 77, 50, 0.4);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-sans antialiased;
+  }
+}
+
+/* Hide scrollbar for clean UI but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
