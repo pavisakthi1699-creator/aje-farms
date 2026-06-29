@@ -150,7 +150,11 @@ class _MiniActionCard extends StatelessWidget {
 }
 
 class _CourseProgressCard extends StatelessWidget {
-  const _CourseProgressCard({required this.course, required this.onTap});
+  const _CourseProgressCard({
+    required this.course,
+    required this.onTap,
+    super.key,
+  });
 
   final Course course;
   final VoidCallback onTap;
@@ -160,6 +164,7 @@ class _CourseProgressCard extends StatelessWidget {
     return Card(
       color: AppColors.peach,
       child: InkWell(
+        key: ValueKey('dashboard-course-tap-${course.id}'),
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(

@@ -53,6 +53,42 @@ void main() {
     expect(find.text('Msaidizi wa Binadamu'), findsOneWidget);
   });
 
+  testWidgets('continues a course and opens lesson and premium states',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const AjeFarmsApp());
+
+    await tester.tap(find.text('Anza Sasa'));
+    await tester.pumpAndSettle();
+
+    final dashboardCourse =
+        find.byKey(const ValueKey('dashboard-course-tap-pasheni'));
+    await tester.scrollUntilVisible(dashboardCourse, 220);
+    await tester.tap(dashboardCourse);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mwendelezo wa kozi'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Maandalizi ya shamba'), 220);
+    expect(find.text('Maandalizi ya shamba'), findsOneWidget);
+    expect(find.text('Umekamilisha'), findsWidgets);
+
+    await tester.tap(find.text('Maandalizi ya shamba'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fungua Somo la Mfano'), findsOneWidget);
+    expect(find.textContaining('Tambua eneo'), findsOneWidget);
+
+    await tester.tap(find.text('Fungua Somo la Mfano'));
+    await tester.pump();
+
+    expect(find.textContaining('Video: Maandalizi ya shamba'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Jaribio la maarifa'));
+    await tester.tap(find.text('Jaribio la maarifa'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Muda wa jaribio umeisha'), findsOneWidget);
+  });
+
   testWidgets('auth demo flow sends OTP and continues',
       (WidgetTester tester) async {
     await tester.pumpWidget(const AjeFarmsApp());

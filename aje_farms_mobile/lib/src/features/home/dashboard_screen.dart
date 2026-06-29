@@ -77,6 +77,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _CourseProgressCard(
+            key: ValueKey('dashboard-course-${activeCourse.id}'),
             course: activeCourse,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(

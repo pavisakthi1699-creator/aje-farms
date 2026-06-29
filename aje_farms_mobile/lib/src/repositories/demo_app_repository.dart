@@ -50,15 +50,27 @@ const _courses = [
     ],
     lessons: [
       Lesson(
-          title: 'Maandalizi ya shamba', type: LessonType.video, meta: 'DKK 5'),
+        title: 'Maandalizi ya shamba',
+        type: LessonType.video,
+        meta: 'DKK 5',
+        description:
+            'Tambua eneo lenye mwanga, maji yanayopita vizuri na nafasi ya mistari kabla ya kupanda pasheni.',
+        isCompleted: true,
+      ),
       Lesson(
-          title: 'Mwongozo mfupi wa pasheni',
-          type: LessonType.pdf,
-          meta: '2 MB'),
+        title: 'Mwongozo mfupi wa pasheni',
+        type: LessonType.pdf,
+        meta: '2 MB',
+        description:
+            'Pakua muhtasari wa hatua za kupanda, kuweka nguzo, kumwagilia na kutambua dalili za mwanzo.',
+        isCompleted: true,
+      ),
       Lesson(
         title: 'Jaribio la maarifa',
         type: LessonType.quiz,
         meta: 'Maswali 10',
+        description:
+            'Pima kama uko tayari kuendelea kwenye hatua za magonjwa, mavuno na masoko.',
         isPremium: true,
       ),
     ],
@@ -80,14 +92,25 @@ const _courses = [
     ],
     lessons: [
       Lesson(
-          title: 'Misingi ya ufugaji wa kuku',
-          type: LessonType.video,
-          meta: 'DKK 6'),
-      Lesson(title: 'Ratiba ya chanjo', type: LessonType.pdf, meta: '1 MB'),
+        title: 'Misingi ya ufugaji wa kuku',
+        type: LessonType.video,
+        meta: 'DKK 6',
+        description:
+            'Jifunze mahitaji ya banda, maji, chakula na usafi kabla ya kuleta vifaranga.',
+      ),
+      Lesson(
+        title: 'Ratiba ya chanjo',
+        type: LessonType.pdf,
+        meta: '1 MB',
+        description:
+            'Orodha ya chanjo muhimu na muda wa kuzitoa kwa kuku wa nyama au mayai.',
+      ),
       Lesson(
         title: 'Biashara ya kuku',
         type: LessonType.quiz,
         meta: 'Premium',
+        description:
+            'Kadiria gharama, mapato na masoko kabla ya kuongeza idadi ya kuku.',
         isPremium: true,
       ),
     ],
@@ -109,12 +132,26 @@ const _courses = [
       'Kudhibiti wadudu na magonjwa',
     ],
     lessons: [
-      Lesson(title: 'Kuandaa kitalu', type: LessonType.video, meta: 'DKK 4'),
-      Lesson(title: 'Udhibiti wa wadudu', type: LessonType.pdf, meta: '2 MB'),
+      Lesson(
+        title: 'Kuandaa kitalu',
+        type: LessonType.video,
+        meta: 'DKK 4',
+        description:
+            'Chagua mbegu, andaa kivuli na linda miche dhidi ya maji mengi na wadudu.',
+      ),
+      Lesson(
+        title: 'Udhibiti wa wadudu',
+        type: LessonType.pdf,
+        meta: '2 MB',
+        description:
+            'Tambua viwavi, vidukari na ukungu mapema kabla ya kuchagua dawa au hatua ya shamba.',
+      ),
       Lesson(
         title: 'Maandalizi ya soko',
         type: LessonType.quiz,
         meta: 'Premium',
+        description:
+            'Panga kuvuna, kupanga madaraja na kuzungumza na wanunuzi kabla ya msimu.',
         isPremium: true,
       ),
     ],

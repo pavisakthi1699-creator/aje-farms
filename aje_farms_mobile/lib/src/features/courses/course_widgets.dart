@@ -1,5 +1,51 @@
 part of '../../app.dart';
 
+class _LearningSummaryCard extends StatelessWidget {
+  const _LearningSummaryCard({required this.courses});
+
+  final List<Course> courses;
+
+  @override
+  Widget build(BuildContext context) {
+    final completedLessons = courses
+        .expand((course) => course.lessons)
+        .where((lesson) => lesson.isCompleted)
+        .length;
+    final totalLessons =
+        courses.expand((course) => course.lessons).toList().length;
+
+    return Card(
+      color: AppColors.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(Icons.menu_book_outlined, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Maktaba yako',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$completedLessons kati ya $totalLessons yamekamilika kwenye kozi za mfano.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CourseCard extends StatelessWidget {
   const _CourseCard({required this.course});
 
@@ -7,6 +53,11 @@ class _CourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final completed =
+        course.lessons.where((lesson) => lesson.isCompleted).length;
+    final total = course.lessons.length;
+    final hasPremium = course.lessons.any((lesson) => lesson.isPremium);
+
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -22,6 +73,25 @@ class _CourseCard extends StatelessWidget {
                   _NetworkPhoto(url: course.imageUrl),
                   Positioned(
                       left: 16, top: 16, child: _Pill(label: course.badge)),
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.58),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$completed/$total masomo',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -35,6 +105,34 @@ class _CourseCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(course.description),
+                const SizedBox(height: 14),
+                LinearProgressIndicator(value: course.progress),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(
+                      course.progress > 0
+                          ? '${(course.progress * 100).round()}% imekamilika'
+                          : 'Tayari kuanza',
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    const Spacer(),
+                    if (hasPremium)
+                      const Row(
+                        children: [
+                          Icon(Icons.lock_outline,
+                              size: 16, color: AppColors.muted),
+                          SizedBox(width: 4),
+                          Text('Premium',
+                              style: TextStyle(
+                                  color: AppColors.muted,
+                                  fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).push(
@@ -82,6 +180,51 @@ class _CourseCard extends StatelessWidget {
   }
 }
 
+class _CourseProgressSummary extends StatelessWidget {
+  const _CourseProgressSummary({required this.course});
+
+  final Course course;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed =
+        course.lessons.where((lesson) => lesson.isCompleted).length;
+    final total = course.lessons.length;
+
+    return Card(
+      color: AppColors.mint,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.insights, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Mwendelezo wa kozi',
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                Text('$completed/$total',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: course.progress),
+            const SizedBox(height: 10),
+            Text(
+              completed == 0
+                  ? 'Anza na somo la kwanza kisha fuata mpangilio wa masomo.'
+                  : 'Masomo ya msingi yamekamilika. Endelea na jaribio au uliza AI swali la kozi.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LessonTile extends StatelessWidget {
   const _LessonTile({required this.lesson, required this.onTap});
 
@@ -90,6 +233,8 @@ class _LessonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusColor =
+        lesson.isCompleted ? AppColors.primary : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ListTile(
@@ -99,15 +244,98 @@ class _LessonTile extends StatelessWidget {
           radius: 28,
           backgroundColor:
               lesson.isPremium ? Colors.grey.shade100 : AppColors.blue,
-          child: Icon(lesson.isPremium ? Icons.lock_outline : lesson.type.icon,
-              color: lesson.isPremium ? Colors.grey : AppColors.primary),
+          child: Icon(
+            lesson.isPremium
+                ? Icons.lock_outline
+                : lesson.isCompleted
+                    ? Icons.check_circle
+                    : lesson.type.icon,
+            color: lesson.isPremium ? Colors.grey : AppColors.primary,
+          ),
         ),
         title: Text(lesson.title,
             style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text('${lesson.type.label} - ${lesson.meta}'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${lesson.type.label} - ${lesson.meta}'),
+            const SizedBox(height: 2),
+            Text(
+              lesson.isPremium
+                  ? 'Fungua premium kuendelea'
+                  : lesson.isCompleted
+                      ? 'Umekamilisha'
+                      : 'Bado hujaanza',
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
         trailing:
             Icon(lesson.isPremium ? Icons.lock_outline : Icons.chevron_right),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _LessonPreviewSheet extends StatelessWidget {
+  const _LessonPreviewSheet({required this.lesson, required this.courseTitle});
+
+  final Lesson lesson;
+  final String courseTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.blue,
+                  child: Icon(lesson.type.icon, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(lesson.title,
+                          style: Theme.of(context).textTheme.titleMedium),
+                      Text('$courseTitle - ${lesson.type.label}'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(lesson.description),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showSnack(context, '${lesson.type.label}: ${lesson.title}');
+              },
+              icon: Icon(lesson.type.icon),
+              label: const Text('Fungua Somo la Mfano'),
+            ),
+          ],
+        ),
       ),
     );
   }

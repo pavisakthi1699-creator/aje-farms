@@ -39,6 +39,8 @@ class CourseDetailScreen extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate(
                 [
+                  _CourseProgressSummary(course: course),
+                  const SizedBox(height: 16),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
@@ -94,8 +96,14 @@ class CourseDetailScreen extends StatelessWidget {
                                 builder: (_) => const PaywallScreen()),
                           );
                         } else {
-                          _showSnack(
-                              context, '${lesson.type.label}: ${lesson.title}');
+                          showModalBottomSheet<void>(
+                            context: context,
+                            showDragHandle: false,
+                            builder: (_) => _LessonPreviewSheet(
+                              lesson: lesson,
+                              courseTitle: course.title,
+                            ),
+                          );
                         }
                       },
                     ),
@@ -105,8 +113,12 @@ class CourseDetailScreen extends StatelessWidget {
                     courseTitle: course.title,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                          builder: (_) =>
-                              AiChatScreen(initialPromptTopic: course.title)),
+                        builder: (_) => AiChatScreen(
+                          initialPromptTopic: course.title,
+                          initialPrompt:
+                              'Ninaendelea na ${course.title}. Nisaidie kuelewa somo linalofuata.',
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),

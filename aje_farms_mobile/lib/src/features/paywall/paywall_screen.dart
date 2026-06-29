@@ -59,29 +59,35 @@ class _PaywallScreenState extends State<PaywallScreen> {
         children: [
           Container(
             height: 190,
-            padding: const EdgeInsets.all(22),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(28),
-              image: DecorationImage(
-                image: NetworkImage(_demoRepository.featuredCourse.imageUrl),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                    Colors.black.withValues(alpha: 0.42), BlendMode.darken),
-              ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                _Pill(label: 'Kifurushi Kimeisha', color: AppColors.secondary),
-                SizedBox(height: 10),
-                Text(
-                  'Muda wa jaribio umeisha',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800),
+                _NetworkPhoto(url: _demoRepository.featuredCourse.imageUrl),
+                Container(color: Colors.black.withValues(alpha: 0.42)),
+                const Padding(
+                  padding: EdgeInsets.all(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _Pill(
+                          label: 'Kifurushi Kimeisha',
+                          color: AppColors.secondary),
+                      SizedBox(height: 10),
+                      Text(
+                        'Muda wa jaribio umeisha',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

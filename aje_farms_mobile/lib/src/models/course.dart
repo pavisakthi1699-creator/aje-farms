@@ -16,13 +16,17 @@ class Lesson {
     required this.title,
     required this.type,
     required this.meta,
+    required this.description,
     this.isPremium = false,
+    this.isCompleted = false,
   });
 
   final String title;
   final LessonType type;
   final String meta;
+  final String description;
   final bool isPremium;
+  final bool isCompleted;
 }
 
 class Course {
