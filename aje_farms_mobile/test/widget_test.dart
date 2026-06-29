@@ -89,6 +89,52 @@ void main() {
     expect(find.text('Muda wa jaribio umeisha'), findsOneWidget);
   });
 
+  testWidgets('opens community discussion and replies with AI handoff',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const AjeFarmsApp());
+
+    await tester.tap(find.text('Anza Sasa'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.groups_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Jamii hai leo'), findsOneWidget);
+    expect(
+        find.text(
+            'Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.'),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('community-filter-Magonjwa')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inahitaji haraka'), findsOneWidget);
+    expect(find.text('Natafuta mwongozo wa kuanza ufugaji wa kuku wa nyama.'),
+        findsNothing);
+
+    await tester.tap(find
+        .text('Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Majadiliano'), findsOneWidget);
+    expect(find.text('Hatua inayofuata'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField),
+        'Nitapunguza maji na kuangalia chini ya majani.');
+    await tester.tap(find.byKey(const ValueKey('community-send-reply')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Jibu limehifadhiwa kwenye demo.'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Fupisha na AI'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fupisha na AI'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Muktadha uliotumwa'), findsOneWidget);
+    expect(find.text('Jamii'), findsOneWidget);
+  });
+
   testWidgets('auth demo flow sends OTP and continues',
       (WidgetTester tester) async {
     await tester.pumpWidget(const AjeFarmsApp());

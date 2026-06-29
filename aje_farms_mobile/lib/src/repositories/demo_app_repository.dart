@@ -217,7 +217,24 @@ const _communityPosts = [
     content: 'Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.',
     likes: 12,
     comments: 4,
+    tags: ['Pasheni', 'Magonjwa'],
+    replies: [
+      CommunityReply(
+        author: 'Mtaalamu AJE',
+        body:
+            'Angalia kama kuna madoa chini ya jani na kama maji yanasimama karibu na shina. Ukiona ukungu, tenga sehemu iliyoathirika kwanza.',
+        time: 'Dakika 45 zilizopita',
+        isExpert: true,
+      ),
+      CommunityReply(
+        author: 'Mama Asha',
+        body:
+            'Nilipunguza kumwagilia na kuondoa majani yaliyoathirika, hali ikaanza kuwa nzuri.',
+        time: 'Dakika 20 zilizopita',
+      ),
+    ],
     hasImage: true,
+    isUrgent: true,
   ),
   CommunityPost(
     author: 'Mama Asha',
@@ -227,6 +244,41 @@ const _communityPosts = [
     relatedTopic: 'Ufugaji wa Kuku',
     likes: 34,
     comments: 8,
+    tags: ['Mifugo', 'Kuku'],
+    replies: [
+      CommunityReply(
+        author: 'Daudi K.',
+        body:
+            'Anza na idadi ndogo, andaa banda lenye hewa na hakikisha ratiba ya chanjo iko tayari kabla ya vifaranga.',
+        time: 'Saa 3 zilizopita',
+      ),
+      CommunityReply(
+        author: 'Mtaalamu AJE',
+        body:
+            'Kozi ya ufugaji wa kuku ina checklist ya banda na ratiba ya chanjo. Itakusaidia kupanga gharama za mwanzo.',
+        time: 'Saa 1 iliyopita',
+        isExpert: true,
+      ),
+    ],
+  ),
+  CommunityPost(
+    author: 'Mtaalamu AJE',
+    location: 'Arusha',
+    time: 'Leo',
+    content:
+        'Bei ya nyanya imepanda kwenye baadhi ya masoko. Wakulima waangalie ubora na kupanga kuvuna asubuhi ili kupunguza kuharibika.',
+    relatedTopic: 'Kilimo cha Nyanya',
+    likes: 57,
+    comments: 11,
+    tags: ['Masoko', 'Nyanya'],
+    replies: [
+      CommunityReply(
+        author: 'Joseph M.',
+        body: 'Je, kuna bei elekezi kwa Morogoro wiki hii?',
+        time: 'Saa 1 iliyopita',
+      ),
+    ],
+    isExpert: true,
   ),
 ];
 
