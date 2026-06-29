@@ -1,9 +1,16 @@
 part of '../../app.dart';
 
 class AiChatScreen extends StatefulWidget {
-  const AiChatScreen({this.initialPromptTopic, super.key});
+  const AiChatScreen({
+    this.initialPromptTopic,
+    this.initialPromptDetail,
+    this.initialPrompt,
+    super.key,
+  });
 
   final String? initialPromptTopic;
+  final String? initialPromptDetail;
+  final String? initialPrompt;
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
@@ -23,10 +30,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void initState() {
     super.initState();
-    final topic = widget.initialPromptTopic;
-    if (topic != null && topic.isNotEmpty) {
+    final prompt = widget.initialPrompt;
+    if (prompt != null && prompt.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _send('Nina shida kuhusu $topic. Naweza kupata ushauri?');
+        _send(prompt);
       });
     }
   }
@@ -58,11 +65,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const suggestions = [
-      'Dawa gani kwa ukungu?',
-      'Mbolea ya DAP',
-      'Matatizo ya Nyanya'
-    ];
+    final suggestions = _suggestionsFor(widget.initialPromptTopic);
 
     return Scaffold(
       appBar: AppBar(
@@ -89,6 +92,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
       ),
       body: Column(
         children: [
+          if (widget.initialPromptTopic != null)
+            _IntakeContextCard(
+              topic: widget.initialPromptTopic!,
+              detail: widget.initialPromptDetail,
+            ),
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.all(20),
@@ -101,11 +109,18 @@ class _AiChatScreenState extends State<AiChatScreen> {
                     child: _TypingBubble(),
                   );
                 }
-                return _ChatBubble(message: _messages[index]);
+                return _ChatBubble(
+                  message: _messages[index],
+                  onEscalate: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WhatsAppEscalationScreen(),
+                    ),
+                  ),
+                );
               },
             ),
           ),
-          if (_messages.length == 1)
+          if (_messages.length == 1 && !_isLoading)
             SizedBox(
               height: 58,
               child: ListView.separated(
@@ -128,6 +143,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
+                      enabled: !_isLoading,
                       decoration: InputDecoration(
                         hintText: 'Uliza ushauri kuhusu kilimo...',
                         filled: true,
@@ -142,8 +158,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   ),
                   const SizedBox(width: 10),
                   IconButton.filled(
-                    onPressed: () => _send(),
-                    icon: const Icon(Icons.send),
+                    onPressed: _isLoading ? null : () => _send(),
+                    icon: _isLoading
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
                   ),
                 ],
               ),
@@ -152,5 +173,22 @@ class _AiChatScreenState extends State<AiChatScreen> {
         ],
       ),
     );
+  }
+
+  List<String> _suggestionsFor(String? topic) {
+    final lower = topic?.toLowerCase() ?? '';
+    if (lower.contains('wadudu')) {
+      return ['Dalili zipi ni hatari?', 'Nifanye nini leo?', 'Dawa ya kuanza'];
+    }
+    if (lower.contains('mbolea')) {
+      return ['Nitumie mbolea gani?', 'Kipimo kwa shimo', 'Udongo umechoka'];
+    }
+    if (lower.contains('maji')) {
+      return ['Ratiba ya kumwagilia', 'Maji yanasimama', 'Dalili za ukame'];
+    }
+    if (lower.contains('ufugaji')) {
+      return ['Ratiba ya chanjo', 'Chakula cha kuku', 'Banda lenye hewa'];
+    }
+    return ['Dawa gani kwa ukungu?', 'Mbolea ya DAP', 'Matatizo ya Nyanya'];
   }
 }

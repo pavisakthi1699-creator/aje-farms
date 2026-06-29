@@ -1,7 +1,11 @@
 part of '../../app.dart';
 
 class _ProblemCategoryTile extends StatelessWidget {
-  const _ProblemCategoryTile({required this.category, required this.onTap});
+  const _ProblemCategoryTile({
+    required this.category,
+    required this.onTap,
+    super.key,
+  });
 
   final ProblemCategory category;
   final VoidCallback onTap;
@@ -16,7 +20,6 @@ class _ProblemCategoryTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
                 backgroundColor: category.color.withValues(alpha: 0.12),
@@ -25,6 +28,39 @@ class _ProblemCategoryTile extends StatelessWidget {
               const SizedBox(height: 12),
               Text(category.title,
                   style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Text(
+                  category.summary,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.muted,
+                        height: 1.25,
+                      ),
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final example in category.examples)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: category.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        example,
+                        style: TextStyle(
+                          color: category.color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),

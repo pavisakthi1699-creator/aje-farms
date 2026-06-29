@@ -19,7 +19,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Karibu, Mkulima'), findsOneWidget);
-    expect(find.text('Una changamoto gani leo?'), findsOneWidget);
+    expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
+    expect(find.text('Jaribio linaendelea'), findsOneWidget);
+  });
+
+  testWidgets('guides farmer from home problem intake into AI chat',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const AjeFarmsApp());
+
+    await tester.tap(find.text('Anza Sasa'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Eleza Tatizo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zao au mnyama (hiari)'), findsOneWidget);
+    expect(find.text('Magonjwa ya mimea'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'nyanya');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    final plantDiseaseTile =
+        find.byKey(const ValueKey('problem-category-Magonjwa ya mimea'));
+    await tester.ensureVisible(plantDiseaseTile);
+    await tester.tap(plantDiseaseTile);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Muktadha uliotumwa'), findsOneWidget);
+    expect(find.text('Magonjwa ya mimea - nyanya'), findsOneWidget);
+    expect(find.textContaining('Zao/mnyama: nyanya'), findsOneWidget);
+    expect(find.textContaining('Kwa nyanya'), findsOneWidget);
+    expect(find.text('Ona Kwenye Mafunzo'), findsOneWidget);
+    expect(find.text('Msaidizi wa Binadamu'), findsOneWidget);
   });
 
   testWidgets('auth demo flow sends OTP and continues',

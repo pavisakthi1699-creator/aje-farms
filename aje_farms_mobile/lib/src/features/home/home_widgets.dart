@@ -1,5 +1,40 @@
 part of '../../app.dart';
 
+class _TrialStatusCard extends StatelessWidget {
+  const _TrialStatusCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primaryContainer,
+            child: Icon(Icons.timer_outlined, color: AppColors.primary),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Jaribio linaendelea',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                SizedBox(height: 2),
+                Text('Saa 24 za Mwalimu AI na masomo ya mfano zimefunguliwa.'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeroActionCard extends StatelessWidget {
   const _HeroActionCard({required this.onTap});
 
@@ -25,13 +60,13 @@ class _HeroActionCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _Pill(label: '24h Jaribio Lako'),
+                  const _Pill(label: 'Kipaumbele cha leo'),
                   const SizedBox(height: 22),
-                  Text('Una changamoto gani leo?',
+                  Text('Eleza tatizo la shamba',
                       style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   const Text(
-                      'Pata ushauri wa kitaalamu papo hapo kwa msaada wa AI.'),
+                      'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.'),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: onTap,
@@ -146,6 +181,8 @@ class _CourseProgressCard extends StatelessWidget {
                   children: [
                     Text(course.title,
                         style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    const Text('Somo linalofuata: Udhibiti wa changamoto'),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -163,6 +200,11 @@ class _CourseProgressCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     LinearProgressIndicator(value: course.progress),
+                    const SizedBox(height: 10),
+                    const Text('Endelea na kozi',
+                        style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),

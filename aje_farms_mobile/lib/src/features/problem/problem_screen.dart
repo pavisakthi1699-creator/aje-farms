@@ -1,12 +1,52 @@
 part of '../../app.dart';
 
-class ProblemScreen extends StatelessWidget {
+class ProblemScreen extends StatefulWidget {
   const ProblemScreen({super.key});
 
-  void _openChat(BuildContext context, String topic) {
+  @override
+  State<ProblemScreen> createState() => _ProblemScreenState();
+}
+
+class _ProblemScreenState extends State<ProblemScreen> {
+  final _detailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _detailController.dispose();
+    super.dispose();
+  }
+
+  void _openChat(BuildContext context, ProblemCategory category) {
+    final detail = _detailController.text.trim();
+    final prompt = detail.isEmpty
+        ? 'Nina shida kuhusu ${category.topic}. Naweza kupata ushauri?'
+        : 'Nina shida kuhusu ${category.topic}. Zao/mnyama: $detail. Naweza kupata ushauri?';
+
     Navigator.of(context).push(
       MaterialPageRoute(
-          builder: (_) => AiChatScreen(initialPromptTopic: topic)),
+        builder: (_) => AiChatScreen(
+          initialPromptTopic: category.topic,
+          initialPromptDetail: detail.isEmpty ? null : detail,
+          initialPrompt: prompt,
+        ),
+      ),
+    );
+  }
+
+  void _openUnknownProblem(BuildContext context) {
+    final detail = _detailController.text.trim();
+    final prompt = detail.isEmpty
+        ? 'Sijui tatizo kwenye shamba langu. Nisaidie kuuliza maswali ya kutambua.'
+        : 'Sijui tatizo kwenye $detail. Nisaidie kuuliza maswali ya kutambua.';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AiChatScreen(
+          initialPromptTopic: 'Sijui tatizo',
+          initialPromptDetail: detail.isEmpty ? null : detail,
+          initialPrompt: prompt,
+        ),
+      ),
     );
   }
 
@@ -26,7 +66,23 @@ class ProblemScreen extends StatelessWidget {
             'Una changamoto gani leo kwenye shamba lako?',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _detailController,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: 'Zao au mnyama (hiari)',
+              hintText: 'Mfano: nyanya, pasheni, kuku wa nyama',
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: const Icon(Icons.agriculture_outlined),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -35,18 +91,19 @@ class ProblemScreen extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 14,
               mainAxisSpacing: 14,
-              childAspectRatio: 1.18,
+              childAspectRatio: 0.86,
             ),
             itemBuilder: (context, index) {
               final category = _demoRepository.problemCategories[index];
               return _ProblemCategoryTile(
+                key: ValueKey('problem-category-${category.topic}'),
                 category: category,
-                onTap: () => _openChat(context, category.topic),
+                onTap: () => _openChat(context, category),
               );
             },
           ),
           const SizedBox(height: 14),
-          _UnknownProblemTile(onTap: () => _openChat(context, 'Sijui tatizo')),
+          _UnknownProblemTile(onTap: () => _openUnknownProblem(context)),
           const SizedBox(height: 28),
           Text('Mada Pengekezi',
               style: Theme.of(context).textTheme.titleMedium),

@@ -30,7 +30,9 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Endeleza shamba lako leo',
               style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          const _TrialStatusCard(),
+          const SizedBox(height: 16),
           _HeroActionCard(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProblemScreen()),
@@ -67,7 +69,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _SectionHeader(
-            title: 'Masomo Yangu',
+            title: 'Endelea Kujifunza',
             actionIcon: Icons.add,
             onAction: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CoursesScreen()),

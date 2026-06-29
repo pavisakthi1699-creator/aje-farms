@@ -17,7 +17,8 @@ class _CommunityTeaser extends StatelessWidget {
         ),
         title: const Text('Jiunge na Jamii',
             style: TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: const Text('Wakulima 1,200+'),
+        subtitle:
+            const Text('Wakulima 1,200+ wanajadili pasheni, nyanya na kuku.'),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
