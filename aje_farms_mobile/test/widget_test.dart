@@ -1,9 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:aje_farms_mobile/src/app.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('renders AJE Farms onboarding', (WidgetTester tester) async {
     await tester.pumpWidget(const AjeFarmsApp());
 
@@ -124,7 +128,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('community-send-reply')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Jibu limehifadhiwa kwenye demo.'), findsOneWidget);
+    expect(find.text('Jibu limehifadhiwa.'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Fupisha na AI'));
     await tester.pumpAndSettle();
@@ -137,7 +141,15 @@ void main() {
 
   testWidgets('selects a plan and completes demo mobile money checkout',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: PaywallScreen()));
+    await tester.pumpWidget(
+      AppDependenciesScope(
+        dependencies: AppDependencies.demo(),
+        child: AppSessionScope(
+          controller: AppSessionController(),
+          child: const MaterialApp(home: PaywallScreen()),
+        ),
+      ),
+    );
 
     expect(find.text('Mwalimu AI bila kikomo'), findsOneWidget);
 
@@ -180,10 +192,11 @@ void main() {
     expect(find.text('Karibu tena'), findsOneWidget);
 
     await tester.enterText(find.byType(EditableText).first, '712345678');
+    await tester.ensureVisible(find.text('Tuma OTP'));
     await tester.tap(find.text('Tuma OTP'));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('OTP ya mfano'), findsOneWidget);
+    expect(find.text('OTP'), findsOneWidget);
 
     await tester.enterText(find.byType(EditableText).last, '1234');
     await tester.ensureVisible(find.text('Endelea kwenye App'));
@@ -192,5 +205,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Karibu, Mkulima'), findsOneWidget);
+  });
+
+  testWidgets('creates a local community post', (WidgetTester tester) async {
+    await tester.pumpWidget(const AjeFarmsApp());
+
+    await tester.tap(find.text('Anza Sasa'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.groups_outlined));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextField).first,
+      'Majani ya nyanya yana madoa ya njano na nataka ushauri.',
+    );
+    await tester.enterText(find.byType(TextField).last, 'Morogoro');
+    await tester.tap(find.text('Nyanya'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tuma kwenye Jamii'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Post imetumwa kwenye jamii.'), findsOneWidget);
+    expect(
+      find.text('Majani ya nyanya yana madoa ya njano na nataka ushauri.'),
+      findsOneWidget,
+    );
   });
 }

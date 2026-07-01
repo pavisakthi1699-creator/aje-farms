@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _CommunityPostCard extends StatelessWidget {
-  const _CommunityPostCard({required this.post, required this.onOpen});
+import "../../ui.dart";
+
+class CommunityPostCard extends StatelessWidget {
+  const CommunityPostCard({required this.post, required this.onOpen});
 
   final CommunityPost post;
   final VoidCallback onOpen;
@@ -57,13 +59,13 @@ class _CommunityPostCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if (post.isUrgent)
-                    const _CommunityBadge(
+                    const CommunityBadge(
                       icon: Icons.priority_high,
                       label: 'Inahitaji haraka',
                       color: AppColors.secondary,
                     ),
                   for (final tag in post.tags)
-                    _CommunityBadge(
+                    CommunityBadge(
                       icon: Icons.local_offer_outlined,
                       label: tag,
                       color: AppColors.primary,
@@ -160,8 +162,8 @@ class _CommunityPostCard extends StatelessWidget {
   }
 }
 
-class _CommunityFilters extends StatelessWidget {
-  const _CommunityFilters({
+class CommunityFilters extends StatelessWidget {
+  const CommunityFilters({
     required this.selectedFilter,
     required this.onSelected,
   });
@@ -189,8 +191,8 @@ class _CommunityFilters extends StatelessWidget {
   }
 }
 
-class _CommunitySummaryCard extends StatelessWidget {
-  const _CommunitySummaryCard({required this.posts});
+class CommunitySummaryCard extends StatelessWidget {
+  const CommunitySummaryCard({required this.posts});
 
   final List<CommunityPost> posts;
 
@@ -231,8 +233,8 @@ class _CommunitySummaryCard extends StatelessWidget {
   }
 }
 
-class _CommunityBadge extends StatelessWidget {
-  const _CommunityBadge({
+class CommunityBadge extends StatelessWidget {
+  const CommunityBadge({
     required this.icon,
     required this.label,
     required this.color,
@@ -269,8 +271,8 @@ class _CommunityBadge extends StatelessWidget {
   }
 }
 
-class _DiscussionActionPanel extends StatelessWidget {
-  const _DiscussionActionPanel({required this.post});
+class DiscussionActionPanel extends StatelessWidget {
+  const DiscussionActionPanel({required this.post});
 
   final CommunityPost post;
 
@@ -324,8 +326,8 @@ class _DiscussionActionPanel extends StatelessWidget {
   }
 }
 
-class _CommunityReplyTile extends StatelessWidget {
-  const _CommunityReplyTile({required this.reply});
+class CommunityReplyTile extends StatelessWidget {
+  const CommunityReplyTile({required this.reply});
 
   final CommunityReply reply;
 

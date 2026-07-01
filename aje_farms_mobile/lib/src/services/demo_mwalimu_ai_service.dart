@@ -29,6 +29,6 @@ class DemoMwalimuAiService implements MwalimuAiService {
     if (lower.contains('soko') || lower.contains('bei')) {
       return 'Kwa soko, linganisha bei kwa wanunuzi wawili au watatu, panga kuvuna kulingana na ubora unaotakiwa, na hifadhi mazao sehemu yenye kivuli kabla ya kusafirisha.\n\nChanzo: Mwongozo wa maandalizi ya soko';
     }
-    return 'Hili ni jibu la mfano lililofungwa kwenye maarifa yaliyoidhinishwa. Eleza zao, eneo, dalili, na muda wa tatizo ili nipendekeze hatua inayofuata.\n\nChanzo: Taarifa zilizoidhinishwa';
+    return 'Sina taarifa ya kutosha kwenye maelezo yako. Eleza zao au mnyama, eneo, dalili kuu, na muda ambao tatizo limeanza ili nipendekeze hatua salama inayofuata.\n\nChanzo: Taarifa zilizoidhinishwa';
   }
 }

@@ -1,16 +1,18 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-enum _ChatRole { user, model }
+import "../../ui.dart";
 
-class _ChatMessage {
-  const _ChatMessage({required this.role, required this.text});
+enum ChatRole { user, model }
 
-  final _ChatRole role;
+class ChatMessage {
+  const ChatMessage({required this.role, required this.text});
+
+  final ChatRole role;
   final String text;
 }
 
-class _IntakeContextCard extends StatelessWidget {
-  const _IntakeContextCard({required this.topic, this.detail});
+class IntakeContextCard extends StatelessWidget {
+  const IntakeContextCard({required this.topic, this.detail});
 
   final String topic;
   final String? detail;
@@ -50,15 +52,15 @@ class _IntakeContextCard extends StatelessWidget {
   }
 }
 
-class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message, required this.onEscalate});
+class ChatBubble extends StatelessWidget {
+  const ChatBubble({required this.message, required this.onEscalate});
 
-  final _ChatMessage message;
+  final ChatMessage message;
   final VoidCallback onEscalate;
 
   @override
   Widget build(BuildContext context) {
-    final isUser = message.role == _ChatRole.user;
+    final isUser = message.role == ChatRole.user;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -86,11 +88,11 @@ class _ChatBubble extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  const _ReplyActionChip(
+                  const ReplyActionChip(
                     icon: Icons.description_outlined,
                     label: 'Ona Kwenye Mafunzo',
                   ),
-                  _ReplyActionChip(
+                  ReplyActionChip(
                     icon: Icons.support_agent,
                     label: 'Msaidizi wa Binadamu',
                     onTap: onEscalate,
@@ -105,8 +107,8 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-class _ReplyActionChip extends StatelessWidget {
-  const _ReplyActionChip({
+class ReplyActionChip extends StatelessWidget {
+  const ReplyActionChip({
     required this.icon,
     required this.label,
     this.onTap,
@@ -149,8 +151,8 @@ class _ReplyActionChip extends StatelessWidget {
   }
 }
 
-class _TypingBubble extends StatelessWidget {
-  const _TypingBubble();
+class TypingBubble extends StatelessWidget {
+  const TypingBubble();
 
   @override
   Widget build(BuildContext context) {

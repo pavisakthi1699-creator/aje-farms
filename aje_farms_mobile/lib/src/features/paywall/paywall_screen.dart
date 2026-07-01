@@ -1,27 +1,21 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
 
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
 
   @override
-  State<PaywallScreen> createState() => _PaywallScreenState();
+  State<PaywallScreen> createState() => PaywallScreenState();
 }
 
-class _PaywallScreenState extends State<PaywallScreen> {
-  late PlanOption _selectedPlan;
+class PaywallScreenState extends State<PaywallScreen> {
+  PlanOption? _selectedPlan;
   final _phoneController = TextEditingController(text: '0712 345 678');
   String _paymentMethod = 'M-Pesa';
   bool _isProcessing = false;
   bool _isSuccess = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedPlan = _demoRepository.plans.firstWhere(
-      (plan) => plan.recommended,
-      orElse: () => _demoRepository.plans.first,
-    );
-  }
+  PlanOption? _processingPlan;
 
   @override
   void dispose() {
@@ -32,11 +26,17 @@ class _PaywallScreenState extends State<PaywallScreen> {
   Future<void> _handlePayment() async {
     final phone = _phoneController.text.trim();
     if (phone.length < 9) {
-      _showSnack(context, 'Weka namba ya simu sahihi kwa malipo.');
+      showSnack(context, 'Weka namba ya simu sahihi kwa malipo.');
       return;
     }
-    setState(() => _isProcessing = true);
+    final plan = _currentPlan(context);
+    setState(() {
+      _processingPlan = plan;
+      _isProcessing = true;
+    });
     await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    await context.session.activateSubscription(plan.title);
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
@@ -46,20 +46,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final plans = context.dependencies.subscriptionRepository.plans;
+    final selectedPlan = _processingPlan ?? _currentPlan(context);
+
     if (_isProcessing) {
-      return _PaymentStatusScreen(
+      return PaymentStatusScreen(
         isSuccess: false,
         title: 'Inasubiri uthibitisho...',
-        body: 'Tafadhali thibitisha ${_selectedPlan.price} kupitia '
+        body: 'Tafadhali thibitisha ${selectedPlan.price} kupitia '
             '$_paymentMethod kwa namba ${_phoneController.text}.',
       );
     }
 
     if (_isSuccess) {
-      return _PaymentStatusScreen(
+      return PaymentStatusScreen(
         isSuccess: true,
         title: 'Malipo Yamefanikiwa!',
-        body: '${_selectedPlan.title} imewashwa kupitia $_paymentMethod. '
+        body: '${selectedPlan.title} imewashwa kupitia $_paymentMethod. '
             'Risiti ya demo imetumwa kwa ${_phoneController.text}.',
       );
     }
@@ -87,7 +90,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _NetworkPhoto(url: _demoRepository.featuredCourse.imageUrl),
+                NetworkPhoto(
+                    url: context.dependencies.learningRepository.featuredCourse
+                        .imageUrl),
                 Container(color: Colors.black.withValues(alpha: 0.42)),
                 const Padding(
                   padding: EdgeInsets.all(22),
@@ -95,7 +100,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      _Pill(
+                      Pill(
                           label: 'Kifurushi Kimeisha',
                           color: AppColors.secondary),
                       SizedBox(height: 10),
@@ -119,12 +124,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 18),
-          const _PaymentBenefitsCard(),
+          const PaymentBenefitsCard(),
           const SizedBox(height: 24),
-          ..._demoRepository.plans.map(
-            (plan) => _PlanTile(
+          ...plans.map(
+            (plan) => PlanTile(
               plan: plan,
-              selected: plan == _selectedPlan,
+              selected: plan == selectedPlan,
               onTap: () => setState(() => _selectedPlan = plan),
             ),
           ),
@@ -162,9 +167,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     spacing: 10,
                     runSpacing: 8,
                     children: [
-                      _PaymentBadge(label: 'M-Pesa', color: Colors.red),
-                      _PaymentBadge(label: 'Tigo', color: Colors.blue),
-                      _PaymentBadge(label: 'Airtel', color: Colors.redAccent),
+                      PaymentBadge(label: 'M-Pesa', color: Colors.red),
+                      PaymentBadge(label: 'Tigo', color: Colors.blue),
+                      PaymentBadge(label: 'Airtel', color: Colors.redAccent),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -184,15 +189,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _PaymentSummaryCard(
-                    plan: _selectedPlan,
+                  PaymentSummaryCard(
+                    plan: selectedPlan,
                     method: _paymentMethod,
                   ),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: _handlePayment,
                     icon: const Icon(Icons.smartphone),
-                    label: Text('Lipa ${_selectedPlan.price}'),
+                    label: Text('Lipa ${selectedPlan.price}'),
                   ),
                   const SizedBox(height: 14),
                   const Row(
@@ -212,5 +217,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
         ],
       ),
     );
+  }
+
+  PlanOption _currentPlan(BuildContext context) {
+    final plans = context.dependencies.subscriptionRepository.plans;
+    return _selectedPlan ??
+        plans.firstWhere(
+          (plan) => plan.recommended,
+          orElse: () => plans.first,
+        );
   }
 }

@@ -1,13 +1,15 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  State<AuthScreen> createState() => AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class AuthScreenState extends State<AuthScreen> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   bool _otpSent = false;
@@ -22,18 +24,25 @@ class _AuthScreenState extends State<AuthScreen> {
   void _sendOtp() {
     final phone = _phoneController.text.trim();
     if (phone.length < 9) {
-      _showSnack(context, 'Weka namba ya simu yenye tarakimu 9 au zaidi.');
+      showSnack(context, 'Weka namba ya simu yenye tarakimu 9 au zaidi.');
       return;
     }
     setState(() => _otpSent = true);
-    _showSnack(context, 'OTP ya mfano imetumwa kwa +255 $phone.');
+    showSnack(context, 'OTP ya majaribio imetumwa kwa +255 $phone.');
   }
 
-  void _continueToApp({bool requireOtp = true}) {
+  Future<void> _continueToApp({bool requireOtp = true}) async {
     if (requireOtp && _otpSent && _otpController.text.trim().length < 4) {
-      _showSnack(context, 'Weka OTP ya mfano ili kuendelea.');
+      showSnack(context, 'Weka OTP ya mfano ili kuendelea.');
       return;
     }
+    if (requireOtp) {
+      await context.session
+          .signInWithPhone('+255 ${_phoneController.text.trim()}');
+    } else {
+      await context.session.startAsGuest();
+    }
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainShell()),
       (_) => false,
@@ -47,7 +56,7 @@ class _AuthScreenState extends State<AuthScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const _BrandHeader(),
+          const BrandHeader(),
           const SizedBox(height: 28),
           const Text(
             'Karibu tena',
@@ -71,7 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Kwa sasa hii ni demo ya frontend. OTP halisi itaunganishwa kwenye backend baadaye.',
+                      'Tutahifadhi kikao chako kwenye kifaa hiki. Kwa sasa OTP ni ya majaribio mpaka huduma ya SMS iunganishwe.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -102,8 +111,8 @@ class _AuthScreenState extends State<AuthScreen> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _continueToApp(),
               decoration: InputDecoration(
-                labelText: 'OTP ya mfano',
-                helperText: 'Weka tarakimu zozote 4 kwa demo',
+                labelText: 'OTP',
+                helperText: 'Weka tarakimu 4 ulizopokea',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -119,7 +128,7 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => _continueToApp(requireOtp: false),
-            child: const Text('Endelea kama mgeni wa demo'),
+            child: const Text('Endelea kama mgeni'),
           ),
         ],
       ),

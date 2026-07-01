@@ -4,9 +4,10 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 
 ## Current Baseline
 
-- Flutter app matches the demo MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
+- Flutter app matches the MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
 - React/Vite demo remains in the repo as the product reference.
-- All app behavior is currently local demo data. Real services are not wired yet.
+- App behavior is local-first: session, guest/phone entry, course progress, community posts/replies/reports, assessment scores, saved documents, settings, and subscription status persist on device/web storage.
+- Real external services are not wired yet: SMS OTP, backend content sync, server-side AI, real mobile money checkout, push notifications, and admin workflows.
 
 ## Build Order
 
@@ -16,11 +17,13 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
    - Keep demo repositories so UI can run without backend credentials.
 
 2. Authentication and accounts
+   - Local session and phone/guest state are implemented.
    - Phone OTP login for farmers.
    - User profile, role, subscription status, and trial state.
    - Roles: learner, expert, admin, content editor.
 
 3. Learning content
+   - Local lesson completion and saved documents are implemented.
    - Courses, lessons, PDFs, videos, progress tracking, and locked premium content.
    - Offline-friendly content cache for low-connectivity users.
    - Admin/editor workflow for publishing approved knowledge.
@@ -36,10 +39,12 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
    - Route to AI, community, or expert depending on urgency and subscription.
 
 6. Community
+   - Local posts, replies, reporting, filtering, and persisted user posts are implemented.
    - Posts, replies, reactions, related topics, moderation, and reporting.
    - Expert and admin badges.
 
 7. Payments and subscriptions
+   - Local plan selection, checkout confirmation, and subscription status are implemented.
    - Mobile money checkout flow.
    - Plan selection, payment status, receipts, subscription expiry, and retry states.
 
@@ -64,9 +69,10 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 
 ## Next Slice
 
-Refactor Flutter into a production-friendly structure:
+Replace local-first service adapters with provider-backed implementations:
 
-- `lib/src/features/...` for screens and widgets.
-- `lib/src/models/...` for shared typed entities.
-- `lib/src/repositories/...` for demo and future backend data access.
-- `lib/src/services/...` for auth, AI, payments, and expert support interfaces.
+- SMS OTP provider or Firebase/Supabase auth.
+- Backend content store for courses, documents, and progress sync.
+- Server-side AI endpoint grounded in approved content.
+- Mobile money provider checkout and webhook validation.
+- Push notifications and moderation/admin workflows.

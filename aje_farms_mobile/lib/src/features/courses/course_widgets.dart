@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _LearningSummaryCard extends StatelessWidget {
-  const _LearningSummaryCard({required this.courses});
+import "../../ui.dart";
+
+class LearningSummaryCard extends StatelessWidget {
+  const LearningSummaryCard({required this.courses});
 
   final List<Course> courses;
 
@@ -46,15 +48,18 @@ class _LearningSummaryCard extends StatelessWidget {
   }
 }
 
-class _CourseCard extends StatelessWidget {
-  const _CourseCard({required this.course});
+class CourseCard extends StatelessWidget {
+  const CourseCard({required this.course});
 
   final Course course;
 
   @override
   Widget build(BuildContext context) {
-    final completed =
-        course.lessons.where((lesson) => lesson.isCompleted).length;
+    final session = context.session;
+    final completed = course.lessons.where((lesson) {
+      return lesson.isCompleted ||
+          session.isLessonCompleted('${course.id}:${lesson.title}');
+    }).length;
     final total = course.lessons.length;
     final hasPremium = course.lessons.any((lesson) => lesson.isPremium);
 
@@ -70,9 +75,9 @@ class _CourseCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _NetworkPhoto(url: course.imageUrl),
+                  NetworkPhoto(url: course.imageUrl),
                   Positioned(
-                      left: 16, top: 16, child: _Pill(label: course.badge)),
+                      left: 16, top: 16, child: Pill(label: course.badge)),
                   Positioned(
                     right: 16,
                     bottom: 16,
@@ -180,8 +185,8 @@ class _CourseCard extends StatelessWidget {
   }
 }
 
-class _CourseProgressSummary extends StatelessWidget {
-  const _CourseProgressSummary({required this.course});
+class CourseProgressSummary extends StatelessWidget {
+  const CourseProgressSummary({required this.course});
 
   final Course course;
 
@@ -211,7 +216,7 @@ class _CourseProgressSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: course.progress),
+            LinearProgressIndicator(value: completed / total),
             const SizedBox(height: 10),
             Text(
               completed == 0
@@ -225,16 +230,20 @@ class _CourseProgressSummary extends StatelessWidget {
   }
 }
 
-class _LessonTile extends StatelessWidget {
-  const _LessonTile({required this.lesson, required this.onTap});
+class LessonTile extends StatelessWidget {
+  const LessonTile({
+    required this.lesson,
+    required this.isCompleted,
+    required this.onTap,
+  });
 
   final Lesson lesson;
+  final bool isCompleted;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        lesson.isCompleted ? AppColors.primary : AppColors.muted;
+    final statusColor = isCompleted ? AppColors.primary : AppColors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ListTile(
@@ -247,7 +256,7 @@ class _LessonTile extends StatelessWidget {
           child: Icon(
             lesson.isPremium
                 ? Icons.lock_outline
-                : lesson.isCompleted
+                : isCompleted
                     ? Icons.check_circle
                     : lesson.type.icon,
             color: lesson.isPremium ? Colors.grey : AppColors.primary,
@@ -263,7 +272,7 @@ class _LessonTile extends StatelessWidget {
             Text(
               lesson.isPremium
                   ? 'Fungua premium kuendelea'
-                  : lesson.isCompleted
+                  : isCompleted
                       ? 'Umekamilisha'
                       : 'Bado hujaanza',
               style: TextStyle(color: statusColor, fontWeight: FontWeight.w700),
@@ -278,9 +287,14 @@ class _LessonTile extends StatelessWidget {
   }
 }
 
-class _LessonPreviewSheet extends StatelessWidget {
-  const _LessonPreviewSheet({required this.lesson, required this.courseTitle});
+class LessonPreviewSheet extends StatelessWidget {
+  const LessonPreviewSheet({
+    required this.lessonId,
+    required this.lesson,
+    required this.courseTitle,
+  });
 
+  final String lessonId;
   final Lesson lesson;
   final String courseTitle;
 
@@ -327,9 +341,11 @@ class _LessonPreviewSheet extends StatelessWidget {
             Text(lesson.description),
             const SizedBox(height: 18),
             FilledButton.icon(
-              onPressed: () {
+              onPressed: () async {
+                await context.session.markLessonCompleted(lessonId);
+                if (!context.mounted) return;
                 Navigator.of(context).pop();
-                _showSnack(context, '${lesson.type.label}: ${lesson.title}');
+                showSnack(context, '${lesson.type.label}: ${lesson.title}');
               },
               icon: Icon(lesson.type.icon),
               label: const Text('Fungua Somo la Mfano'),
@@ -341,8 +357,8 @@ class _LessonPreviewSheet extends StatelessWidget {
   }
 }
 
-class _AskAiPanel extends StatelessWidget {
-  const _AskAiPanel({required this.courseTitle, required this.onTap});
+class AskAiPanel extends StatelessWidget {
+  const AskAiPanel({required this.courseTitle, required this.onTap});
 
   final String courseTitle;
   final VoidCallback onTap;

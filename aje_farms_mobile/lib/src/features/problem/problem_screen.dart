@@ -1,13 +1,15 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
 
 class ProblemScreen extends StatefulWidget {
   const ProblemScreen({super.key});
 
   @override
-  State<ProblemScreen> createState() => _ProblemScreenState();
+  State<ProblemScreen> createState() => ProblemScreenState();
 }
 
-class _ProblemScreenState extends State<ProblemScreen> {
+class ProblemScreenState extends State<ProblemScreen> {
   final _detailController = TextEditingController();
 
   @override
@@ -52,6 +54,9 @@ class _ProblemScreenState extends State<ProblemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final learningRepository = context.dependencies.learningRepository;
+    final problemCategories = learningRepository.problemCategories;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Tueleze Changamoto')),
       body: ListView(
@@ -86,7 +91,7 @@ class _ProblemScreenState extends State<ProblemScreen> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _demoRepository.problemCategories.length,
+            itemCount: problemCategories.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 14,
@@ -94,8 +99,8 @@ class _ProblemScreenState extends State<ProblemScreen> {
               childAspectRatio: 0.86,
             ),
             itemBuilder: (context, index) {
-              final category = _demoRepository.problemCategories[index];
-              return _ProblemCategoryTile(
+              final category = problemCategories[index];
+              return ProblemCategoryTile(
                 key: ValueKey('problem-category-${category.topic}'),
                 category: category,
                 onTap: () => _openChat(context, category),
@@ -103,7 +108,7 @@ class _ProblemScreenState extends State<ProblemScreen> {
             },
           ),
           const SizedBox(height: 14),
-          _UnknownProblemTile(onTap: () => _openUnknownProblem(context)),
+          UnknownProblemTile(onTap: () => _openUnknownProblem(context)),
           const SizedBox(height: 28),
           Text('Mada Pengekezi',
               style: Theme.of(context).textTheme.titleMedium),
@@ -122,7 +127,7 @@ class _ProblemScreenState extends State<ProblemScreen> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                   builder: (_) => CourseDetailScreen(
-                      course: _demoRepository.suggestedCourse)),
+                      course: learningRepository.suggestedCourse)),
             ),
           ),
         ],

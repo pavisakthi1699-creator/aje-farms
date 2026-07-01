@@ -1,10 +1,14 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
 
 class CoursesScreen extends StatelessWidget {
   const CoursesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final courses = context.dependencies.learningRepository.courses;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Mafunzo')),
       body: ListView(
@@ -21,12 +25,12 @@ class CoursesScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),
-          _LearningSummaryCard(courses: _demoRepository.courses),
+          LearningSummaryCard(courses: courses),
           const SizedBox(height: 16),
-          ..._demoRepository.courses.map(
+          ...courses.map(
             (course) => Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _CourseCard(course: course),
+              child: CourseCard(course: course),
             ),
           ),
         ],

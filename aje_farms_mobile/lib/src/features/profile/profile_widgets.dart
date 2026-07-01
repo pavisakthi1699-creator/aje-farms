@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({
+import "../../ui.dart";
+
+class ProfileRow extends StatelessWidget {
+  const ProfileRow({
     required this.icon,
     required this.title,
     required this.onTap,

@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(
+import "../../ui.dart";
+
+class SectionHeader extends StatelessWidget {
+  const SectionHeader(
       {required this.title, required this.actionIcon, required this.onAction});
 
   final String title;

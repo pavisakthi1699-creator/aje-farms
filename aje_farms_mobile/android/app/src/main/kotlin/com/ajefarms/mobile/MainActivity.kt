@@ -1,4 +1,4 @@
-package com.example.aje_farms_mobile
+package com.ajefarms.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

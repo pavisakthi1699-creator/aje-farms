@@ -1,15 +1,17 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final activeCourse = _demoRepository.featuredCourse;
+    final activeCourse = context.dependencies.learningRepository.featuredCourse;
 
     return Scaffold(
       appBar: AppBar(
-        title: const _BrandHeader(compact: true),
+        title: const BrandHeader(compact: true),
         actions: [
           IconButton(
             tooltip: 'Notifications',
@@ -31,9 +33,9 @@ class DashboardScreen extends StatelessWidget {
           Text('Endeleza shamba lako leo',
               style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 16),
-          const _TrialStatusCard(),
+          const TrialStatusCard(),
           const SizedBox(height: 16),
-          _HeroActionCard(
+          HeroActionCard(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProblemScreen()),
             ),
@@ -42,7 +44,7 @@ class DashboardScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _MiniActionCard(
+                child: MiniActionCard(
                   color: AppColors.mint,
                   icon: Icons.smart_toy_outlined,
                   title: 'Uliza AI',
@@ -54,7 +56,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: _MiniActionCard(
+                child: MiniActionCard(
                   color: AppColors.text,
                   foreground: Colors.white,
                   icon: Icons.star,
@@ -68,7 +70,7 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          _SectionHeader(
+          SectionHeader(
             title: 'Endelea Kujifunza',
             actionIcon: Icons.add,
             onAction: () => Navigator.of(context).push(
@@ -76,7 +78,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _CourseProgressCard(
+          CourseProgressCard(
             key: ValueKey('dashboard-course-${activeCourse.id}'),
             course: activeCourse,
             onTap: () => Navigator.of(context).push(
@@ -88,9 +90,9 @@ class DashboardScreen extends StatelessWidget {
           Text('Mada Zinazovuma',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
-          const _TrendingTopics(),
+          const TrendingTopics(),
           const SizedBox(height: 24),
-          _CommunityTeaser(
+          CommunityTeaser(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CommunityScreen()),
             ),

@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _ProblemCategoryTile extends StatelessWidget {
-  const _ProblemCategoryTile({
+import "../../ui.dart";
+
+class ProblemCategoryTile extends StatelessWidget {
+  const ProblemCategoryTile({
     required this.category,
     required this.onTap,
     super.key,
@@ -69,8 +71,8 @@ class _ProblemCategoryTile extends StatelessWidget {
   }
 }
 
-class _UnknownProblemTile extends StatelessWidget {
-  const _UnknownProblemTile({required this.onTap});
+class UnknownProblemTile extends StatelessWidget {
+  const UnknownProblemTile({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -92,8 +94,8 @@ class _UnknownProblemTile extends StatelessWidget {
   }
 }
 
-class _TrendingTopics extends StatelessWidget {
-  const _TrendingTopics();
+class TrendingTopics extends StatelessWidget {
+  const TrendingTopics();
 
   @override
   Widget build(BuildContext context) {

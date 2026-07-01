@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
+import "../../ui.dart";
+
+class ActionCard extends StatelessWidget {
+  const ActionCard({
     required this.color,
     required this.icon,
     required this.title,

@@ -1,5 +1,6 @@
 class CommunityPost {
   const CommunityPost({
+    this.id = '',
     required this.author,
     required this.location,
     required this.time,
@@ -14,6 +15,7 @@ class CommunityPost {
     this.isUrgent = false,
   });
 
+  final String id;
   final String author;
   final String location;
   final String time;
@@ -26,6 +28,38 @@ class CommunityPost {
   final bool hasImage;
   final bool isExpert;
   final bool isUrgent;
+
+  CommunityPost copyWith({
+    String? id,
+    String? author,
+    String? location,
+    String? time,
+    String? content,
+    int? likes,
+    int? comments,
+    List<String>? tags,
+    List<CommunityReply>? replies,
+    String? relatedTopic,
+    bool? hasImage,
+    bool? isExpert,
+    bool? isUrgent,
+  }) {
+    return CommunityPost(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      location: location ?? this.location,
+      time: time ?? this.time,
+      content: content ?? this.content,
+      likes: likes ?? this.likes,
+      comments: comments ?? this.comments,
+      tags: tags ?? this.tags,
+      replies: replies ?? this.replies,
+      relatedTopic: relatedTopic ?? this.relatedTopic,
+      hasImage: hasImage ?? this.hasImage,
+      isExpert: isExpert ?? this.isExpert,
+      isUrgent: isUrgent ?? this.isUrgent,
+    );
+  }
 }
 
 class CommunityReply {

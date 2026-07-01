@@ -1,13 +1,13 @@
-part of '../app.dart';
+import "../ui.dart";
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  State<MainShell> createState() => MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class MainShellState extends State<MainShell> {
   int _index = 0;
 
   static const _screens = [

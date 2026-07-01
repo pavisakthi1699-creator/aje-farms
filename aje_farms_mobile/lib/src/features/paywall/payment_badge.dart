@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _PaymentBadge extends StatelessWidget {
-  const _PaymentBadge({required this.label, required this.color});
+import "../../ui.dart";
+
+class PaymentBadge extends StatelessWidget {
+  const PaymentBadge({required this.label, required this.color});
 
   final String label;
   final Color color;

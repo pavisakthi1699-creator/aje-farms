@@ -211,6 +211,7 @@ const _problemCategories = [
 
 const _communityPosts = [
   CommunityPost(
+    id: 'seed-pasheni-disease',
     author: 'Joseph M.',
     location: 'Morogoro',
     time: 'Saa 2 zilizopita',
@@ -237,6 +238,7 @@ const _communityPosts = [
     isUrgent: true,
   ),
   CommunityPost(
+    id: 'seed-kuku-start',
     author: 'Mama Asha',
     location: 'Mbeya',
     time: 'Saa 5 zilizopita',
@@ -262,6 +264,7 @@ const _communityPosts = [
     ],
   ),
   CommunityPost(
+    id: 'seed-nyanya-market',
     author: 'Mtaalamu AJE',
     location: 'Arusha',
     time: 'Leo',

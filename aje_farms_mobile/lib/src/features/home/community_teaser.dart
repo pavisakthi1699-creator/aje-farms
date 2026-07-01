@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _CommunityTeaser extends StatelessWidget {
-  const _CommunityTeaser({required this.onTap});
+import "../../ui.dart";
+
+class CommunityTeaser extends StatelessWidget {
+  const CommunityTeaser({required this.onTap});
 
   final VoidCallback onTap;
 

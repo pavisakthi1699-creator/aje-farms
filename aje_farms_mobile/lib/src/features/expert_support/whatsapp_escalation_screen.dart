@@ -1,4 +1,6 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
 
 class WhatsAppEscalationScreen extends StatelessWidget {
   const WhatsAppEscalationScreen({super.key});
@@ -81,8 +83,8 @@ class WhatsAppEscalationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => _showSnack(
-                context, 'WhatsApp link: https://wa.me/255700000000'),
+            onPressed: () =>
+                showSnack(context, 'WhatsApp link: https://wa.me/255700000000'),
             icon: const Icon(Icons.send),
             label: const Text('Fungua WhatsApp sasa'),
             style: FilledButton.styleFrom(

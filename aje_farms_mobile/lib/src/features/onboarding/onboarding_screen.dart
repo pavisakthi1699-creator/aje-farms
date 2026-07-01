@@ -1,4 +1,6 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -19,7 +21,7 @@ class OnboardingScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _BrandHeader(),
+                      const BrandHeader(),
                       const SizedBox(height: 24),
                       Expanded(
                         child: Container(
@@ -32,7 +34,7 @@ class OnboardingScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _Pill(
+                              const Pill(
                                 label: '24h Jaribio la bure',
                                 color: AppColors.secondary,
                               ),
@@ -70,18 +72,18 @@ class OnboardingScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 22),
-                              const _OnboardingValueRow(
+                              const OnboardingValueRow(
                                 icon: Icons.smart_toy_outlined,
                                 label:
                                     'Majibu ya haraka kwa changamoto za shamba',
                               ),
                               const SizedBox(height: 10),
-                              const _OnboardingValueRow(
+                              const OnboardingValueRow(
                                 icon: Icons.menu_book_outlined,
                                 label: 'Masomo ya vitendo kwa mazao na mifugo',
                               ),
                               const SizedBox(height: 10),
-                              const _OnboardingValueRow(
+                              const OnboardingValueRow(
                                 icon: Icons.support_agent,
                                 label: 'Msaada wa mtaalamu kupitia WhatsApp',
                               ),
@@ -91,9 +93,14 @@ class OnboardingScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       FilledButton.icon(
-                        onPressed: () => Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const MainShell()),
-                        ),
+                        onPressed: () async {
+                          await context.session.startAsGuest();
+                          if (!context.mounted) return;
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                                builder: (_) => const MainShell()),
+                          );
+                        },
                         icon: const Icon(Icons.arrow_forward),
                         label: const Text('Anza Sasa'),
                       ),
@@ -117,8 +124,8 @@ class OnboardingScreen extends StatelessWidget {
   }
 }
 
-class _OnboardingValueRow extends StatelessWidget {
-  const _OnboardingValueRow({
+class OnboardingValueRow extends StatelessWidget {
+  const OnboardingValueRow({
     required this.icon,
     required this.label,
   });

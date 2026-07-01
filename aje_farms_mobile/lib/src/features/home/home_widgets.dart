@@ -1,31 +1,37 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _TrialStatusCard extends StatelessWidget {
-  const _TrialStatusCard();
+import "../../ui.dart";
+
+class TrialStatusCard extends StatelessWidget {
+  const TrialStatusCard();
 
   @override
   Widget build(BuildContext context) {
+    final session = context.session.state;
+    final plan = session.subscriptionPlan;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             backgroundColor: AppColors.primaryContainer,
             child: Icon(Icons.timer_outlined, color: AppColors.primary),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Jaribio linaendelea',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-                SizedBox(height: 2),
-                Text('Saa 24 za Mwalimu AI na masomo ya mfano zimefunguliwa.'),
+                Text(plan == null ? 'Jaribio linaendelea' : '$plan imewashwa',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(plan == null
+                    ? 'Masomo ${session.completedLessonIds.length} yamehifadhiwa kwenye kifaa.'
+                    : 'Premium iko hai. Endelea na masomo, AI na jamii.'),
               ],
             ),
           ),
@@ -35,8 +41,8 @@ class _TrialStatusCard extends StatelessWidget {
   }
 }
 
-class _HeroActionCard extends StatelessWidget {
-  const _HeroActionCard({required this.onTap});
+class HeroActionCard extends StatelessWidget {
+  const HeroActionCard({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -60,7 +66,7 @@ class _HeroActionCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _Pill(label: 'Kipaumbele cha leo'),
+                  const Pill(label: 'Kipaumbele cha leo'),
                   const SizedBox(height: 22),
                   Text('Eleza tatizo la shamba',
                       style: Theme.of(context).textTheme.titleLarge),
@@ -87,8 +93,8 @@ class _HeroActionCard extends StatelessWidget {
   }
 }
 
-class _MiniActionCard extends StatelessWidget {
-  const _MiniActionCard({
+class MiniActionCard extends StatelessWidget {
+  const MiniActionCard({
     required this.color,
     required this.icon,
     required this.title,
@@ -150,8 +156,8 @@ class _MiniActionCard extends StatelessWidget {
   }
 }
 
-class _CourseProgressCard extends StatelessWidget {
-  const _CourseProgressCard({
+class CourseProgressCard extends StatelessWidget {
+  const CourseProgressCard({
     required this.course,
     required this.onTap,
     super.key,
@@ -177,7 +183,7 @@ class _CourseProgressCard extends StatelessWidget {
                 child: SizedBox(
                   width: 94,
                   height: 94,
-                  child: _NetworkPhoto(url: course.imageUrl),
+                  child: NetworkPhoto(url: course.imageUrl),
                 ),
               ),
               const SizedBox(width: 14),

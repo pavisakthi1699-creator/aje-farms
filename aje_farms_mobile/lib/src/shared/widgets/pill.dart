@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, this.color = Colors.white});
+import "../../ui.dart";
+
+class Pill extends StatelessWidget {
+  const Pill({required this.label, this.color = Colors.white});
 
   final String label;
   final Color color;

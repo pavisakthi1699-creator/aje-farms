@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _ExpertPanel extends StatelessWidget {
-  const _ExpertPanel({required this.onTap});
+import "../../ui.dart";
+
+class ExpertPanel extends StatelessWidget {
+  const ExpertPanel({required this.onTap});
 
   final VoidCallback onTap;
 

@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _PlanTile extends StatelessWidget {
-  const _PlanTile({
+import "../../ui.dart";
+
+class PlanTile extends StatelessWidget {
+  const PlanTile({
     required this.plan,
     required this.selected,
     required this.onTap,
@@ -56,8 +58,8 @@ class _PlanTile extends StatelessWidget {
   }
 }
 
-class _PaymentBenefitsCard extends StatelessWidget {
-  const _PaymentBenefitsCard();
+class PaymentBenefitsCard extends StatelessWidget {
+  const PaymentBenefitsCard();
 
   @override
   Widget build(BuildContext context) {
@@ -93,8 +95,8 @@ class _PaymentBenefitsCard extends StatelessWidget {
   }
 }
 
-class _PaymentSummaryCard extends StatelessWidget {
-  const _PaymentSummaryCard({required this.plan, required this.method});
+class PaymentSummaryCard extends StatelessWidget {
+  const PaymentSummaryCard({required this.plan, required this.method});
 
   final PlanOption plan;
   final String method;
@@ -129,8 +131,8 @@ class _PaymentSummaryCard extends StatelessWidget {
   }
 }
 
-class _PaymentStatusScreen extends StatelessWidget {
-  const _PaymentStatusScreen({
+class PaymentStatusScreen extends StatelessWidget {
+  const PaymentStatusScreen({
     required this.isSuccess,
     required this.title,
     required this.body,

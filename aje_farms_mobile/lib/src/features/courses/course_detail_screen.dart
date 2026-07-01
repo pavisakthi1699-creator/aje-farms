@@ -1,4 +1,6 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
 
 class CourseDetailScreen extends StatelessWidget {
   const CourseDetailScreen({required this.course, super.key});
@@ -7,6 +9,8 @@ class CourseDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String lessonId(Lesson lesson) => '${course.id}:${lesson.title}';
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -20,7 +24,7 @@ class CourseDetailScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _NetworkPhoto(url: course.imageUrl),
+                  NetworkPhoto(url: course.imageUrl),
                   Container(color: Colors.black.withValues(alpha: 0.32)),
                   const Center(
                     child: CircleAvatar(
@@ -39,7 +43,7 @@ class CourseDetailScreen extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate(
                 [
-                  _CourseProgressSummary(course: course),
+                  CourseProgressSummary(course: course),
                   const SizedBox(height: 16),
                   Card(
                     child: Padding(
@@ -87,8 +91,10 @@ class CourseDetailScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
                   ...course.lessons.map(
-                    (lesson) => _LessonTile(
+                    (lesson) => LessonTile(
                       lesson: lesson,
+                      isCompleted: lesson.isCompleted ||
+                          context.session.isLessonCompleted(lessonId(lesson)),
                       onTap: () {
                         if (lesson.isPremium) {
                           Navigator.of(context).push(
@@ -99,7 +105,8 @@ class CourseDetailScreen extends StatelessWidget {
                           showModalBottomSheet<void>(
                             context: context,
                             showDragHandle: false,
-                            builder: (_) => _LessonPreviewSheet(
+                            builder: (_) => LessonPreviewSheet(
+                              lessonId: lessonId(lesson),
                               lesson: lesson,
                               courseTitle: course.title,
                             ),
@@ -109,7 +116,7 @@ class CourseDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _AskAiPanel(
+                  AskAiPanel(
                     courseTitle: course.title,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -122,7 +129,7 @@ class CourseDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _ExpertPanel(
+                  ExpertPanel(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                           builder: (_) => const WhatsAppEscalationScreen()),

@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _NetworkPhoto extends StatelessWidget {
-  const _NetworkPhoto({required this.url});
+import "../../ui.dart";
+
+class NetworkPhoto extends StatelessWidget {
+  const NetworkPhoto({required this.url});
 
   final String url;
 

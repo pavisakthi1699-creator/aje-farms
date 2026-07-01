@@ -1,4 +1,6 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({
@@ -13,14 +15,14 @@ class AiChatScreen extends StatefulWidget {
   final String? initialPrompt;
 
   @override
-  State<AiChatScreen> createState() => _AiChatScreenState();
+  State<AiChatScreen> createState() => AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen> {
+class AiChatScreenState extends State<AiChatScreen> {
   final _controller = TextEditingController();
-  final List<_ChatMessage> _messages = [
-    const _ChatMessage(
-      role: _ChatRole.model,
+  final List<ChatMessage> _messages = [
+    const ChatMessage(
+      role: ChatRole.model,
       text:
           'Habari! Mimi ni Mwalimu AI. Nawezaje kukusaidia kuhusu kilimo leo?',
     ),
@@ -49,16 +51,25 @@ class _AiChatScreenState extends State<AiChatScreen> {
     if (text.isEmpty || _isLoading) return;
 
     setState(() {
-      _messages.add(_ChatMessage(role: _ChatRole.user, text: text));
+      _messages.add(ChatMessage(role: ChatRole.user, text: text));
       _controller.clear();
       _isLoading = true;
     });
 
-    final response = await _mwalimuAiService.answer(text);
+    final aiService = context.dependencies.mwalimuAiService;
+    var response =
+        'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.';
+
+    try {
+      response = await aiService.answer(text);
+    } catch (_) {
+      response =
+          'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.';
+    }
 
     if (!mounted) return;
     setState(() {
-      _messages.add(_ChatMessage(role: _ChatRole.model, text: response));
+      _messages.add(ChatMessage(role: ChatRole.model, text: response));
       _isLoading = false;
     });
   }
@@ -93,7 +104,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       body: Column(
         children: [
           if (widget.initialPromptTopic != null)
-            _IntakeContextCard(
+            IntakeContextCard(
               topic: widget.initialPromptTopic!,
               detail: widget.initialPromptDetail,
             ),
@@ -106,10 +117,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 if (_isLoading && index == _messages.length) {
                   return const Align(
                     alignment: Alignment.centerLeft,
-                    child: _TypingBubble(),
+                    child: TypingBubble(),
                   );
                 }
-                return _ChatBubble(
+                return ChatBubble(
                   message: _messages[index],
                   onEscalate: () => Navigator.of(context).push(
                     MaterialPageRoute(

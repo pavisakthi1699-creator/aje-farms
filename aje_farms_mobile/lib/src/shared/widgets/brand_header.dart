@@ -1,7 +1,9 @@
-part of '../../app.dart';
+// ignore_for_file: use_key_in_widget_constructors
 
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader({this.compact = false});
+import "../../ui.dart";
+
+class BrandHeader extends StatelessWidget {
+  const BrandHeader({this.compact = false});
 
   final bool compact;
 

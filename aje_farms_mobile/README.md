@@ -2,31 +2,58 @@
 
 Native Flutter starter for the AJE Farms learner app.
 
-This app currently mirrors the React demo as a production-ready Flutter foundation:
+This app currently runs as a local-first Flutter product foundation:
 
-- Onboarding and learner dashboard
-- Course catalog and course detail screens
-- Assessment placeholder
-- AI chat placeholder
-- Payment/paywall placeholder
-- Notifications placeholder
-- Profile and subscription status placeholder
+- Onboarding, guest mode, and phone-entry session state
+- Learner dashboard with persisted lesson progress
+- Course catalog, course detail, saved documents, and completion tracking
+- Assessment quiz and field assignment with saved scores
+- Mwalimu AI knowledge assistant flow
+- Community posts, replies, reporting, and filters persisted locally
+- Payment/paywall flow with local subscription state
+- Notifications driven by current app state
+- Profile, settings, saved documents, and sign-out
 
 ## Setup
 
-Flutter is not installed on this machine yet. After installing Flutter, run:
+Run from the Flutter project directory:
 
 ```sh
-cd aje_farms_mobile
+cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
 flutter pub get
 flutter run
 ```
 
-If platform folders are missing, generate them with:
+This project includes Android and web platform files. To run immediately on
+Chrome:
 
 ```sh
-flutter create .
+flutter run -d chrome
 ```
+
+To run on Android, use an Android emulator or connected Android device:
+
+```sh
+flutter devices
+flutter run -d <device_id>
+```
+
+macOS desktop is not generated yet. Add it only if you want this repo to support
+that platform too.
+
+## Android Release Signing
+
+Debug APKs build without extra setup. For release builds, create
+`android/key.properties` locally with:
+
+```properties
+storeFile=/absolute/path/to/release.keystore
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+`android/key.properties` is ignored by git.
 
 ## Next Integrations
 
