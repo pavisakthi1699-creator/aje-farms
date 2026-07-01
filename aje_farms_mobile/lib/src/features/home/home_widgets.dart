@@ -109,6 +109,7 @@ class _MiniActionCard extends StatelessWidget {
     return Card(
       color: color,
       child: InkWell(
+        key: ValueKey('mini-action-$title'),
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: SizedBox(

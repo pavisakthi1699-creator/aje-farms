@@ -135,6 +135,39 @@ void main() {
     expect(find.text('Jamii'), findsOneWidget);
   });
 
+  testWidgets('selects a plan and completes demo mobile money checkout',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: PaywallScreen()));
+
+    expect(find.text('Mwalimu AI bila kikomo'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('plan-Wiki 1')), 220);
+    await tester.tap(find.byKey(const ValueKey('plan-Wiki 1')));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -420));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('payment-method-Tigo')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '0712345678');
+
+    await tester.ensureVisible(find.text('Wiki 1 kupitia Tigo'));
+    expect(find.text('Wiki 1 kupitia Tigo'), findsOneWidget);
+    expect(find.text('TZS 3,000'), findsWidgets);
+
+    await tester.ensureVisible(find.text('Lipa TZS 3,000'));
+    await tester.tap(find.text('Lipa TZS 3,000'));
+    await tester.pump();
+
+    expect(find.text('Inasubiri uthibitisho...'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 900));
+
+    expect(find.text('Malipo Yamefanikiwa!'), findsOneWidget);
+    expect(
+        find.textContaining('Wiki 1 imewashwa kupitia Tigo'), findsOneWidget);
+  });
+
   testWidgets('auth demo flow sends OTP and continues',
       (WidgetTester tester) async {
     await tester.pumpWidget(const AjeFarmsApp());
