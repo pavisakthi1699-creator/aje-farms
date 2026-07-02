@@ -1,0 +1,40 @@
+import 'payment_service.dart';
+
+class LocalPaymentService implements PaymentService {
+  const LocalPaymentService();
+
+  @override
+  Future<PaymentTransaction> startCheckout({
+    required String planTitle,
+    required String price,
+    required String method,
+    required String phoneNumber,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final id = 'local-${DateTime.now().microsecondsSinceEpoch}';
+    return PaymentTransaction(
+      id: id,
+      planTitle: planTitle,
+      price: price,
+      method: method,
+      phoneNumber: phoneNumber,
+      status: PaymentStatus.paid,
+      message: 'Malipo yamethibitishwa kupitia $method.',
+      receiptNumber: 'AJE-${id.substring(id.length - 6)}',
+    );
+  }
+
+  @override
+  Future<PaymentTransaction> getStatus(String transactionId) async {
+    return PaymentTransaction(
+      id: transactionId,
+      planTitle: 'Kifurushi',
+      price: '',
+      method: 'Local',
+      phoneNumber: '',
+      status: PaymentStatus.paid,
+      message: 'Malipo yamethibitishwa.',
+      receiptNumber: 'AJE-${transactionId.substring(transactionId.length - 6)}',
+    );
+  }
+}

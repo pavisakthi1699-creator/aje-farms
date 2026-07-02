@@ -1,6 +1,7 @@
 import { chatWithMwalimuServer } from './mwalimu.js';
 
 const otpChallenges = new Map();
+const paymentTransactions = new Map();
 const localOtp = process.env.LOCAL_AUTH_OTP ?? '1234';
 
 export function registerApiRoutes(app) {
@@ -50,6 +51,44 @@ export function registerApiRoutes(app) {
 
     otpChallenges.delete(challengeId);
     res.json({ phoneNumber });
+  });
+
+  app.post('/api/payments/checkout', (req, res) => {
+    const { planTitle, price, method, phoneNumber } = req.body;
+
+    if (
+      typeof planTitle !== 'string' ||
+      typeof price !== 'string' ||
+      typeof method !== 'string' ||
+      typeof phoneNumber !== 'string' ||
+      phoneNumber.trim().length < 9
+    ) {
+      res.status(400).json({ error: 'Payment details are required.' });
+      return;
+    }
+
+    const id = `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const transaction = {
+      id,
+      planTitle,
+      price,
+      method,
+      phoneNumber: phoneNumber.trim(),
+      status: 'paid',
+      message: `Malipo yamethibitishwa kupitia ${method}.`,
+      receiptNumber: `AJE-${id.slice(-6).toUpperCase()}`,
+    };
+    paymentTransactions.set(id, transaction);
+    res.json(transaction);
+  });
+
+  app.get('/api/payments/:transactionId', (req, res) => {
+    const transaction = paymentTransactions.get(req.params.transactionId);
+    if (!transaction) {
+      res.status(404).json({ error: 'Muamala haujapatikana.' });
+      return;
+    }
+    res.json(transaction);
   });
 
   app.post('/api/mwalimu-chat', async (req, res) => {

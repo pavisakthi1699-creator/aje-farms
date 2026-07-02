@@ -31,9 +31,9 @@ Chrome:
 flutter run -d chrome
 ```
 
-By default, auth and Mwalimu AI use local offline adapters. To call the
-server-side auth and AI endpoints, run the React/Express server from the repo
-root and launch Flutter with an API base URL:
+By default, auth, payments, and Mwalimu AI use local offline adapters. To call
+the server-side auth, payment, and AI endpoints, run the React/Express server
+from the repo root and launch Flutter with an API base URL:
 
 ```sh
 cd /Users/frankmchaina/Downloads/aje-farms

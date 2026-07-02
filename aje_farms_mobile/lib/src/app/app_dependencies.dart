@@ -7,9 +7,12 @@ import '../repositories/subscription_repository.dart';
 import '../services/auth_service.dart';
 import '../services/backend_auth_service.dart';
 import '../services/backend_mwalimu_ai_service.dart';
+import '../services/backend_payment_service.dart';
 import '../services/demo_mwalimu_ai_service.dart';
 import '../services/local_auth_service.dart';
+import '../services/local_payment_service.dart';
 import '../services/mwalimu_ai_service.dart';
+import '../services/payment_service.dart';
 
 class AppDependencies {
   const AppDependencies({
@@ -18,6 +21,7 @@ class AppDependencies {
     required this.subscriptionRepository,
     required this.mwalimuAiService,
     required this.authService,
+    required this.paymentService,
   });
 
   factory AppDependencies.demo() {
@@ -28,6 +32,7 @@ class AppDependencies {
       subscriptionRepository: repository,
       mwalimuAiService: DemoMwalimuAiService(),
       authService: LocalAuthService(),
+      paymentService: LocalPaymentService(),
     );
   }
 
@@ -35,6 +40,7 @@ class AppDependencies {
     const repository = DemoAppRepository();
     const fallbackAiService = DemoMwalimuAiService();
     const fallbackAuthService = LocalAuthService();
+    const fallbackPaymentService = LocalPaymentService();
     final apiBaseUrl = Uri.tryParse(_apiBaseUrl);
     final aiService =
         apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
@@ -50,6 +56,13 @@ class AppDependencies {
                 primary: BackendAuthService(baseUrl: apiBaseUrl),
                 fallback: fallbackAuthService,
               );
+    final paymentService =
+        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
+            ? fallbackPaymentService
+            : FallbackPaymentService(
+                primary: BackendPaymentService(baseUrl: apiBaseUrl),
+                fallback: fallbackPaymentService,
+              );
 
     return AppDependencies(
       learningRepository: repository,
@@ -57,6 +70,7 @@ class AppDependencies {
       subscriptionRepository: repository,
       mwalimuAiService: aiService,
       authService: authService,
+      paymentService: paymentService,
     );
   }
 
@@ -65,6 +79,7 @@ class AppDependencies {
   final SubscriptionRepository subscriptionRepository;
   final MwalimuAiService mwalimuAiService;
   final AuthService authService;
+  final PaymentService paymentService;
 }
 
 const _apiBaseUrl = String.fromEnvironment('AJE_API_BASE_URL',

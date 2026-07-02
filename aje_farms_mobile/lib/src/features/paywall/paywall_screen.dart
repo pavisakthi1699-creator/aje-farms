@@ -15,6 +15,8 @@ class PaywallScreenState extends State<PaywallScreen> {
   String _paymentMethod = 'M-Pesa';
   bool _isProcessing = false;
   bool _isSuccess = false;
+  String? _statusTitle;
+  String? _statusBody;
   PlanOption? _processingPlan;
 
   @override
@@ -33,14 +35,64 @@ class PaywallScreenState extends State<PaywallScreen> {
     setState(() {
       _processingPlan = plan;
       _isProcessing = true;
+      _statusTitle = 'Inasubiri uthibitisho...';
+      _statusBody = 'Tafadhali thibitisha ${plan.price} kupitia '
+          '$_paymentMethod kwa namba $phone.';
     });
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    final paymentService = context.dependencies.paymentService;
+    final appSession = context.session;
+    PaymentTransaction transaction;
+    try {
+      transaction = await paymentService.startCheckout(
+        planTitle: plan.title,
+        price: plan.price,
+        method: _paymentMethod,
+        phoneNumber: phone,
+      );
+    } on PaymentException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _statusTitle = null;
+        _statusBody = null;
+      });
+      showSnack(context, error.message);
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _statusTitle = null;
+        _statusBody = null;
+      });
+      showSnack(context, 'Malipo yameshindikana. Jaribu tena.');
+      return;
+    }
+
+    if (transaction.status == PaymentStatus.pending) {
+      transaction = await paymentService.getStatus(transaction.id);
+    }
+
     if (!mounted) return;
-    await context.session.activateSubscription(plan.title);
+    if (!transaction.isPaid) {
+      setState(() {
+        _isProcessing = false;
+        _statusTitle = null;
+        _statusBody = null;
+      });
+      showSnack(context, transaction.message);
+      return;
+    }
+
+    await appSession.activateSubscription(transaction.planTitle);
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
       _isSuccess = true;
+      _statusTitle = 'Malipo Yamefanikiwa!';
+      _statusBody =
+          '${transaction.planTitle} imewashwa kupitia ${transaction.method}. '
+          'Risiti ${transaction.receiptNumber ?? transaction.id} imetumwa kwa ${transaction.phoneNumber}.';
     });
   }
 
@@ -52,18 +104,19 @@ class PaywallScreenState extends State<PaywallScreen> {
     if (_isProcessing) {
       return PaymentStatusScreen(
         isSuccess: false,
-        title: 'Inasubiri uthibitisho...',
-        body: 'Tafadhali thibitisha ${selectedPlan.price} kupitia '
-            '$_paymentMethod kwa namba ${_phoneController.text}.',
+        title: _statusTitle ?? 'Inasubiri uthibitisho...',
+        body: _statusBody ??
+            'Tafadhali thibitisha ${selectedPlan.price} kupitia '
+                '$_paymentMethod kwa namba ${_phoneController.text}.',
       );
     }
 
     if (_isSuccess) {
       return PaymentStatusScreen(
         isSuccess: true,
-        title: 'Malipo Yamefanikiwa!',
-        body: '${selectedPlan.title} imewashwa kupitia $_paymentMethod. '
-            'Risiti ya demo imetumwa kwa ${_phoneController.text}.',
+        title: _statusTitle ?? 'Malipo Yamefanikiwa!',
+        body: _statusBody ??
+            '${selectedPlan.title} imewashwa kupitia $_paymentMethod.',
       );
     }
 

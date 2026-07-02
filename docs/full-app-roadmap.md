@@ -7,8 +7,8 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 - Flutter app matches the MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
 - React/Vite demo remains in the repo as the product reference.
 - App behavior is local-first: session, guest/phone entry, course progress, community posts/replies/reports, assessment scores, saved documents, settings, and subscription status persist on device/web storage.
-- Real external services are not wired yet: SMS provider, backend content sync, real mobile money checkout, push notifications, and admin workflows.
-- Flutter auth and AI can call server-side `/api/auth/*` and `/api/mwalimu-chat` endpoints when launched with `AJE_API_BASE_URL`; both fall back to local adapters when no backend is configured.
+- Real external services are not wired yet: SMS provider, backend content sync, real mobile money provider, push notifications, and admin workflows.
+- Flutter auth, payments, and AI can call server-side `/api/auth/*`, `/api/payments/*`, and `/api/mwalimu-chat` endpoints when launched with `AJE_API_BASE_URL`; all fall back to local adapters when no backend is configured.
 
 ## Build Order
 
@@ -45,8 +45,8 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
    - Expert and admin badges.
 
 7. Payments and subscriptions
-   - Local plan selection, checkout confirmation, and subscription status are implemented.
-   - Mobile money checkout flow.
+   - Backend checkout adapter is implemented for Flutter and Express; real mobile money provider/webhooks are still pending.
+   - Local plan selection, checkout confirmation, receipts, and subscription status are implemented.
    - Plan selection, payment status, receipts, subscription expiry, and retry states.
 
 8. Expert support
