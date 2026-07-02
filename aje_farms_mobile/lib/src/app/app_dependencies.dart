@@ -4,6 +4,7 @@ import '../repositories/community_repository.dart';
 import '../repositories/demo_app_repository.dart';
 import '../repositories/learning_repository.dart';
 import '../repositories/subscription_repository.dart';
+import '../services/backend_mwalimu_ai_service.dart';
 import '../services/demo_mwalimu_ai_service.dart';
 import '../services/mwalimu_ai_service.dart';
 
@@ -25,11 +26,33 @@ class AppDependencies {
     );
   }
 
+  factory AppDependencies.localFirst() {
+    const repository = DemoAppRepository();
+    const fallbackAiService = DemoMwalimuAiService();
+    final apiBaseUrl = Uri.tryParse(_mwalimuApiBaseUrl);
+    final aiService =
+        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
+            ? fallbackAiService
+            : FallbackMwalimuAiService(
+                primary: BackendMwalimuAiService(baseUrl: apiBaseUrl),
+                fallback: fallbackAiService,
+              );
+
+    return AppDependencies(
+      learningRepository: repository,
+      communityRepository: repository,
+      subscriptionRepository: repository,
+      mwalimuAiService: aiService,
+    );
+  }
+
   final LearningRepository learningRepository;
   final CommunityRepository communityRepository;
   final SubscriptionRepository subscriptionRepository;
   final MwalimuAiService mwalimuAiService;
 }
+
+const _mwalimuApiBaseUrl = String.fromEnvironment('MWALIMU_API_BASE_URL');
 
 class AppDependenciesScope extends InheritedWidget {
   const AppDependenciesScope({

@@ -35,7 +35,7 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
   @override
   Widget build(BuildContext context) {
     return AppDependenciesScope(
-      dependencies: widget.dependencies ?? AppDependencies.demo(),
+      dependencies: widget.dependencies ?? AppDependencies.localFirst(),
       child: AppSessionScope(
         controller: _sessionController,
         child: AnimatedBuilder(

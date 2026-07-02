@@ -7,7 +7,8 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 - Flutter app matches the MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
 - React/Vite demo remains in the repo as the product reference.
 - App behavior is local-first: session, guest/phone entry, course progress, community posts/replies/reports, assessment scores, saved documents, settings, and subscription status persist on device/web storage.
-- Real external services are not wired yet: SMS OTP, backend content sync, server-side AI, real mobile money checkout, push notifications, and admin workflows.
+- Real external services are not wired yet: SMS OTP, backend content sync, real mobile money checkout, push notifications, and admin workflows.
+- Flutter AI can call the server-side `/api/mwalimu-chat` endpoint when launched with `MWALIMU_API_BASE_URL`; it falls back to the offline local knowledge adapter when no backend is configured.
 
 ## Build Order
 
@@ -29,7 +30,7 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
    - Admin/editor workflow for publishing approved knowledge.
 
 4. AI support
-   - Replace the local canned response with a backend endpoint.
+   - Backend endpoint adapter is implemented for Flutter with local fallback.
    - Ground answers in approved knowledge content.
    - Show source cards back to lessons and documents.
    - Escalate uncertain or sensitive cases to a human expert.

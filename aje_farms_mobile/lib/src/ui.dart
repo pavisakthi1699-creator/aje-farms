@@ -32,6 +32,7 @@ export 'models/problem_category.dart';
 export 'repositories/community_repository.dart';
 export 'repositories/learning_repository.dart';
 export 'repositories/subscription_repository.dart';
+export 'services/backend_mwalimu_ai_service.dart';
 export 'services/mwalimu_ai_service.dart';
 export 'shared/widgets/action_card.dart';
 export 'shared/widgets/brand_header.dart';
