@@ -1,11 +1,30 @@
+import { catalog } from './catalog.js';
 import { chatWithMwalimuServer } from './mwalimu.js';
 
 const otpChallenges = new Map();
 const paymentTransactions = new Map();
-const communityPosts = new Map();
+const communityPosts = new Map(
+  catalog.communityPosts.map((post) => [
+    post.id,
+    { ...post, replies: post.replies.map((reply) => ({ ...reply })) },
+  ]),
+);
 const localOtp = process.env.LOCAL_AUTH_OTP ?? '1234';
 
 export function registerApiRoutes(app) {
+  app.get('/api/catalog', (req, res) => {
+    res.json({
+      courses: catalog.courses,
+      problemCategories: catalog.problemCategories,
+      plans: catalog.plans,
+      communityPosts: Array.from(communityPosts.values()),
+    });
+  });
+
+  app.get('/api/community/posts', (req, res) => {
+    res.json({ posts: Array.from(communityPosts.values()) });
+  });
+
   app.post('/api/auth/request-otp', (req, res) => {
     const { phoneNumber } = req.body;
 

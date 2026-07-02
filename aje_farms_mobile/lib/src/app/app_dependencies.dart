@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
+import '../repositories/cached_app_repository.dart';
 import '../repositories/community_repository.dart';
 import '../repositories/demo_app_repository.dart';
 import '../repositories/learning_repository.dart';
 import '../repositories/subscription_repository.dart';
 import '../services/auth_service.dart';
 import '../services/backend_auth_service.dart';
+import '../services/backend_catalog_service.dart';
 import '../services/backend_community_service.dart';
 import '../services/backend_mwalimu_ai_service.dart';
 import '../services/backend_payment_service.dart';
@@ -26,6 +30,7 @@ class AppDependencies {
     required this.authService,
     required this.communityService,
     required this.paymentService,
+    this.refreshListenable,
   });
 
   factory AppDependencies.demo() {
@@ -42,49 +47,70 @@ class AppDependencies {
   }
 
   factory AppDependencies.localFirst() {
-    const repository = DemoAppRepository();
+    const fallbackRepository = DemoAppRepository();
     const fallbackAiService = DemoMwalimuAiService();
     const fallbackAuthService = LocalAuthService();
     const fallbackCommunityService = LocalCommunityService();
     const fallbackPaymentService = LocalPaymentService();
     final apiBaseUrl = Uri.tryParse(_apiBaseUrl);
-    final aiService =
-        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
-            ? fallbackAiService
-            : FallbackMwalimuAiService(
-                primary: BackendMwalimuAiService(baseUrl: apiBaseUrl),
-                fallback: fallbackAiService,
-              );
-    final authService =
-        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
-            ? fallbackAuthService
-            : FallbackAuthService(
-                primary: BackendAuthService(baseUrl: apiBaseUrl),
-                fallback: fallbackAuthService,
-              );
-    final paymentService =
-        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
-            ? fallbackPaymentService
-            : FallbackPaymentService(
-                primary: BackendPaymentService(baseUrl: apiBaseUrl),
-                fallback: fallbackPaymentService,
-              );
-    final communityService =
-        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
-            ? fallbackCommunityService
-            : FallbackCommunityService(
-                primary: BackendCommunityService(baseUrl: apiBaseUrl),
-                fallback: fallbackCommunityService,
-              );
-
+    final hasBackend = apiBaseUrl != null &&
+        apiBaseUrl.hasScheme &&
+        apiBaseUrl.host.isNotEmpty;
+    late final LearningRepository learningRepository;
+    late final CommunityRepository communityRepository;
+    late final SubscriptionRepository subscriptionRepository;
+    Listenable? refreshListenable;
+    if (hasBackend) {
+      final cachedRepository = CachedAppRepository(
+        learningFallback: fallbackRepository,
+        communityFallback: fallbackRepository,
+        subscriptionFallback: fallbackRepository,
+      );
+      learningRepository = cachedRepository;
+      communityRepository = cachedRepository;
+      subscriptionRepository = cachedRepository;
+      refreshListenable = cachedRepository;
+      unawaited(cachedRepository
+          .refresh(BackendCatalogService(baseUrl: apiBaseUrl))
+          .catchError((_) {}));
+    } else {
+      learningRepository = fallbackRepository;
+      communityRepository = fallbackRepository;
+      subscriptionRepository = fallbackRepository;
+    }
+    final aiService = !hasBackend
+        ? fallbackAiService
+        : FallbackMwalimuAiService(
+            primary: BackendMwalimuAiService(baseUrl: apiBaseUrl),
+            fallback: fallbackAiService,
+          );
+    final authService = !hasBackend
+        ? fallbackAuthService
+        : FallbackAuthService(
+            primary: BackendAuthService(baseUrl: apiBaseUrl),
+            fallback: fallbackAuthService,
+          );
+    final paymentService = !hasBackend
+        ? fallbackPaymentService
+        : FallbackPaymentService(
+            primary: BackendPaymentService(baseUrl: apiBaseUrl),
+            fallback: fallbackPaymentService,
+          );
+    final communityService = !hasBackend
+        ? fallbackCommunityService
+        : FallbackCommunityService(
+            primary: BackendCommunityService(baseUrl: apiBaseUrl),
+            fallback: fallbackCommunityService,
+          );
     return AppDependencies(
-      learningRepository: repository,
-      communityRepository: repository,
-      subscriptionRepository: repository,
+      learningRepository: learningRepository,
+      communityRepository: communityRepository,
+      subscriptionRepository: subscriptionRepository,
       mwalimuAiService: aiService,
       authService: authService,
       communityService: communityService,
       paymentService: paymentService,
+      refreshListenable: refreshListenable,
     );
   }
 
@@ -95,17 +121,18 @@ class AppDependencies {
   final AuthService authService;
   final CommunityService communityService;
   final PaymentService paymentService;
+  final Listenable? refreshListenable;
 }
 
 const _apiBaseUrl = String.fromEnvironment('AJE_API_BASE_URL',
     defaultValue: String.fromEnvironment('MWALIMU_API_BASE_URL'));
 
-class AppDependenciesScope extends InheritedWidget {
-  const AppDependenciesScope({
+class AppDependenciesScope extends InheritedNotifier<Listenable> {
+  AppDependenciesScope({
     required this.dependencies,
     required super.child,
     super.key,
-  });
+  }) : super(notifier: dependencies.refreshListenable);
 
   final AppDependencies dependencies;
 
@@ -118,7 +145,8 @@ class AppDependenciesScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppDependenciesScope oldWidget) =>
-      dependencies != oldWidget.dependencies;
+      dependencies != oldWidget.dependencies ||
+      super.updateShouldNotify(oldWidget);
 }
 
 extension AppDependenciesContext on BuildContext {
