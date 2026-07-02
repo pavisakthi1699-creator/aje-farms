@@ -31,23 +31,23 @@ Chrome:
 flutter run -d chrome
 ```
 
-By default, Mwalimu AI uses the local offline knowledge adapter. To call the
-server-side AI endpoint, run the React/Express server from the repo root and
-launch Flutter with an API base URL:
+By default, auth and Mwalimu AI use local offline adapters. To call the
+server-side auth and AI endpoints, run the React/Express server from the repo
+root and launch Flutter with an API base URL:
 
 ```sh
 cd /Users/frankmchaina/Downloads/aje-farms
 npm run dev
 
 cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
-flutter run -d chrome --dart-define=MWALIMU_API_BASE_URL=http://localhost:3000
+flutter run -d chrome --dart-define=AJE_API_BASE_URL=http://localhost:3000
 ```
 
 To run on Android, use an Android emulator or connected Android device:
 
 ```sh
 flutter devices
-flutter run -d <device_id> --dart-define=MWALIMU_API_BASE_URL=http://10.0.2.2:3000
+flutter run -d <device_id> --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000
 ```
 
 macOS desktop is not generated yet. Add it only if you want this repo to support

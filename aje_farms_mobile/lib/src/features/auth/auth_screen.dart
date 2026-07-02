@@ -13,6 +13,8 @@ class AuthScreenState extends State<AuthScreen> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   bool _otpSent = false;
+  bool _isLoading = false;
+  OtpChallenge? _challenge;
 
   @override
   void dispose() {
@@ -21,28 +23,72 @@ class AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  void _sendOtp() {
+  Future<void> _sendOtp() async {
     final phone = _phoneController.text.trim();
     if (phone.length < 9) {
       showSnack(context, 'Weka namba ya simu yenye tarakimu 9 au zaidi.');
       return;
     }
-    setState(() => _otpSent = true);
-    showSnack(context, 'OTP ya majaribio imetumwa kwa +255 $phone.');
+    setState(() => _isLoading = true);
+    try {
+      final challenge =
+          await context.dependencies.authService.requestOtp('+255 $phone');
+      if (!mounted) return;
+      setState(() {
+        _challenge = challenge;
+        _otpSent = true;
+        _isLoading = false;
+      });
+      showSnack(context, challenge.message);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      showSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      showSnack(context, 'Imeshindikana kutuma OTP. Jaribu tena.');
+    }
   }
 
   Future<void> _continueToApp({bool requireOtp = true}) async {
-    if (requireOtp && _otpSent && _otpController.text.trim().length < 4) {
+    final phone = '+255 ${_phoneController.text.trim()}';
+    final challenge = _challenge;
+    if (requireOtp && (challenge == null || !_otpSent)) {
+      await _sendOtp();
+      return;
+    }
+    if (requireOtp && _otpController.text.trim().length < 4) {
       showSnack(context, 'Weka OTP ya mfano ili kuendelea.');
       return;
     }
+    final authService = context.dependencies.authService;
+    final appSession = context.session;
+    setState(() => _isLoading = true);
     if (requireOtp) {
-      await context.session
-          .signInWithPhone('+255 ${_phoneController.text.trim()}');
+      try {
+        final session = await authService.verifyOtp(
+          phoneNumber: phone,
+          otp: _otpController.text.trim(),
+          challengeId: challenge!.challengeId,
+        );
+        await appSession.signInWithPhone(session.phoneNumber);
+      } on AuthException catch (error) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        showSnack(context, error.message);
+        return;
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        showSnack(context, 'Imeshindikana kuthibitisha OTP.');
+        return;
+      }
     } else {
-      await context.session.startAsGuest();
+      await appSession.startAsGuest();
     }
     if (!mounted) return;
+    setState(() => _isLoading = false);
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainShell()),
       (_) => false,
@@ -118,11 +164,27 @@ class AuthScreenState extends State<AuthScreen> {
                 ),
               ),
             ),
+            if (_challenge?.debugOtp != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'OTP ya majaribio: ${_challenge!.debugOtp}',
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: _otpSent ? _continueToApp : _sendOtp,
-            icon: Icon(_otpSent ? Icons.login : Icons.sms_outlined),
+            onPressed:
+                _isLoading ? null : (_otpSent ? _continueToApp : _sendOtp),
+            icon: _isLoading
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(_otpSent ? Icons.login : Icons.sms_outlined),
             label: Text(_otpSent ? 'Endelea kwenye App' : 'Tuma OTP'),
           ),
           const SizedBox(height: 12),

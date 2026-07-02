@@ -1,6 +1,57 @@
 import { chatWithMwalimuServer } from './mwalimu.js';
 
+const otpChallenges = new Map();
+const localOtp = process.env.LOCAL_AUTH_OTP ?? '1234';
+
 export function registerApiRoutes(app) {
+  app.post('/api/auth/request-otp', (req, res) => {
+    const { phoneNumber } = req.body;
+
+    if (typeof phoneNumber !== 'string' || phoneNumber.trim().length < 9) {
+      res.status(400).json({ error: 'Phone number is required.' });
+      return;
+    }
+
+    const normalizedPhone = phoneNumber.trim();
+    const challengeId = `otp-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    otpChallenges.set(challengeId, {
+      phoneNumber: normalizedPhone,
+      otp: localOtp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    res.json({
+      challengeId,
+      message: `OTP imetumwa kwa ${normalizedPhone}.`,
+      debugOtp: process.env.NODE_ENV === 'production' ? undefined : localOtp,
+    });
+  });
+
+  app.post('/api/auth/verify-otp', (req, res) => {
+    const { phoneNumber, otp, challengeId } = req.body;
+    const challenge =
+      typeof challengeId === 'string' ? otpChallenges.get(challengeId) : null;
+
+    if (!challenge) {
+      res.status(400).json({ error: 'OTP imeisha muda wake. Tuma tena.' });
+      return;
+    }
+    if (challenge.expiresAt < Date.now()) {
+      otpChallenges.delete(challengeId);
+      res.status(400).json({ error: 'OTP imeisha muda wake. Tuma tena.' });
+      return;
+    }
+    if (challenge.phoneNumber !== phoneNumber || challenge.otp !== otp) {
+      res.status(401).json({ error: 'OTP si sahihi. Jaribu tena.' });
+      return;
+    }
+
+    otpChallenges.delete(challengeId);
+    res.json({ phoneNumber });
+  });
+
   app.post('/api/mwalimu-chat', async (req, res) => {
     const { message, history } = req.body;
 

@@ -7,8 +7,8 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 - Flutter app matches the MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
 - React/Vite demo remains in the repo as the product reference.
 - App behavior is local-first: session, guest/phone entry, course progress, community posts/replies/reports, assessment scores, saved documents, settings, and subscription status persist on device/web storage.
-- Real external services are not wired yet: SMS OTP, backend content sync, real mobile money checkout, push notifications, and admin workflows.
-- Flutter AI can call the server-side `/api/mwalimu-chat` endpoint when launched with `MWALIMU_API_BASE_URL`; it falls back to the offline local knowledge adapter when no backend is configured.
+- Real external services are not wired yet: SMS provider, backend content sync, real mobile money checkout, push notifications, and admin workflows.
+- Flutter auth and AI can call server-side `/api/auth/*` and `/api/mwalimu-chat` endpoints when launched with `AJE_API_BASE_URL`; both fall back to local adapters when no backend is configured.
 
 ## Build Order
 
@@ -19,7 +19,7 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 
 2. Authentication and accounts
    - Local session and phone/guest state are implemented.
-   - Phone OTP login for farmers.
+   - Backend OTP adapter is implemented for Flutter and Express; SMS provider delivery is still pending.
    - User profile, role, subscription status, and trial state.
    - Roles: learner, expert, admin, content editor.
 
@@ -72,7 +72,7 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 
 Replace local-first service adapters with provider-backed implementations:
 
-- SMS OTP provider or Firebase/Supabase auth.
+- SMS OTP provider or Firebase/Supabase auth behind the existing auth API.
 - Backend content store for courses, documents, and progress sync.
 - Server-side AI endpoint grounded in approved content.
 - Mobile money provider checkout and webhook validation.
