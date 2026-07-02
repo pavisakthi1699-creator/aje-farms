@@ -249,21 +249,32 @@ class AppSessionController extends ChangeNotifier {
       replies: const [],
       isUrgent: tags.contains('Magonjwa') || tags.contains('Wadudu'),
     );
+    await addCommunityPostRecord(post);
+  }
+
+  Future<void> addCommunityPostRecord(CommunityPost post) async {
     _state = _state.copyWith(localPosts: [post, ..._state.localPosts]);
     notifyListeners();
     await _save();
   }
 
   Future<void> addCommunityReply(String postId, String body) async {
-    final replies = _state.localRepliesByPostId[postId] ?? const [];
-    final nextReplies = [
-      ...replies,
+    await addCommunityReplyRecord(
+      postId,
       CommunityReply(
         author: isSignedIn ? phoneNumber! : 'Wewe',
         body: body,
         time: 'Sasa hivi',
       ),
-    ];
+    );
+  }
+
+  Future<void> addCommunityReplyRecord(
+    String postId,
+    CommunityReply reply,
+  ) async {
+    final replies = _state.localRepliesByPostId[postId] ?? const [];
+    final nextReplies = [...replies, reply];
     _state = _state.copyWith(
       localRepliesByPostId: {
         ..._state.localRepliesByPostId,

@@ -78,6 +78,8 @@ class CommunityPostDetailScreen extends StatefulWidget {
 
 class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
   final _replyController = TextEditingController();
+  bool _isSendingReply = false;
+  bool _isReporting = false;
 
   List<CommunityReply> _replies(BuildContext context) => [
         ...widget.post.replies,
@@ -95,12 +97,40 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
   }
 
   Future<void> _sendReply() async {
+    if (_isSendingReply) return;
     final text = _replyController.text.trim();
     if (text.isEmpty) return;
-    await context.session.addCommunityReply(_postId, text);
-    _replyController.clear();
-    if (!mounted) return;
-    showSnack(context, 'Jibu limehifadhiwa.');
+    setState(() => _isSendingReply = true);
+    final session = context.session;
+    final author = session.isSignedIn ? session.phoneNumber! : 'Wewe';
+    try {
+      final reply = await context.dependencies.communityService.addReply(
+        postId: _postId,
+        author: author,
+        body: text,
+      );
+      await session.addCommunityReplyRecord(_postId, reply);
+      _replyController.clear();
+      if (!mounted) return;
+      showSnack(context, 'Jibu limehifadhiwa.');
+    } finally {
+      if (mounted) setState(() => _isSendingReply = false);
+    }
+  }
+
+  Future<void> _reportPost() async {
+    if (_isReporting) return;
+    setState(() => _isReporting = true);
+    final session = context.session;
+    final communityService = context.dependencies.communityService;
+    try {
+      await communityService.reportPost(_postId);
+      await session.reportCommunityPost(_postId);
+      if (!mounted) return;
+      showSnack(context, 'Ripoti imepokelewa.');
+    } finally {
+      if (mounted) setState(() => _isReporting = false);
+    }
   }
 
   @override
@@ -113,13 +143,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
         actions: [
           IconButton(
             tooltip: reported ? 'Post imeripotiwa' : 'Ripoti post',
-            onPressed: reported
-                ? null
-                : () async {
-                    await context.session.reportCommunityPost(_postId);
-                    if (!context.mounted) return;
-                    showSnack(context, 'Ripoti imepokelewa.');
-                  },
+            onPressed: reported || _isReporting ? null : _reportPost,
             icon: Icon(reported ? Icons.flag : Icons.flag_outlined),
           ),
         ],
@@ -161,7 +185,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
               const SizedBox(width: 10),
               IconButton.filled(
                 key: const ValueKey('community-send-reply'),
-                onPressed: _sendReply,
+                onPressed: _isSendingReply ? null : _sendReply,
                 icon: const Icon(Icons.send),
               ),
             ],
@@ -185,6 +209,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   final _locationController = TextEditingController();
   final Set<String> _tags = {'Magonjwa'};
   bool _initializedLocation = false;
+  bool _isSubmitting = false;
 
   static const _availableTags = [
     'Magonjwa',
@@ -213,6 +238,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     final content = _contentController.text.trim();
     final location = _locationController.text.trim();
     if (content.length < 12) {
@@ -223,16 +249,25 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       showSnack(context, 'Weka eneo lako ili wakulima wakuelewe vizuri.');
       return;
     }
+    setState(() => _isSubmitting = true);
     final session = context.session;
-    await session.setPreferredLocation(location);
-    await session.addCommunityPost(
-      content: content,
-      location: location,
-      tags: _tags.toList()..sort(),
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    showSnack(context, 'Post imetumwa kwenye jamii.');
+    final author = session.isSignedIn ? session.phoneNumber! : 'Wewe';
+    try {
+      final tags = _tags.toList()..sort();
+      final post = await context.dependencies.communityService.createPost(
+        author: author,
+        content: content,
+        location: location,
+        tags: tags,
+      );
+      await session.setPreferredLocation(location);
+      await session.addCommunityPostRecord(post);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showSnack(context, 'Post imetumwa kwenye jamii.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -291,7 +326,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _submit,
+            onPressed: _isSubmitting ? null : _submit,
             icon: const Icon(Icons.send),
             label: const Text('Tuma kwenye Jamii'),
           ),

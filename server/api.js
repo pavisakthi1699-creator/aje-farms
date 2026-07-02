@@ -2,6 +2,7 @@ import { chatWithMwalimuServer } from './mwalimu.js';
 
 const otpChallenges = new Map();
 const paymentTransactions = new Map();
+const communityPosts = new Map();
 const localOtp = process.env.LOCAL_AUTH_OTP ?? '1234';
 
 export function registerApiRoutes(app) {
@@ -89,6 +90,81 @@ export function registerApiRoutes(app) {
       return;
     }
     res.json(transaction);
+  });
+
+  app.post('/api/community/posts', (req, res) => {
+    const { author, content, location, tags } = req.body;
+
+    if (
+      typeof author !== 'string' ||
+      typeof content !== 'string' ||
+      content.trim().length < 12 ||
+      typeof location !== 'string' ||
+      location.trim().length === 0 ||
+      !Array.isArray(tags) ||
+      tags.some((tag) => typeof tag !== 'string')
+    ) {
+      res.status(400).json({ error: 'Post details are required.' });
+      return;
+    }
+
+    const id = `post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
+      Boolean,
+    );
+    const post = {
+      id,
+      author: author.trim(),
+      location: location.trim(),
+      time: 'Sasa hivi',
+      content: content.trim(),
+      likes: 0,
+      comments: 0,
+      tags: normalizedTags,
+      replies: [],
+      relatedTopic: normalizedTags[0] ?? null,
+      hasImage: false,
+      isExpert: false,
+      isUrgent:
+        normalizedTags.includes('Magonjwa') ||
+        normalizedTags.includes('Wadudu'),
+    };
+    communityPosts.set(id, post);
+    res.json(post);
+  });
+
+  app.post('/api/community/posts/:postId/replies', (req, res) => {
+    const { author, body } = req.body;
+
+    if (
+      typeof author !== 'string' ||
+      typeof body !== 'string' ||
+      body.trim().length === 0
+    ) {
+      res.status(400).json({ error: 'Reply details are required.' });
+      return;
+    }
+
+    const reply = {
+      author: author.trim(),
+      body: body.trim(),
+      time: 'Sasa hivi',
+      isExpert: false,
+    };
+    const post = communityPosts.get(req.params.postId);
+    if (post) {
+      post.replies.push(reply);
+      post.comments = post.replies.length;
+      communityPosts.set(post.id, post);
+    }
+    res.json(reply);
+  });
+
+  app.post('/api/community/posts/:postId/report', (req, res) => {
+    res.json({
+      postId: req.params.postId,
+      status: 'received',
+    });
   });
 
   app.post('/api/mwalimu-chat', async (req, res) => {

@@ -6,10 +6,13 @@ import '../repositories/learning_repository.dart';
 import '../repositories/subscription_repository.dart';
 import '../services/auth_service.dart';
 import '../services/backend_auth_service.dart';
+import '../services/backend_community_service.dart';
 import '../services/backend_mwalimu_ai_service.dart';
 import '../services/backend_payment_service.dart';
+import '../services/community_service.dart';
 import '../services/demo_mwalimu_ai_service.dart';
 import '../services/local_auth_service.dart';
+import '../services/local_community_service.dart';
 import '../services/local_payment_service.dart';
 import '../services/mwalimu_ai_service.dart';
 import '../services/payment_service.dart';
@@ -21,6 +24,7 @@ class AppDependencies {
     required this.subscriptionRepository,
     required this.mwalimuAiService,
     required this.authService,
+    required this.communityService,
     required this.paymentService,
   });
 
@@ -32,6 +36,7 @@ class AppDependencies {
       subscriptionRepository: repository,
       mwalimuAiService: DemoMwalimuAiService(),
       authService: LocalAuthService(),
+      communityService: LocalCommunityService(),
       paymentService: LocalPaymentService(),
     );
   }
@@ -40,6 +45,7 @@ class AppDependencies {
     const repository = DemoAppRepository();
     const fallbackAiService = DemoMwalimuAiService();
     const fallbackAuthService = LocalAuthService();
+    const fallbackCommunityService = LocalCommunityService();
     const fallbackPaymentService = LocalPaymentService();
     final apiBaseUrl = Uri.tryParse(_apiBaseUrl);
     final aiService =
@@ -63,6 +69,13 @@ class AppDependencies {
                 primary: BackendPaymentService(baseUrl: apiBaseUrl),
                 fallback: fallbackPaymentService,
               );
+    final communityService =
+        apiBaseUrl == null || !apiBaseUrl.hasScheme || apiBaseUrl.host.isEmpty
+            ? fallbackCommunityService
+            : FallbackCommunityService(
+                primary: BackendCommunityService(baseUrl: apiBaseUrl),
+                fallback: fallbackCommunityService,
+              );
 
     return AppDependencies(
       learningRepository: repository,
@@ -70,6 +83,7 @@ class AppDependencies {
       subscriptionRepository: repository,
       mwalimuAiService: aiService,
       authService: authService,
+      communityService: communityService,
       paymentService: paymentService,
     );
   }
@@ -79,6 +93,7 @@ class AppDependencies {
   final SubscriptionRepository subscriptionRepository;
   final MwalimuAiService mwalimuAiService;
   final AuthService authService;
+  final CommunityService communityService;
   final PaymentService paymentService;
 }
 
