@@ -25,6 +25,7 @@ void main() {
       'http://localhost:3000/api/catalog',
     );
     expect(catalog.courses.single.id, 'pilipili');
+    expect(catalog.documents.single.id, 'pilipili-mwongozo');
     expect(catalog.courses.single.icon, Icons.grass);
     expect(catalog.courses.single.lessons.single.type.name, 'pdf');
     expect(catalog.problemCategories.single.color, const Color(0xFFE15241));
@@ -36,9 +37,9 @@ void main() {
       () async {
     const fallback = DemoAppRepository();
     final repository = CachedAppRepository(
-      learningFallback: fallback,
-      communityFallback: fallback,
-      subscriptionFallback: fallback,
+      learningSeed: fallback,
+      communitySeed: fallback,
+      subscriptionSeed: fallback,
     );
     var notifications = 0;
     repository.addListener(() => notifications++);
@@ -47,7 +48,7 @@ void main() {
 
     await repository.refresh(_FakeCatalogService());
 
-    expect(notifications, 1);
+    expect(notifications, 2);
     expect(repository.courses.single.id, 'pilipili');
     expect(repository.problemCategories.single.title, 'Magonjwa');
     expect(repository.plans.single.title, 'Mwaka 1');
@@ -86,6 +87,18 @@ const _catalogJson = '''
           "isPremium": true
         }
       ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "pilipili-mwongozo",
+      "title": "Mwongozo wa pilipili",
+      "courseId": "pilipili",
+      "courseTitle": "Kilimo cha Pilipili",
+      "description": "Pakua mwongozo.",
+      "type": "pdf",
+      "sizeLabel": "1 MB",
+      "isPremium": true
     }
   ],
   "problemCategories": [

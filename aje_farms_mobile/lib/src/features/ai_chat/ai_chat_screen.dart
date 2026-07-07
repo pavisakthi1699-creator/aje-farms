@@ -57,19 +57,27 @@ class AiChatScreenState extends State<AiChatScreen> {
     });
 
     final aiService = context.dependencies.mwalimuAiService;
-    var response =
-        'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.';
+    var answer = const MwalimuAiAnswer(
+      text:
+          'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
+    );
 
     try {
-      response = await aiService.answer(text);
+      answer = await aiService.answer(text);
     } catch (_) {
-      response =
-          'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.';
+      answer = const MwalimuAiAnswer(
+        text:
+            'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
+      );
     }
 
     if (!mounted) return;
     setState(() {
-      _messages.add(ChatMessage(role: ChatRole.model, text: response));
+      _messages.add(ChatMessage(
+        role: ChatRole.model,
+        text: answer.text,
+        sources: answer.sources,
+      ));
       _isLoading = false;
     });
   }
@@ -80,23 +88,48 @@ class AiChatScreenState extends State<AiChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Mwalimu AI'),
-            Text('Online',
-                style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800)),
+            const Text('Mwalimu AI'),
+            Semantics(
+              label: 'Hali: Mtandaoni',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ExcludeSemantics(
+                    child: Icon(
+                      Icons.circle,
+                      size: 10,
+                      color: context.colors.success,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Mtandaoni',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.colors.success,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              backgroundColor: AppColors.blue,
-              child: Icon(Icons.smart_toy_outlined, color: AppColors.primary),
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: ExcludeSemantics(
+              child: Container(
+                width: AppA11y.minTouchTarget,
+                height: AppA11y.minTouchTarget,
+                decoration: AppDecorations.circleIconButton(context),
+                child: Icon(
+                  Icons.smart_toy_outlined,
+                  color: context.colors.primary,
+                ),
+              ),
             ),
           ),
         ],
@@ -104,15 +137,19 @@ class AiChatScreenState extends State<AiChatScreen> {
       body: Column(
         children: [
           if (widget.initialPromptTopic != null)
-            IntakeContextCard(
-              topic: widget.initialPromptTopic!,
-              detail: widget.initialPromptDetail,
+            AppLayout(
+              child: IntakeContextCard(
+                topic: widget.initialPromptTopic!,
+                detail: widget.initialPromptDetail,
+              ),
             ),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
+            child: AppLayout(
+              child: ListView.separated(
+              key: AppPageStorage.aiChat,
+              padding: const EdgeInsets.all(AppSpacing.xl),
               itemCount: _messages.length + (_isLoading ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 if (_isLoading && index == _messages.length) {
                   return const Align(
@@ -122,63 +159,44 @@ class AiChatScreenState extends State<AiChatScreen> {
                 }
                 return ChatBubble(
                   message: _messages[index],
-                  onEscalate: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WhatsAppEscalationScreen(),
-                    ),
-                  ),
+                  onEscalate: () => AppNavigator.pushWhatsApp(context),
                 );
               },
             ),
+            ),
           ),
           if (_messages.length == 1 && !_isLoading)
-            SizedBox(
+            AppLayout(
+              child: SizedBox(
               height: 58,
               child: ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
                 scrollDirection: Axis.horizontal,
                 itemCount: suggestions.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.sm),
                 itemBuilder: (_, index) => ActionChip(
-                  label: Text(suggestions[index]),
-                  onPressed: () => _send(suggestions[index]),
+                  label: Text(
+                    suggestions[index],
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  onPressed: () {
+                    AppFeedback.selection();
+                    _send(suggestions[index]);
+                  },
                 ),
               ),
             ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      enabled: !_isLoading,
-                      decoration: InputDecoration(
-                        hintText: 'Uliza ushauri kuhusu kilimo...',
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onSubmitted: (_) => _send(),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  IconButton.filled(
-                    onPressed: _isLoading ? null : () => _send(),
-                    icon: _isLoading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                  ),
-                ],
-              ),
+            ),
+          AppLayout(
+            child: ChatComposerBar(
+              controller: _controller,
+              isLoading: _isLoading,
+              hintText: 'Uliza ushauri kuhusu kilimo...',
+              onSend: _send,
             ),
           ),
         ],

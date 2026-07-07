@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/community_post.dart';
+import 'backend_session_storage.dart';
 import 'community_service.dart';
 
 class BackendCommunityService implements CommunityService {
@@ -65,7 +66,7 @@ class BackendCommunityService implements CommunityService {
     final response = await _client
         .post(
           _baseUrl.resolve(path),
-          headers: const {'Content-Type': 'application/json'},
+          headers: await _headers(),
           body: jsonEncode(body),
         )
         .timeout(timeout);
@@ -85,69 +86,14 @@ class BackendCommunityService implements CommunityService {
     }
     return payload;
   }
-}
 
-class FallbackCommunityService implements CommunityService {
-  const FallbackCommunityService({
-    required this.primary,
-    required this.fallback,
-  });
-
-  final CommunityService primary;
-  final CommunityService fallback;
-
-  @override
-  Future<CommunityPost> createPost({
-    required String author,
-    required String content,
-    required String location,
-    required List<String> tags,
-  }) async {
-    try {
-      return await primary.createPost(
-        author: author,
-        content: content,
-        location: location,
-        tags: tags,
-      );
-    } catch (_) {
-      return fallback.createPost(
-        author: author,
-        content: content,
-        location: location,
-        tags: tags,
-      );
+  Future<Map<String, String>> _headers() async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
-  }
-
-  @override
-  Future<CommunityReply> addReply({
-    required String postId,
-    required String author,
-    required String body,
-  }) async {
-    try {
-      return await primary.addReply(
-        postId: postId,
-        author: author,
-        body: body,
-      );
-    } catch (_) {
-      return fallback.addReply(
-        postId: postId,
-        author: author,
-        body: body,
-      );
-    }
-  }
-
-  @override
-  Future<void> reportPost(String postId) async {
-    try {
-      await primary.reportPost(postId);
-    } catch (_) {
-      await fallback.reportPost(postId);
-    }
+    return headers;
   }
 }
 

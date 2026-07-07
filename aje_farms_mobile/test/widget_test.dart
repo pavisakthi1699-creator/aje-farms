@@ -1,15 +1,37 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:aje_farms_mobile/src/app.dart';
 
 void main() {
+  Widget buildDemoApp() {
+    return AjeFarmsApp(dependencies: AppDependencies.demo());
+  }
+
+  void useTallViewport(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  }
+
+  Future<void> startDemoShell(WidgetTester tester) async {
+    await tester.tap(find.text('Anza Sasa'));
+    await tester.pumpAndSettle();
+  }
+
   setUp(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
     SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
   });
 
   testWidgets('renders AJE Farms onboarding', (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    await tester.pumpWidget(buildDemoApp());
 
     expect(find.text('AJE Farms'), findsOneWidget);
     expect(find.text('Kilimo na Ujasiliamali'), findsOneWidget);
@@ -17,10 +39,10 @@ void main() {
   });
 
   testWidgets('starts the main learner shell', (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
 
-    await tester.tap(find.text('Anza Sasa'));
-    await tester.pumpAndSettle();
+    await startDemoShell(tester);
 
     expect(find.text('Karibu, Mkulima'), findsOneWidget);
     expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
@@ -29,12 +51,12 @@ void main() {
 
   testWidgets('guides farmer from home problem intake into AI chat',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
 
-    await tester.tap(find.text('Anza Sasa'));
-    await tester.pumpAndSettle();
+    await startDemoShell(tester);
 
-    await tester.tap(find.text('Eleza Tatizo'));
+    await tester.tap(find.text('Eleza tatizo'));
     await tester.pumpAndSettle();
 
     expect(find.text('Zao au mnyama (hiari)'), findsOneWidget);
@@ -59,14 +81,14 @@ void main() {
 
   testWidgets('continues a course and opens lesson and premium states',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
 
-    await tester.tap(find.text('Anza Sasa'));
-    await tester.pumpAndSettle();
+    await startDemoShell(tester);
 
     final dashboardCourse =
         find.byKey(const ValueKey('dashboard-course-tap-pasheni'));
-    await tester.scrollUntilVisible(dashboardCourse, 220);
+    await tester.ensureVisible(dashboardCourse);
     await tester.tap(dashboardCourse);
     await tester.pumpAndSettle();
 
@@ -95,12 +117,18 @@ void main() {
 
   testWidgets('opens community discussion and replies with AI handoff',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
 
-    await tester.tap(find.text('Anza Sasa'));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(buildDemoApp());
 
-    await tester.tap(find.byIcon(Icons.groups_outlined));
+    await startDemoShell(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.groups_outlined),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Jamii hai leo'), findsOneWidget);
@@ -116,11 +144,14 @@ void main() {
     expect(find.text('Natafuta mwongozo wa kuanza ufugaji wa kuku wa nyama.'),
         findsNothing);
 
-    await tester.tap(find
-        .text('Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.'));
+    final postCard =
+        find.byKey(const ValueKey('community-post-seed-pasheni-disease'));
+    await tester.ensureVisible(postCard);
+    await tester.tap(postCard);
     await tester.pumpAndSettle();
 
     expect(find.text('Majadiliano'), findsOneWidget);
+    await tester.ensureVisible(find.text('Hatua inayofuata'));
     expect(find.text('Hatua inayofuata'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField),
@@ -153,8 +184,8 @@ void main() {
 
     expect(find.text('Mwalimu AI bila kikomo'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('plan-Wiki 1')), 220);
+    await tester.ensureVisible(find.byKey(const ValueKey('plan-Wiki 1')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('plan-Wiki 1')));
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView).first, const Offset(0, -420));
@@ -182,7 +213,8 @@ void main() {
 
   testWidgets('auth demo flow sends OTP and continues',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
 
     await tester.ensureVisible(find.text('Ingia / Jisajili'));
     await tester.pumpAndSettle();
@@ -199,20 +231,25 @@ void main() {
     expect(find.text('OTP'), findsOneWidget);
 
     await tester.enterText(find.byType(EditableText).last, '1234');
-    await tester.ensureVisible(find.text('Endelea kwenye App'));
+    await tester.ensureVisible(find.text('Endelea'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Endelea kwenye App'));
+    await tester.tap(find.text('Endelea'));
     await tester.pumpAndSettle();
 
     expect(find.text('Karibu, Mkulima'), findsOneWidget);
   });
 
   testWidgets('creates a local community post', (WidgetTester tester) async {
-    await tester.pumpWidget(const AjeFarmsApp());
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
 
-    await tester.tap(find.text('Anza Sasa'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.groups_outlined));
+    await startDemoShell(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.groups_outlined),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.add));
@@ -233,5 +270,93 @@ void main() {
       find.text('Majani ya nyanya yana madoa ya njano na nataka ushauri.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('opens premium lesson when subscription is active',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final session = AppSessionController();
+    await session.restore();
+    await session.startAsGuest();
+    await session.activateSubscription('Wiki 1');
+    final course = AppDependencies.demo()
+        .learningRepository
+        .courses
+        .firstWhere((item) => item.id == 'pasheni');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppDependenciesScope(
+          dependencies: AppDependencies.demo(),
+          child: AppSessionScope(
+            controller: session,
+            child: CourseDetailScreen(course: course),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Jaribio la maarifa'), 220);
+    await tester.tap(find.text('Jaribio la maarifa'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Muda wa jaribio umeisha'), findsNothing);
+    expect(find.text('Fungua Somo la Mfano'), findsOneWidget);
+  });
+
+  testWidgets('dashboard remains usable at large text scale',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
+    await startDemoShell(tester);
+
+    for (final scale in [1.3, 2.0]) {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+          child: buildDemoApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Karibu, Mkulima'), findsOneWidget);
+      expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('trending topic opens AI chat with topic context',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
+    await startDemoShell(tester);
+
+    await tester.ensureVisible(find.text('Maji'));
+    await tester.tap(find.text('Maji'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mwalimu AI'), findsOneWidget);
+    expect(find.text('Muktadha uliotumwa'), findsOneWidget);
+    expect(find.text('Maji'), findsWidgets);
+  });
+
+  testWidgets('bottom navigation shows Swahili labels',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    await tester.pumpWidget(buildDemoApp());
+    await startDemoShell(tester);
+
+    expect(find.text('Nyumbani'), findsOneWidget);
+    expect(find.text('Mafunzo'), findsOneWidget);
+    expect(find.text('Uliza AI'), findsOneWidget);
+    expect(find.text('Jamii'), findsOneWidget);
+    expect(find.text('Akaunti'), findsOneWidget);
   });
 }

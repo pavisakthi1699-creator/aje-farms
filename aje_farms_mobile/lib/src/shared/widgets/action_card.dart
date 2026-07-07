@@ -21,28 +21,40 @@ class ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: color,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: AppColors.primary, size: 34),
-              const SizedBox(height: 18),
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(body),
-              const SizedBox(height: 18),
-              Text(
-                action,
-                style: const TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w800),
-              ),
-            ],
+    return AccessibleTappable(
+      label: title,
+      hint: '$body. $action',
+      onTap: onTap,
+      child: Card(
+        color: color,
+        child: InteractiveInk(
+          borderRadius: AppRadius.xl,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: AppA11y.minTouchTarget,
+                  height: AppA11y.minTouchTarget,
+                  decoration: AppDecorations.circleIconButton(context),
+                  child: Icon(icon, color: context.colors.primary, size: 24),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.sm),
+                Text(body, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  action,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: context.colors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

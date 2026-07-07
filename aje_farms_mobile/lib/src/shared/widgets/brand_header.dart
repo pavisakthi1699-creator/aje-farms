@@ -9,25 +9,33 @@ class BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: compact ? 38 : 48,
-          height: compact ? 38 : 48,
-          decoration: const BoxDecoration(
-            color: AppColors.primaryContainer,
-            shape: BoxShape.circle,
+    final size = compact ? 40.0 : 48.0;
+    return Semantics(
+      header: !compact,
+      label: 'AJE Farms',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(
+            child: Container(
+              width: size,
+              height: size,
+              decoration: AppDecorations.circleIconButton(context),
+              child: Center(
+                child: BrandMark(size: compact ? 26 : 30),
+              ),
+            ),
           ),
-          child: const Icon(Icons.eco, color: AppColors.primary),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'AJE Farms',
-          style: TextStyle(
-              fontSize: compact ? 18 : 22, fontWeight: FontWeight.w800),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            'AJE Farms',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: compact ? 18 : 22,
+                  letterSpacing: -0.2,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }

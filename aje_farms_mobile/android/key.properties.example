@@ -1,0 +1,4 @@
+storeFile=/absolute/path/to/aje-farms-release.keystore
+storePassword=replace-with-keystore-password
+keyAlias=aje-farms-release
+keyPassword=replace-with-key-password

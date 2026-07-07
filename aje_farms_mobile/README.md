@@ -1,16 +1,16 @@
 # AJE Farms Mobile
 
-Native Flutter starter for the AJE Farms learner app.
+Native Flutter Android app for the AJE Farms learner app.
 
-This app currently runs as a local-first Flutter product foundation:
+This app currently runs as a connected Flutter product foundation:
 
 - Onboarding, guest mode, and phone-entry session state
 - Learner dashboard with persisted lesson progress
 - Course catalog, course detail, saved documents, and completion tracking
 - Assessment quiz and field assignment with saved scores
 - Mwalimu AI knowledge assistant flow
-- Community posts, replies, reporting, and filters persisted locally
-- Payment/paywall flow with local subscription state
+- Community posts, replies, reporting, and filters backed by the API
+- Payment/paywall flow backed by the API
 - Notifications driven by current app state
 - Profile, settings, saved documents, and sign-out
 
@@ -21,19 +21,18 @@ Run from the Flutter project directory:
 ```sh
 cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
 flutter pub get
-flutter run
+flutter run --dart-define=AJE_API_BASE_URL=http://localhost:3000
 ```
 
 This project includes Android and web platform files. To run immediately on
 Chrome:
 
 ```sh
-flutter run -d chrome
+flutter run -d chrome --dart-define=AJE_API_BASE_URL=http://localhost:3000
 ```
 
-By default, auth, payments, and Mwalimu AI use local offline adapters. To call
-the server-side auth, payment, and AI endpoints, run the React/Express server
-from the repo root and launch Flutter with an API base URL:
+Run the React/Express server from the repo root before launching the connected
+app:
 
 ```sh
 cd /Users/frankmchaina/Downloads/aje-farms
@@ -50,13 +49,29 @@ flutter devices
 flutter run -d <device_id> --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000
 ```
 
+Connected Android smoke:
+
+```sh
+cd /Users/frankmchaina/Downloads/aje-farms
+npm run dev
+
+cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
+flutter test integration_test/connected_app_smoke_test.dart \
+  -d emulator-5554 \
+  --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000
+```
+
+The app has one connected runtime path. Local/demo services are only used when
+tests inject `AppDependencies.demo()`.
+
 macOS desktop is not generated yet. Add it only if you want this repo to support
 that platform too.
 
 ## Android Release Signing
 
 Debug APKs build without extra setup. For release builds, create
-`android/key.properties` locally with:
+`android/key.properties` locally. Start from `android/key.properties.example`
+and replace every placeholder:
 
 ```properties
 storeFile=/absolute/path/to/release.keystore
@@ -66,6 +81,52 @@ keyPassword=...
 ```
 
 `android/key.properties` is ignored by git.
+
+Release builds should pass the production backend and expert support number:
+
+```sh
+npm run release:android
+```
+
+## Backend Readiness
+
+The API exposes a non-secret readiness endpoint:
+
+```sh
+curl http://localhost:3000/api/health
+```
+
+Postgres smoke can run with Docker or any reachable managed Postgres:
+
+```sh
+# Docker local Postgres, when Docker Desktop/Colima is installed
+npm run smoke:postgres
+
+# Managed/external Postgres
+DATABASE_URL=postgresql://user:pass@host:5432/db npm run smoke:postgres
+```
+
+Before building a release candidate, run the release preflight from the repo
+root. It checks production backend persistence, release URL wiring, disabled
+debug OTP, Android signing config, and the WhatsApp support number:
+
+```sh
+NODE_ENV=production \
+APP_URL=https://api.example.com \
+AJE_STORE=postgres \
+DATABASE_URL=postgresql://user:pass@host:5432/db \
+AJE_OTP_PEPPER=replace-with-secret \
+AJE_ENABLE_DEBUG_OTP=false \
+AJE_ANDROID_API_BASE_URL=https://api.example.com \
+AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
+AJE_ADMIN_PHONE_NUMBERS=255700000000 \
+AJE_PUSH_PROVIDER=development \
+npm run preflight:release
+```
+
+SMS, Gemini, and payment provider gaps are reported as warnings while those
+provider integrations are intentionally deferred. `npm run release:android`
+runs the same preflight and then builds the signed Android App Bundle.
 
 ## Next Integrations
 

@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import '../../shared/dashboard_greeting.dart';
+import '../../app/app_navigator.dart';
 import '../../ui.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -13,91 +15,94 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const BrandHeader(compact: true),
         actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: CircleIconButton(
+              icon: Icons.notifications_none,
+              tooltip: 'Arifa',
+              semanticLabel: 'Arifa',
+              onPressed: () => AppNavigator.pushNotifications(context),
             ),
-            icon: const Icon(Icons.notifications_none),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-        children: [
-          const Text(
-            'Karibu, Mkulima',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+      body: AppLayout(
+        child: ListView(
+          key: AppPageStorage.dashboard,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            AppSpacing.xxxl,
           ),
-          const SizedBox(height: 4),
+          children: [
+          Text(
+            context.session.state.dashboardGreeting,
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Text('Endeleza shamba lako leo',
               style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           const TrialStatusCard(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           HeroActionCard(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProblemScreen()),
-            ),
+              onTap: () => AppNavigator.pushProblem(context),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
                 child: MiniActionCard(
-                  color: AppColors.mint,
+                  color: context.colors.mint,
                   icon: Icons.smart_toy_outlined,
                   title: 'Uliza AI',
-                  subtitle: 'Majibu ya Papo',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AiChatScreen()),
-                  ),
+                  subtitle: 'Majibu papo hapo',
+                  onTap: () {
+                    context.switchMainShellTab(MainShellTab.aiChat);
+                  },
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: MiniActionCard(
-                  color: AppColors.text,
-                  foreground: Colors.white,
+                  color: context.colors.charcoal,
+                  foreground: context.colors.onPrimary,
                   icon: Icons.star,
                   title: 'Premium',
-                  subtitle: 'Fungua Soko',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const PaywallScreen()),
-                  ),
+                  subtitle: 'Fungua soko',
+                  onTap: () => AppNavigator.pushPaywall(context),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           SectionHeader(
             title: 'Endelea Kujifunza',
             actionIcon: Icons.add,
-            onAction: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CoursesScreen()),
-            ),
+            onAction: () {
+              context.switchMainShellTab(MainShellTab.courses);
+            },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           CourseProgressCard(
             key: ValueKey('dashboard-course-${activeCourse.id}'),
             course: activeCourse,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => CourseDetailScreen(course: activeCourse)),
-            ),
+            onTap: () => AppNavigator.pushCourse(context, activeCourse),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           Text('Mada Zinazovuma',
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           const TrendingTopics(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           CommunityTeaser(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CommunityScreen()),
-            ),
+            onTap: () {
+              context.switchMainShellTab(MainShellTab.community);
+            },
           ),
         ],
+        ),
       ),
     );
   }

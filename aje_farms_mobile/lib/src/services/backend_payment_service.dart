@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'backend_session_storage.dart';
 import 'payment_service.dart';
 
 class BackendPaymentService implements PaymentService {
@@ -36,7 +37,10 @@ class BackendPaymentService implements PaymentService {
   @override
   Future<PaymentTransaction> getStatus(String transactionId) async {
     final response = await _client
-        .get(_baseUrl.resolve('/api/payments/$transactionId'))
+        .get(
+          _baseUrl.resolve('/api/payments/$transactionId'),
+          headers: await _headers(),
+        )
         .timeout(timeout);
 
     final payload = jsonDecode(response.body);
@@ -61,7 +65,7 @@ class BackendPaymentService implements PaymentService {
     final response = await _client
         .post(
           _baseUrl.resolve(path),
-          headers: const {'Content-Type': 'application/json'},
+          headers: await _headers(),
           body: jsonEncode(body),
         )
         .timeout(timeout);
@@ -80,48 +84,14 @@ class BackendPaymentService implements PaymentService {
     }
     return payload;
   }
-}
 
-class FallbackPaymentService implements PaymentService {
-  const FallbackPaymentService({
-    required this.primary,
-    required this.fallback,
-  });
-
-  final PaymentService primary;
-  final PaymentService fallback;
-
-  @override
-  Future<PaymentTransaction> startCheckout({
-    required String planTitle,
-    required String price,
-    required String method,
-    required String phoneNumber,
-  }) async {
-    try {
-      return await primary.startCheckout(
-        planTitle: planTitle,
-        price: price,
-        method: method,
-        phoneNumber: phoneNumber,
-      );
-    } catch (_) {
-      return fallback.startCheckout(
-        planTitle: planTitle,
-        price: price,
-        method: method,
-        phoneNumber: phoneNumber,
-      );
+  Future<Map<String, String>> _headers() async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
-  }
-
-  @override
-  Future<PaymentTransaction> getStatus(String transactionId) async {
-    try {
-      return await primary.getStatus(transactionId);
-    } catch (_) {
-      return fallback.getStatus(transactionId);
-    }
+    return headers;
   }
 }
 
@@ -135,5 +105,12 @@ PaymentTransaction _transactionFromJson(Map<String, dynamic> json) {
     status: PaymentStatus.fromWire(json['status'] as String),
     message: json['message'] as String,
     receiptNumber: json['receiptNumber'] as String?,
+    subscriptionPlan: json['subscriptionPlan'] as String?,
+    subscriptionStartedAt: _dateTimeFromJson(json['subscriptionStartedAt']),
+    checkoutInstructions: json['checkoutInstructions'] as String?,
   );
+}
+
+DateTime? _dateTimeFromJson(Object? value) {
+  return value is String ? DateTime.tryParse(value) : null;
 }

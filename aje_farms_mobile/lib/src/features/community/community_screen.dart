@@ -22,45 +22,123 @@ class CommunityScreenState extends State<CommunityScreen> {
     return posts.where((post) => post.tags.contains(_selectedFilter)).toList();
   }
 
+  Future<void> _handleRefresh() async {
+    await context.dependencies.refreshCatalog();
+    if (!mounted) return;
+    showSnack(context, 'Jamii imesasishwa.');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final allPosts = [
-      ...context.session.state.localPosts,
-      ...context.dependencies.communityRepository.posts,
-    ];
-    final posts = _filteredPosts(context);
+    final dependencies = context.dependencies;
+    final refreshListenable =
+        dependencies.refreshListenable ?? kIdleListenable;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Jamii ya Wakulima')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CreateCommunityPostScreen()),
-        ),
-        child: const Icon(Icons.add),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          AppFeedback.tap();
+          AppNavigator.pushCreateCommunityPost(context);
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Swali'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          CommunitySummaryCard(posts: allPosts),
-          const SizedBox(height: 16),
-          CommunityFilters(
-            selectedFilter: _selectedFilter,
-            onSelected: (filter) => setState(() => _selectedFilter = filter),
-          ),
-          const SizedBox(height: 18),
-          ...posts.map(
-            (post) => Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: CommunityPostCard(
-                post: post,
-                onOpen: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => CommunityPostDetailScreen(post: post),
+      body: AppLayout(
+        child: ListenableBuilder(
+        listenable: refreshListenable,
+        builder: (context, _) {
+          final cached = dependencies.cachedRepository;
+          if (cached?.isInitialLoadPending == true) {
+            return ListView(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              children: const [CommunityFeedSkeleton()],
+            );
+          }
+
+          final allPosts = [
+            ...context.session.state.localPosts,
+            ...dependencies.communityRepository.posts,
+          ];
+          final posts = _filteredPosts(context);
+
+          return FadeInContent(
+            child: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: CustomScrollView(
+                key: AppPageStorage.community,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        CommunitySummaryCard(posts: allPosts),
+                        const SizedBox(height: AppSpacing.lg),
+                        CommunityFilters(
+                          selectedFilter: _selectedFilter,
+                          onSelected: (filter) =>
+                              setState(() => _selectedFilter = filter),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ]),
+                    ),
                   ),
-                ),
+                  if (posts.isEmpty)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xl,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: EmptyState(
+                          icon: Icons.forum_outlined,
+                          title: _selectedFilter == 'Zote'
+                              ? 'Hakuna machapisho bado'
+                              : 'Hakuna machapisho kwa "$_selectedFilter"',
+                          body: _selectedFilter == 'Zote'
+                              ? 'Kuwa wa kwanza kuuliza swali au shiriki uzoefu wako na wakulima wengine.'
+                              : 'Jaribu chaguo lingine la mada au angalia machapisho yote.',
+                          actionLabel: _selectedFilter == 'Zote'
+                              ? 'Tuma Swali'
+                              : 'Ona Zote',
+                          onAction: () {
+                            if (_selectedFilter == 'Zote') {
+                              AppNavigator.pushCreateCommunityPost(context);
+                              return;
+                            }
+                            setState(() => _selectedFilter = 'Zote');
+                          },
+                        ),
+                      ),
+                    )
+                  else
+                    AdaptiveCatalogSliver(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.xl,
+                        0,
+                        AppSpacing.xl,
+                        AppSpacing.xl,
+                      ),
+                      listItemSpacing: AppSpacing.lg,
+                      gridMainAxisExtent: 300,
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) {
+                        final post = posts[index];
+                        final compact = AppBreakpoints.isExpanded(context);
+                        return CommunityPostCard(
+                          post: post,
+                          compact: compact,
+                          onOpen: () =>
+                              AppNavigator.pushCommunityPost(context, post),
+                        );
+                      },
+                    ),
+                ],
               ),
             ),
-          ),
-        ],
+          );
+        },
+      ),
       ),
     );
   }
@@ -120,6 +198,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
 
   Future<void> _reportPost() async {
     if (_isReporting) return;
+    AppFeedback.tap();
     setState(() => _isReporting = true);
     final session = context.session;
     final communityService = context.dependencies.communityService;
@@ -137,6 +216,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
   Widget build(BuildContext context) {
     final post = widget.post;
     final reported = context.session.isPostReported(_postId);
+    final replies = _replies(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Majadiliano'),
@@ -148,49 +228,60 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          CommunityPostCard(post: post, onOpen: () {}),
-          const SizedBox(height: 10),
-          DiscussionActionPanel(post: post),
-          const SizedBox(height: 22),
-          Text('Majibu ya wakulima',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          ..._replies(context).map((reply) => CommunityReplyTile(reply: reply)),
-          const SizedBox(height: 90),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _replyController,
-                  decoration: InputDecoration(
-                    hintText: 'Andika jibu la kusaidia...',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
+      body: AppLayout(
+        child: CustomScrollView(
+        key: AppPageStorage.communityPost(_postId),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              CommunityPostCard(post: post, onOpen: () {}),
+              const SizedBox(height: AppSpacing.md),
+              DiscussionActionPanel(post: post),
+              const SizedBox(height: AppSpacing.xxl),
+              Text(
+                'Majibu ya wakulima',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (replies.isEmpty)
+                Card(
+                  color: context.colors.surfaceMuted,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(
+                      'Hakuna majibu bado. Kuwa wa kwanza kusaidia mkulima mwenzako.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                          ),
                     ),
                   ),
-                  onSubmitted: (_) => _sendReply(),
                 ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.filled(
-                key: const ValueKey('community-send-reply'),
-                onPressed: _isSendingReply ? null : _sendReply,
-                icon: const Icon(Icons.send),
-              ),
-            ],
+            ]),
+            ),
           ),
-        ),
+          if (replies.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              sliver: SliverList.builder(
+                itemCount: replies.length,
+                itemBuilder: (context, index) =>
+                    CommunityReplyTile(reply: replies[index]),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+      ),
+      bottomNavigationBar: ChatComposerBar(
+        controller: _replyController,
+        isLoading: _isSendingReply,
+        hintText: 'Andika jibu la kusaidia...',
+        sendButtonKey: const ValueKey('community-send-reply'),
+        onSend: _sendReply,
       ),
     );
   }
@@ -274,45 +365,44 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Tuma Swali')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          TextField(
+          AppTextField(
             controller: _contentController,
+            labelText: 'Swali au changamoto',
+            hintText: 'Mfano: Majani ya nyanya yana madoa ya njano...',
             minLines: 4,
             maxLines: 7,
-            decoration: InputDecoration(
-              labelText: 'Swali au changamoto',
-              hintText: 'Mfano: Majani ya nyanya yana madoa ya njano...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
           ),
-          const SizedBox(height: 16),
-          TextField(
+          const SizedBox(height: AppSpacing.lg),
+          AppTextField(
             controller: _locationController,
-            decoration: InputDecoration(
-              labelText: 'Eneo',
-              hintText: 'Mfano: Morogoro',
-              prefixIcon: const Icon(Icons.place_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
+            labelText: 'Eneo',
+            hintText: 'Mfano: Morogoro',
+            prefixIcon: const Icon(Icons.place_outlined),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.lg),
           Text('Chagua mada', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
             children: [
               for (final tag in _availableTags)
                 FilterChip(
                   selected: _tags.contains(tag),
+                  selectedColor: context.colors.primaryContainer,
+                  checkmarkColor: context.colors.primary,
+                  side: BorderSide(
+                    color: _tags.contains(tag)
+                        ? context.colors.primary
+                        : context.colors.borderSubtle,
+                  ),
                   label: Text(tag),
                   onSelected: (selected) {
+                    AppFeedback.selection();
                     setState(() {
                       if (selected) {
                         _tags.add(tag);
@@ -324,13 +414,19 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           FilledButton.icon(
-            onPressed: _isSubmitting ? null : _submit,
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    AppFeedback.tap();
+                    _submit();
+                  },
             icon: const Icon(Icons.send),
             label: const Text('Tuma kwenye Jamii'),
           ),
         ],
+      ),
       ),
     );
   }

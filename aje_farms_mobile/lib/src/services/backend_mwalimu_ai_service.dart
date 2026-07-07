@@ -18,7 +18,7 @@ class BackendMwalimuAiService implements MwalimuAiService {
   final Duration timeout;
 
   @override
-  Future<String> answer(String prompt) async {
+  Future<MwalimuAiAnswer> answer(String prompt) async {
     final response = await _client
         .post(
           _baseUrl.resolve('/api/mwalimu-chat'),
@@ -44,25 +44,24 @@ class BackendMwalimuAiService implements MwalimuAiService {
           'Mwalimu AI returned an invalid response.');
     }
 
-    return payload['text'] as String;
+    return MwalimuAiAnswer(
+      text: payload['text'] as String,
+      sources: (payload['sources'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(_sourceFromJson)
+          .toList(),
+    );
   }
 }
 
-class FallbackMwalimuAiService implements MwalimuAiService {
-  const FallbackMwalimuAiService({
-    required this.primary,
-    required this.fallback,
-  });
-
-  final MwalimuAiService primary;
-  final MwalimuAiService fallback;
-
-  @override
-  Future<String> answer(String prompt) async {
-    try {
-      return await primary.answer(prompt);
-    } catch (_) {
-      return fallback.answer(prompt);
-    }
-  }
+MwalimuAiSource _sourceFromJson(Map<String, dynamic> json) {
+  return MwalimuAiSource(
+    id: json['id'] as String,
+    courseId: json['courseId'] as String,
+    lessonId: json['lessonId'] as String,
+    courseTitle: json['courseTitle'] as String,
+    title: json['title'] as String,
+    type: json['type'] as String,
+    excerpt: json['excerpt'] as String,
+  );
 }

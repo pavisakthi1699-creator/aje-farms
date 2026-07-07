@@ -3,25 +3,48 @@
 import "../../ui.dart";
 
 class Pill extends StatelessWidget {
-  const Pill({required this.label, this.color = Colors.white});
+  const Pill({required this.label, this.color});
 
   final String label;
-  final Color color;
+  final Color? color;
+
+  bool _onLightSurface(AppColorScheme colors, Color background) {
+    return background == colors.surface ||
+        background == colors.surfaceMuted ||
+        background == colors.surfaceAqua ||
+        background == colors.surfaceLavender ||
+        background == colors.surfacePeach;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dark = color == Colors.white;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: dark ? 0.82 : 1),
-          borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: dark ? AppColors.text : Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
+    final colors = context.colors;
+    final background = color ?? colors.surface;
+    final onLight = _onLightSurface(colors, background);
+    final textColor = onLight ? colors.textPrimary : colors.onPrimary;
+
+    return Semantics(
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: background.withValues(alpha: onLight ? 0.92 : 1),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: onLight
+              ? Border.all(color: colors.borderSubtle.withValues(alpha: 0.8))
+              : null,
+          boxShadow: onLight ? AppElevation.soft(context) : null,
+        ),
+        child: Text(
+          label,
+          style: accessibleCaption(
+            context,
+            color: textColor,
+            fontWeight: FontWeight.w600,
+          ).copyWith(letterSpacing: 0.2),
         ),
       ),
     );

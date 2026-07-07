@@ -17,7 +17,8 @@ void main() {
 
     final answer = await service.answer('Nisaidie kuhusu nyanya');
 
-    expect(answer, 'Jibu la backend');
+    expect(answer.text, 'Jibu la backend');
+    expect(answer.sources, isEmpty);
     expect(capturedRequest.url.toString(),
         'http://localhost:3000/api/mwalimu-chat');
     expect(capturedRequest.method, 'POST');
@@ -38,26 +39,21 @@ void main() {
     );
   });
 
-  test('fallback service returns fallback answer when primary fails', () async {
-    final service = FallbackMwalimuAiService(
-      primary: BackendMwalimuAiService(
-        baseUrl: Uri.parse('http://localhost:3000'),
-        client: MockClient((_) async {
-          return http.Response('{"error":"Server failed"}', 500);
-        }),
-      ),
-      fallback: const _StaticAiService('Jibu la akiba'),
+  test('parses grounded source cards from backend', () async {
+    final service = BackendMwalimuAiService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async {
+        return http.Response(
+          '{"text":"Jibu","sources":[{"id":"nyanya:udhibiti-wa-wadudu","courseId":"nyanya","lessonId":"udhibiti-wa-wadudu","courseTitle":"Kilimo cha Nyanya","title":"Udhibiti wa wadudu","type":"pdf","excerpt":"Tambua wadudu mapema."}]}',
+          200,
+        );
+      }),
     );
 
-    expect(await service.answer('Swali'), 'Jibu la akiba');
+    final answer = await service.answer('Nisaidie kuhusu nyanya');
+
+    expect(answer.text, 'Jibu');
+    expect(answer.sources.single.courseId, 'nyanya');
+    expect(answer.sources.single.title, 'Udhibiti wa wadudu');
   });
-}
-
-class _StaticAiService implements MwalimuAiService {
-  const _StaticAiService(this.answerText);
-
-  final String answerText;
-
-  @override
-  Future<String> answer(String prompt) async => answerText;
 }

@@ -21,6 +21,9 @@ class LocalPaymentService implements PaymentService {
       status: PaymentStatus.paid,
       message: 'Malipo yamethibitishwa kupitia $method.',
       receiptNumber: 'AJE-${id.substring(id.length - 6)}',
+      subscriptionPlan: planTitle,
+      subscriptionStartedAt: DateTime.now(),
+      checkoutInstructions: 'Malipo ya ndani yamethibitishwa.',
     );
   }
 
@@ -35,6 +38,9 @@ class LocalPaymentService implements PaymentService {
       status: PaymentStatus.paid,
       message: 'Malipo yamethibitishwa.',
       receiptNumber: 'AJE-${transactionId.substring(transactionId.length - 6)}',
+      subscriptionPlan: 'Kifurushi',
+      subscriptionStartedAt: DateTime.now(),
+      checkoutInstructions: 'Malipo ya ndani yamethibitishwa.',
     );
   }
 }

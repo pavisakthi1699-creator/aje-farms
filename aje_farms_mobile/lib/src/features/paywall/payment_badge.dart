@@ -3,17 +3,26 @@
 import "../../ui.dart";
 
 class PaymentBadge extends StatelessWidget {
-  const PaymentBadge({required this.label, required this.color});
+  const PaymentBadge({required this.label});
 
   final String label;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final color = switch (label) {
+      'M-Pesa' => context.colors.mpesa,
+      'Tigo' => context.colors.tigo,
+      'Airtel' => context.colors.airtel,
+      _ => context.colors.primary,
+    };
     return Chip(
-      label: Text(label,
-          style: TextStyle(color: color, fontWeight: FontWeight.w800)),
-      backgroundColor: Colors.grey.shade50,
+      avatar: Icon(Icons.account_balance_wallet_outlined, color: color, size: 16),
+      label: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w800),
+      ),
+      backgroundColor: color.withValues(alpha: 0.12),
+      side: BorderSide(color: color.withValues(alpha: 0.32)),
     );
   }
 }

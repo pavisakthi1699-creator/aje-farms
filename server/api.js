@@ -1,31 +1,149 @@
 import { catalog } from './catalog.js';
+import {
+  requireAdminSession,
+  requireAuthPhoneMatch,
+  requireAuthSession,
+} from './auth.js';
 import { chatWithMwalimuServer } from './mwalimu.js';
+import { createNotificationProvider } from './notifications.js';
+import { createPaymentProvider } from './payments.js';
+import { createOtpCode, createOtpSender } from './sms.js';
+import { createStore, normalizePhoneNumber } from './store.js';
+import {
+  normalizeApprovedCourse,
+  normalizeContentDocument,
+} from './store/utils.js';
 
-const otpChallenges = new Map();
-const paymentTransactions = new Map();
-const communityPosts = new Map(
-  catalog.communityPosts.map((post) => [
-    post.id,
-    { ...post, replies: post.replies.map((reply) => ({ ...reply })) },
-  ]),
-);
-const localOtp = process.env.LOCAL_AUTH_OTP ?? '1234';
+export async function registerApiRoutes(app) {
+  const store = await createStore(catalog);
+  const otpSender = createOtpSender();
+  const paymentProvider = createPaymentProvider();
+  const notificationProvider = createNotificationProvider();
 
-export function registerApiRoutes(app) {
-  app.get('/api/catalog', (req, res) => {
-    res.json({
-      courses: catalog.courses,
-      problemCategories: catalog.problemCategories,
-      plans: catalog.plans,
-      communityPosts: Array.from(communityPosts.values()),
+  app.get('/api/health', (_req, res) => {
+    const storeMode = (process.env.AJE_STORE ?? 'json').toLowerCase();
+    const isProduction = process.env.NODE_ENV === 'production';
+    const checks = {
+      store: {
+        mode: storeMode,
+        ready: storeMode !== 'postgres' || Boolean(process.env.DATABASE_URL),
+      },
+      sms: {
+        provider: process.env.TWILIO_ACCOUNT_SID ? 'twilio' : 'development',
+        ready:
+          !isProduction ||
+          Boolean(
+            process.env.TWILIO_ACCOUNT_SID &&
+              process.env.TWILIO_AUTH_TOKEN &&
+              process.env.TWILIO_FROM_NUMBER,
+          ),
+      },
+      payments: {
+        provider: paymentProvider.name,
+        ready: paymentProvider.isProductionReady || !isProduction,
+      },
+      notifications: {
+        provider: notificationProvider.name,
+        ready: !isProduction,
+      },
+      ai: {
+        provider: process.env.GEMINI_API_KEY ? 'gemini' : 'knowledge-base',
+        ready: true,
+      },
+    };
+    const ready = Object.values(checks).every((check) => check.ready);
+    res.status(ready ? 200 : 503).json({
+      status: ready ? 'ok' : 'degraded',
+      environment: process.env.NODE_ENV ?? 'development',
+      checks,
     });
   });
 
-  app.get('/api/community/posts', (req, res) => {
-    res.json({ posts: Array.from(communityPosts.values()) });
+  app.get('/api/catalog', async (_req, res) => {
+    res.json(await store.catalogSnapshot());
   });
 
-  app.post('/api/auth/request-otp', (req, res) => {
+  app.get(
+    '/api/admin/content/courses',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ courses: await store.contentCoursesForAdmin() });
+    },
+  );
+
+  app.put(
+    '/api/admin/content/courses/:courseId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const status = req.body.status ?? 'approved';
+      if (status !== 'draft' && status !== 'approved') {
+        res.status(400).json({ error: 'Content status is invalid.' });
+        return;
+      }
+      try {
+        const course = normalizeContentCourseRequest(
+          req.params.courseId,
+          req.body.course ?? req.body,
+        );
+        res.json({
+          course: await store.upsertContentCourse({ course, status }),
+        });
+      } catch (error) {
+        res.status(400).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Course content is invalid.',
+        });
+      }
+    },
+  );
+
+  app.get(
+    '/api/admin/content/documents',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ documents: await store.contentDocumentsForAdmin() });
+    },
+  );
+
+  app.put(
+    '/api/admin/content/documents/:documentId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const status = req.body.status ?? 'approved';
+      if (status !== 'draft' && status !== 'approved') {
+        res.status(400).json({ error: 'Content status is invalid.' });
+        return;
+      }
+      try {
+        const document = normalizeContentDocumentRequest(
+          req.params.documentId,
+          req.body.document ?? req.body,
+        );
+        res.json({
+          document: await store.upsertContentDocument({ document, status }),
+        });
+      } catch (error) {
+        res.status(400).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Document content is invalid.',
+        });
+      }
+    },
+  );
+
+  app.get('/api/community/posts', async (_req, res) => {
+    res.json({ posts: await store.communityPosts() });
+  });
+
+  app.post('/api/auth/request-otp', async (req, res) => {
     const { phoneNumber } = req.body;
 
     if (typeof phoneNumber !== 'string' || phoneNumber.trim().length < 9) {
@@ -33,77 +151,297 @@ export function registerApiRoutes(app) {
       return;
     }
 
-    const normalizedPhone = phoneNumber.trim();
-    const challengeId = `otp-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}`;
-    otpChallenges.set(challengeId, {
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    const retryAfterSeconds = await store.otpRequestDelaySeconds(
+      normalizedPhone,
+    );
+    if (retryAfterSeconds > 0) {
+      res.status(429).json({
+        error: `Subiri sekunde ${retryAfterSeconds} kabla ya kutuma OTP tena.`,
+        retryAfterSeconds,
+      });
+      return;
+    }
+
+    const otp = createOtpCode();
+    let delivery;
+    try {
+      delivery = await otpSender.sendOtp({
+        phoneNumber: normalizedPhone,
+        otp,
+      });
+    } catch (error) {
+      console.error('OTP delivery failed:', error);
+      res.status(502).json({
+        error: 'Imeshindikana kutuma OTP. Jaribu tena baadae.',
+      });
+      return;
+    }
+
+    const challenge = await store.createOtpChallenge({
       phoneNumber: normalizedPhone,
-      otp: localOtp,
-      expiresAt: Date.now() + 10 * 60 * 1000,
+      otp,
+      deliveryProvider: delivery.provider,
     });
 
     res.json({
-      challengeId,
+      challengeId: challenge.id,
       message: `OTP imetumwa kwa ${normalizedPhone}.`,
-      debugOtp: process.env.NODE_ENV === 'production' ? undefined : localOtp,
+      debugOtp: delivery.debugOtp,
+      retryAfterSeconds: 60,
     });
   });
 
-  app.post('/api/auth/verify-otp', (req, res) => {
+  app.post('/api/auth/verify-otp', async (req, res) => {
     const { phoneNumber, otp, challengeId } = req.body;
-    const challenge =
-      typeof challengeId === 'string' ? otpChallenges.get(challengeId) : null;
+    const normalizedPhone =
+      typeof phoneNumber === 'string' ? normalizePhoneNumber(phoneNumber) : '';
+    const result =
+      typeof challengeId === 'string'
+        ? await store.consumeOtpChallenge({
+            challengeId,
+            phoneNumber: normalizedPhone,
+            otp,
+          })
+        : { status: 'missing' };
 
-    if (!challenge) {
+    if (result.status === 'missing' || result.status === 'expired') {
       res.status(400).json({ error: 'OTP imeisha muda wake. Tuma tena.' });
       return;
     }
-    if (challenge.expiresAt < Date.now()) {
-      otpChallenges.delete(challengeId);
-      res.status(400).json({ error: 'OTP imeisha muda wake. Tuma tena.' });
-      return;
-    }
-    if (challenge.phoneNumber !== phoneNumber || challenge.otp !== otp) {
+    if (result.status === 'invalid') {
       res.status(401).json({ error: 'OTP si sahihi. Jaribu tena.' });
       return;
     }
 
-    otpChallenges.delete(challengeId);
-    res.json({ phoneNumber });
+    const user = await store.ensureUser(normalizedPhone);
+    const authSession = await store.createAuthSession(normalizedPhone);
+    res.json({
+      phoneNumber: user.phoneNumber,
+      user,
+      sessionToken: authSession.token,
+    });
   });
 
-  app.post('/api/payments/checkout', (req, res) => {
-    const { planTitle, price, method, phoneNumber } = req.body;
+  app.get(
+    '/api/users/by-phone/:phoneNumber',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const user = await store.getUser(req.params.phoneNumber);
+      if (!user) {
+        res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+        return;
+      }
+      res.json({ user });
+    },
+  );
 
-    if (
-      typeof planTitle !== 'string' ||
-      typeof price !== 'string' ||
-      typeof method !== 'string' ||
-      typeof phoneNumber !== 'string' ||
-      phoneNumber.trim().length < 9
-    ) {
-      res.status(400).json({ error: 'Payment details are required.' });
+  app.post(
+    '/api/users/by-phone/:phoneNumber/subscription/cancel',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const user = await store.cancelSubscription(req.params.phoneNumber);
+      if (!user) {
+        res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+        return;
+      }
+      res.json({ user });
+    },
+  );
+
+  app.get(
+    '/api/users/by-phone/:phoneNumber/progress',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const progress = await store.learningProgress(req.params.phoneNumber);
+      res.json({
+        completedLessons: progress.map(
+          (item) => `${item.courseId}:${item.lessonId}`,
+        ),
+        progress,
+      });
+    },
+  );
+
+  app.get(
+    '/api/users/by-phone/:phoneNumber/notifications',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      res.json({
+        settings: await store.notificationSettings(req.params.phoneNumber),
+        notifications: await store.notificationsFor(req.params.phoneNumber),
+      });
+    },
+  );
+
+  app.put(
+    '/api/users/by-phone/:phoneNumber/notifications/settings',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      res.json({
+        settings: await store.updateNotificationSettings({
+          phoneNumber: req.params.phoneNumber,
+          settings: req.body,
+        }),
+      });
+    },
+  );
+
+  app.post(
+    '/api/users/by-phone/:phoneNumber/notifications/devices',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const { token, platform } = req.body;
+      if (typeof token !== 'string' || typeof platform !== 'string') {
+        res.status(400).json({ error: 'Device token and platform are required.' });
+        return;
+      }
+      res.json({
+        device: await store.registerNotificationDevice({
+          phoneNumber: req.params.phoneNumber,
+          token,
+          platform,
+        }),
+      });
+    },
+  );
+
+  app.post(
+    '/api/users/by-phone/:phoneNumber/notifications/:notificationId/read',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const notification = await store.markNotificationRead({
+        phoneNumber: req.params.phoneNumber,
+        notificationId: req.params.notificationId,
+      });
+      if (!notification) {
+        res.status(404).json({ error: 'Notification haijapatikana.' });
+        return;
+      }
+      res.json({ notification });
+    },
+  );
+
+  app.post(
+    '/api/users/by-phone/:phoneNumber/progress/lessons',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const { courseId, lessonId } = req.body;
+      if (typeof courseId !== 'string' || typeof lessonId !== 'string') {
+        res.status(400).json({ error: 'Course and lesson are required.' });
+        return;
+      }
+      const progress = await store.markLessonCompleted({
+        phoneNumber: req.params.phoneNumber,
+        courseId,
+        lessonId,
+      });
+      if (!progress) {
+        res.status(404).json({ error: 'Somo halijapatikana.' });
+        return;
+      }
+      res.json(progress);
+    },
+  );
+
+  app.post(
+    '/api/payments/checkout',
+    requireAuthSession(store),
+    async (req, res) => {
+      const { planTitle, price, method, phoneNumber } = req.body;
+
+      if (
+        typeof planTitle !== 'string' ||
+        typeof price !== 'string' ||
+        typeof method !== 'string' ||
+        typeof phoneNumber !== 'string' ||
+        phoneNumber.trim().length < 9
+      ) {
+        res.status(400).json({ error: 'Payment details are required.' });
+        return;
+      }
+
+      const id = `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      if (normalizedPhone !== req.authPhoneNumber) {
+        res.status(403).json({ error: 'Huna ruhusa kwa akaunti hii.' });
+        return;
+      }
+      const providerCheckout = paymentProvider.startCheckout({
+        transactionId: id,
+        planTitle,
+        price,
+        method,
+        phoneNumber: normalizedPhone,
+      });
+      const transaction = {
+        id,
+        planTitle,
+        price,
+        method,
+        phoneNumber: normalizedPhone,
+        status: providerCheckout.status,
+        message: providerCheckout.message,
+        receiptNumber: null,
+        provider: providerCheckout.provider,
+        providerReference: providerCheckout.providerReference,
+        checkoutInstructions: providerCheckout.checkoutInstructions,
+        autoConfirmAt: providerCheckout.autoConfirmAt,
+        subscriptionPlan: null,
+        subscriptionStartedAt: null,
+      };
+      res.json(await store.createPaymentTransaction(transaction));
+    },
+  );
+
+  app.get(
+    '/api/payments/:transactionId',
+    requireAuthSession(store),
+    async (req, res) => {
+      let transaction = await store.getPaymentTransaction(
+        req.params.transactionId,
+      );
+      if (!transaction) {
+        res.status(404).json({ error: 'Muamala haujapatikana.' });
+        return;
+      }
+      if (transaction.phoneNumber !== req.authPhoneNumber) {
+        res.status(403).json({ error: 'Huna ruhusa kwa muamala huu.' });
+        return;
+      }
+      if (paymentProvider.shouldConfirm(transaction)) {
+        transaction = await store.markPaymentPaid(transaction.id);
+      }
+      res.json(transaction);
+    },
+  );
+
+  app.post('/api/payments/webhook/development', async (req, res) => {
+    if (!isAuthorizedDevelopmentWebhook(req)) {
+      res.status(401).json({ error: 'Webhook secret is required.' });
+      return;
+    }
+    const { transactionId, status, message } = req.body;
+    if (typeof transactionId !== 'string') {
+      res.status(400).json({ error: 'transactionId is required.' });
       return;
     }
 
-    const id = `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const transaction = {
-      id,
-      planTitle,
-      price,
-      method,
-      phoneNumber: phoneNumber.trim(),
-      status: 'paid',
-      message: `Malipo yamethibitishwa kupitia ${method}.`,
-      receiptNumber: `AJE-${id.slice(-6).toUpperCase()}`,
-    };
-    paymentTransactions.set(id, transaction);
-    res.json(transaction);
-  });
-
-  app.get('/api/payments/:transactionId', (req, res) => {
-    const transaction = paymentTransactions.get(req.params.transactionId);
+    const transaction =
+      status === 'failed'
+        ? await store.markPaymentFailed(
+            transactionId,
+            typeof message === 'string' ? message : 'Malipo yameshindikana.',
+          )
+        : await store.markPaymentPaid(transactionId);
     if (!transaction) {
       res.status(404).json({ error: 'Muamala haujapatikana.' });
       return;
@@ -111,80 +449,127 @@ export function registerApiRoutes(app) {
     res.json(transaction);
   });
 
-  app.post('/api/community/posts', (req, res) => {
-    const { author, content, location, tags } = req.body;
+  app.post(
+    '/api/community/posts',
+    requireAuthSession(store),
+    async (req, res) => {
+      const { author, content, location, tags } = req.body;
 
-    if (
-      typeof author !== 'string' ||
-      typeof content !== 'string' ||
-      content.trim().length < 12 ||
-      typeof location !== 'string' ||
-      location.trim().length === 0 ||
-      !Array.isArray(tags) ||
-      tags.some((tag) => typeof tag !== 'string')
-    ) {
-      res.status(400).json({ error: 'Post details are required.' });
-      return;
-    }
+      if (
+        typeof author !== 'string' ||
+        typeof content !== 'string' ||
+        content.trim().length < 12 ||
+        typeof location !== 'string' ||
+        location.trim().length === 0 ||
+        !Array.isArray(tags) ||
+        tags.some((tag) => typeof tag !== 'string')
+      ) {
+        res.status(400).json({ error: 'Post details are required.' });
+        return;
+      }
 
-    const id = `post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
-      Boolean,
-    );
-    const post = {
-      id,
-      author: author.trim(),
-      location: location.trim(),
-      time: 'Sasa hivi',
-      content: content.trim(),
-      likes: 0,
-      comments: 0,
-      tags: normalizedTags,
-      replies: [],
-      relatedTopic: normalizedTags[0] ?? null,
-      hasImage: false,
-      isExpert: false,
-      isUrgent:
-        normalizedTags.includes('Magonjwa') ||
-        normalizedTags.includes('Wadudu'),
-    };
-    communityPosts.set(id, post);
-    res.json(post);
-  });
+      res.json(
+        await store.createCommunityPost({ author, content, location, tags }),
+      );
+    },
+  );
 
-  app.post('/api/community/posts/:postId/replies', (req, res) => {
-    const { author, body } = req.body;
+  app.post(
+    '/api/community/posts/:postId/replies',
+    requireAuthSession(store),
+    async (req, res) => {
+      const { author, body } = req.body;
 
-    if (
-      typeof author !== 'string' ||
-      typeof body !== 'string' ||
-      body.trim().length === 0
-    ) {
-      res.status(400).json({ error: 'Reply details are required.' });
-      return;
-    }
+      if (
+        typeof author !== 'string' ||
+        typeof body !== 'string' ||
+        body.trim().length === 0
+      ) {
+        res.status(400).json({ error: 'Reply details are required.' });
+        return;
+      }
 
-    const reply = {
-      author: author.trim(),
-      body: body.trim(),
-      time: 'Sasa hivi',
-      isExpert: false,
-    };
-    const post = communityPosts.get(req.params.postId);
-    if (post) {
-      post.replies.push(reply);
-      post.comments = post.replies.length;
-      communityPosts.set(post.id, post);
-    }
-    res.json(reply);
-  });
+      res.json(
+        await store.addCommunityReply({
+          postId: req.params.postId,
+          author,
+          body,
+        }),
+      );
+      const post = (await store.communityPosts()).find(
+        (item) => item.id === req.params.postId,
+      );
+      if (post?.author?.startsWith('+') && post.author !== req.authPhoneNumber) {
+        await createAndDispatchNotification({
+          store,
+          notificationProvider,
+          phoneNumber: post.author,
+          type: 'community_reply',
+          title: 'Jibu jipya kwenye jamii',
+          body: `${author.trim()} amejibu post yako.`,
+          data: { postId: post.id },
+        });
+      }
+    },
+  );
 
-  app.post('/api/community/posts/:postId/report', (req, res) => {
-    res.json({
-      postId: req.params.postId,
-      status: 'received',
-    });
-  });
+  app.post(
+    '/api/community/posts/:postId/report',
+    requireAuthSession(store),
+    async (req, res) => {
+      await store.reportCommunityPost(req.params.postId);
+      res.json({
+        postId: req.params.postId,
+        status: 'received',
+      });
+    },
+  );
+
+  app.get(
+    '/api/admin/moderation/reports',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ reports: await store.reportedCommunityPosts() });
+    },
+  );
+
+  app.post(
+    '/api/admin/moderation/posts/:postId/resolve',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const { action } = req.body;
+      if (action !== 'dismiss' && action !== 'hide') {
+        res.status(400).json({ error: 'Moderation action is required.' });
+        return;
+      }
+      const post = await store.resolveCommunityReport({
+        postId: req.params.postId,
+        action,
+        moderatorPhoneNumber: req.authPhoneNumber,
+      });
+      if (!post) {
+        res.status(404).json({ error: 'Post haijapatikana.' });
+        return;
+      }
+      if (post.author?.startsWith('+')) {
+        await createAndDispatchNotification({
+          store,
+          notificationProvider,
+          phoneNumber: post.author,
+          type: 'moderation_update',
+          title: action === 'hide' ? 'Post imefichwa' : 'Ripoti imepitiwa',
+          body:
+            action === 'hide'
+              ? 'Post yako imefichwa baada ya ukaguzi wa timu ya AJE.'
+              : 'Ripoti kuhusu post yako imepitiwa na timu ya AJE.',
+          data: { postId: post.id, action },
+        });
+      }
+      res.json({ post, action });
+    },
+  );
 
   app.post('/api/mwalimu-chat', async (req, res) => {
     const { message, history } = req.body;
@@ -195,11 +580,12 @@ export function registerApiRoutes(app) {
     }
 
     try {
-      const text = await chatWithMwalimuServer(
+      const answer = await chatWithMwalimuServer(
         message,
         Array.isArray(history) ? history : [],
+        (await store.catalogSnapshot()).courses,
       );
-      res.json({ text });
+      res.json(answer);
     } catch (error) {
       console.error('Mwalimu AI server error:', error);
       res.status(500).json({
@@ -208,4 +594,105 @@ export function registerApiRoutes(app) {
       });
     }
   });
+
+  return store;
+}
+
+function isAuthorizedDevelopmentWebhook(req) {
+  const secret = process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET;
+  if (!secret) return false;
+  return req.headers['x-aje-webhook-secret'] === secret;
+}
+
+async function createAndDispatchNotification({
+  store,
+  notificationProvider,
+  phoneNumber,
+  type,
+  title,
+  body,
+  data,
+}) {
+  const notification = await store.createNotification({
+    phoneNumber,
+    type,
+    title,
+    body,
+    data,
+  });
+  if (!notification) return null;
+  await notificationProvider.send(
+    notification,
+    await store.notificationDevices(phoneNumber),
+  );
+  return notification;
+}
+
+function normalizeContentCourseRequest(courseId, rawCourse) {
+  if (!rawCourse || typeof rawCourse !== 'object') {
+    throw new Error('Course content is required.');
+  }
+  if (rawCourse.id !== courseId) {
+    throw new Error('Course id must match the route.');
+  }
+  const requiredStrings = [
+    'id',
+    'title',
+    'description',
+    'badge',
+    'icon',
+    'imageUrl',
+  ];
+  for (const field of requiredStrings) {
+    if (typeof rawCourse[field] !== 'string' || rawCourse[field].trim() === '') {
+      throw new Error(`Course ${field} is required.`);
+    }
+  }
+  if (!Array.isArray(rawCourse.outcomes) || rawCourse.outcomes.length === 0) {
+    throw new Error('Course outcomes are required.');
+  }
+  if (!Array.isArray(rawCourse.lessons) || rawCourse.lessons.length === 0) {
+    throw new Error('Course lessons are required.');
+  }
+  for (const lesson of rawCourse.lessons) {
+    for (const field of ['title', 'type', 'meta', 'description']) {
+      if (typeof lesson[field] !== 'string' || lesson[field].trim() === '') {
+        throw new Error(`Lesson ${field} is required.`);
+      }
+    }
+  }
+  return normalizeApprovedCourse(rawCourse);
+}
+
+function normalizeContentDocumentRequest(documentId, rawDocument) {
+  if (!rawDocument || typeof rawDocument !== 'object') {
+    throw new Error('Document content is required.');
+  }
+  if (rawDocument.id !== documentId) {
+    throw new Error('Document id must match the route.');
+  }
+  const requiredStrings = [
+    'id',
+    'title',
+    'courseId',
+    'courseTitle',
+    'description',
+    'type',
+    'sizeLabel',
+  ];
+  for (const field of requiredStrings) {
+    if (
+      typeof rawDocument[field] !== 'string' ||
+      rawDocument[field].trim() === ''
+    ) {
+      throw new Error(`Document ${field} is required.`);
+    }
+  }
+  if (
+    rawDocument.url != null &&
+    (typeof rawDocument.url !== 'string' || rawDocument.url.trim() === '')
+  ) {
+    throw new Error('Document url must be a non-empty string when provided.');
+  }
+  return normalizeContentDocument(rawDocument);
 }

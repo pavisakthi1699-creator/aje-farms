@@ -1,102 +1,152 @@
 // ignore_for_file: use_key_in_widget_constructors
 
 import "../../ui.dart";
+import "package:url_launcher/url_launcher.dart";
 
 class WhatsAppEscalationScreen extends StatelessWidget {
   const WhatsAppEscalationScreen({super.key});
+
+  static const _expertPhone = String.fromEnvironment(
+    'AJE_WHATSAPP_EXPERT_PHONE',
+    defaultValue: '255700000000',
+  );
+  static const _message =
+      'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya AJE Farms.';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Ongea na Mtaalamu')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          const SizedBox(height: 12),
-          const CircleAvatar(
+          const SizedBox(height: AppSpacing.md),
+          CircleAvatar(
             radius: 44,
-            backgroundColor: AppColors.primaryContainer,
-            child: Icon(Icons.chat_bubble_outline,
-                color: AppColors.primary, size: 42),
+            backgroundColor: context.colors.whatsappSurface,
+            child: Icon(
+              Icons.chat_bubble_outline,
+              color: context.colors.whatsapp,
+              size: 42,
+            ),
           ),
-          const SizedBox(height: 20),
-          const Text(
+          const SizedBox(height: AppSpacing.xl),
+          Text(
             'Msaada wa Moja kwa Moja',
             textAlign: TextAlign.center,
-            style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 25,
-                fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: context.colors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Tutafungua WhatsApp na ujumbe uliotayarishwa ili upate msaada wa haraka kutoka kwa wataalamu wetu.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: AppSpacing.xxxl),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'PREVIEW YA UJUMBE',
-                    style: TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: context.colors.muted,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpacing.md),
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5DDD5),
-                      borderRadius: BorderRadius.circular(18),
+                      color: context.colors.whatsappChatBg,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Container(
                         width: MediaQuery.of(context).size.width * 0.68,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDCF8C6),
-                          borderRadius: BorderRadius.circular(16),
+                          color: context.colors.whatsappBubble,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          boxShadow: [
+                            BoxShadow(
+                              color: context.colors.textPrimary
+                                  .withValues(alpha: 0.06),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
-                        child: const Text(
-                          'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya AJE Farms.',
+                        child: Text(
+                          _message,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const ListTile(
+                  const SizedBox(height: AppSpacing.lg),
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.info_outline, color: AppColors.primary),
-                    title: Text(
-                        'Mtaalamu wetu atajibu ndani ya dakika chache baada ya kutuma ujumbe huu.'),
+                    leading:
+                        Icon(Icons.info_outline, color: context.colors.primary),
+                    title: const Text(
+                      'Mtaalamu wetu atajibu ndani ya dakika chache baada ya kutuma ujumbe huu.',
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           FilledButton.icon(
-            onPressed: () =>
-                showSnack(context, 'WhatsApp link: https://wa.me/255700000000'),
+            onPressed: () {
+              AppFeedback.tap();
+              _openWhatsApp(context);
+            },
             icon: const Icon(Icons.send),
             label: const Text('Fungua WhatsApp sasa'),
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366)),
+              backgroundColor: context.colors.whatsapp,
+              foregroundColor: context.colors.onPrimary,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           OutlinedButton(
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: () {
+              AppFeedback.tap();
+              Navigator.of(context).maybePop();
+            },
             child: const Text('Rudi nyuma'),
           ),
         ],
       ),
+      ),
     );
+  }
+
+  Future<void> _openWhatsApp(BuildContext context) async {
+    final uri = Uri.https('wa.me', '/$_expertPhone', {'text': _message});
+    final fallback = Uri.parse(
+      'https://api.whatsapp.com/send?phone=$_expertPhone&text=${Uri.encodeComponent(_message)}',
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (await canLaunchUrl(fallback)) {
+      await launchUrl(fallback, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (!context.mounted) return;
+    showSnack(context, 'WhatsApp haijapatikana kwenye kifaa hiki.');
   }
 }

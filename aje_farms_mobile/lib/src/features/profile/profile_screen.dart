@@ -15,80 +15,111 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Akaunti Yangu')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        key: AppPageStorage.profile,
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          CircleAvatar(
-            radius: 48,
-            backgroundColor: AppColors.primaryContainer,
-            child: Text(session.isSignedIn ? '+255' : 'AJE',
-                style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800)),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              phoneLabel,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          Card(
+            color: context.colors.surfaceMuted,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: context.colors.primaryContainer,
+                    child: Text(
+                      session.isSignedIn ? '+255' : 'AJE',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: context.colors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    phoneLabel,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    memberLabel,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.colors.muted,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
-          Center(
-              child: Text(memberLabel,
-                  style: const TextStyle(color: AppColors.muted))),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Expanded(
-                        child: Text('Hali ya Akaunti',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          'Hali ya Akaunti',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                      Icon(Icons.schedule, color: AppColors.secondary),
+                      Icon(Icons.schedule, color: context.colors.secondary),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
-                      subscriptionPlan == null
-                          ? 'Majaribio (Trial)'
-                          : 'Premium',
-                      style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.peach,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(subscriptionPlan == null
-                        ? 'Muda wako wa majaribio unaendelea. Jiunge sasa ili uendelee kupata ushauri baada ya trial.'
-                        : '$subscriptionPlan imewashwa kwenye kifaa hiki. Unaweza kuendelea na masomo na Mwalimu AI.'),
+                    subscriptionPlan == null ? 'Majaribio (Trial)' : 'Premium',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: context.colors.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: AppDecorations.pastelPanel(context, context.colors.peach),
+                    child: Text(
+                      subscriptionPlan == null
+                          ? 'Muda wako wa majaribio unaendelea. Jiunge sasa ili uendelee kupata ushauri baada ya trial.'
+                          : '$subscriptionPlan imewashwa kwenye kifaa hiki. Unaweza kuendelea na masomo na Mwalimu AI.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   if (subscriptionPlan == null)
                     FilledButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const PaywallScreen()),
-                      ),
+                      onPressed: () {
+                        AppFeedback.tap();
+                        AppNavigator.pushPaywall(context);
+                      },
                       icon: const Icon(Icons.workspace_premium),
                       label: const Text('Lipia Kifurushi Sasa'),
                     )
                   else
                     OutlinedButton.icon(
                       onPressed: () async {
+                        final phoneNumber = session.phoneNumber;
+                        if (phoneNumber != null) {
+                          try {
+                            await context.dependencies.authService
+                                .cancelSubscription(phoneNumber);
+                          } on AuthException catch (error) {
+                            if (!context.mounted) return;
+                            showSnack(context, error.message);
+                            return;
+                          }
+                        }
                         await session.cancelSubscription();
                         if (!context.mounted) return;
-                        showSnack(context, 'Kifurushi kimezimwa kwenye kifaa.');
+                        showSnack(context, 'Kifurushi kimezimwa.');
                       },
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Sitisha Kifurushi'),
@@ -97,76 +128,71 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: AppSpacing.lg),
           Text('Shughuli Zangu',
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Card(
             child: Column(
               children: [
                 ProfileRow(
                   icon: Icons.menu_book,
                   title: 'Mafunzo yangu',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CoursesScreen()),
-                  ),
+                  onTap: () =>
+                      context.switchMainShellTab(MainShellTab.courses),
                 ),
                 ProfileRow(
                   icon: Icons.description_outlined,
                   title: 'Nyaraka zilizohifadhiwa',
                   subtitle:
                       '${session.state.savedDocumentIds.length} zimehifadhiwa',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const SavedDocumentsScreen()),
-                  ),
+                  onTap: () => AppNavigator.pushSavedDocuments(context),
                 ),
                 ProfileRow(
                   icon: Icons.quiz_outlined,
                   title: 'Tathmini na kazi',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const AssessmentsScreen()),
-                  ),
+                  onTap: () => AppNavigator.pushAssessments(context),
                 ),
                 ProfileRow(
                   icon: Icons.settings_outlined,
                   title: 'Mipangilio',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  ),
+                  onTap: () => AppNavigator.pushSettings(context),
                 ),
                 ProfileRow(
                   icon: Icons.help_outline,
                   title: 'Msaada / WhatsApp',
                   subtitle: 'Tupo kwa ajili yako 24/7',
-                  color: Colors.green,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const WhatsAppEscalationScreen()),
-                  ),
+                  color: context.colors.success,
+                  showDivider: false,
+                  onTap: () => AppNavigator.pushWhatsApp(context),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextButton.icon(
             onPressed: () async {
+              AppFeedback.tap();
               await session.signOut();
               if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                (_) => false,
-              );
+              AppNavigator.replaceWithOnboarding(context);
             },
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text('Ondoka kwenye Akaunti',
-                style: TextStyle(color: Colors.red)),
+            icon: Icon(Icons.logout, color: context.colors.error),
+            label: Text(
+              'Ondoka kwenye Akaunti',
+              style: TextStyle(color: context.colors.error),
+            ),
           ),
-          const Center(
-              child: Text('Toleo la App 2.4.0',
-                  style: TextStyle(color: AppColors.muted, fontSize: 11))),
+          Center(
+            child: Text(
+              'Toleo la App 2.4.0',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: context.colors.muted,
+                  ),
+            ),
+          ),
         ],
+      ),
       ),
     );
   }
@@ -175,70 +201,142 @@ class ProfileScreen extends StatelessWidget {
 class SavedDocumentsScreen extends StatelessWidget {
   const SavedDocumentsScreen({super.key});
 
-  static const _documents = {
-    'pasheni-guide': 'Mwongozo mfupi wa pasheni',
-    'kuku-vaccines': 'Ratiba ya chanjo ya kuku',
-    'nyanya-pests': 'Udhibiti wa wadudu kwenye nyanya',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final documents = context.dependencies.learningRepository.documents;
     final savedIds = context.session.state.savedDocumentIds;
-    final saved = _documents.entries
-        .where((entry) => savedIds.contains(entry.key))
-        .toList();
+    final saved =
+        documents.where((document) => savedIds.contains(document.id)).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nyaraka Zilizohifadhiwa')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (saved.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'Hujaweka nyaraka bado. Chagua nyaraka hapa chini ili uzihifadhi kwa kusoma baadaye.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-              ),
-            ),
-          if (saved.isNotEmpty)
-            ...saved.map(
-              (entry) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.picture_as_pdf_outlined),
-                  title: Text(entry.value),
-                  subtitle: const Text('Imehifadhiwa kwa kusoma baadaye'),
-                  trailing: IconButton(
-                    tooltip: 'Ondoa',
-                    icon: const Icon(Icons.bookmark_remove_outlined),
-                    onPressed: () =>
-                        context.session.removeSavedDocument(entry.key),
+      body: AppLayout(
+        child: CustomScrollView(
+        key: AppPageStorage.savedDocuments,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                if (saved.isEmpty)
+                  EmptyState(
+                    icon: Icons.bookmark_add_outlined,
+                    title: 'Hujaweka nyaraka bado',
+                    body:
+                        'Chagua nyaraka hapa chini ili uzihifadhi kwa kusoma baadaye.',
                   ),
+                if (saved.isNotEmpty)
+                  ...saved.map(
+                    (entry) => Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: AppDecorations.pastelPanel(
+                            context,
+                            context.colors.surfacePeach,
+                          ),
+                          child: Icon(
+                            Icons.picture_as_pdf_outlined,
+                            color: context.colors.primary,
+                          ),
+                        ),
+                        title: Text(
+                          entry.title,
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        subtitle: Text(
+                          entry.courseTitle,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Ondoa',
+                          icon: const Icon(Icons.bookmark_remove_outlined),
+                          onPressed: () {
+                            AppFeedback.tap();
+                            context.session.removeSavedDocument(entry.id);
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Nyaraka zote',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ),
+                const SizedBox(height: AppSpacing.sm),
+              ]),
             ),
-          const SizedBox(height: 18),
-          Text('Nyaraka zote', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          ..._documents.entries.map(
-            (entry) {
-              final isSaved = savedIds.contains(entry.key);
-              return ListTile(
-                leading: Icon(
-                    isSaved ? Icons.bookmark : Icons.bookmark_add_outlined),
-                title: Text(entry.value),
-                trailing: TextButton(
-                  onPressed: () => isSaved
-                      ? context.session.removeSavedDocument(entry.key)
-                      : context.session.saveDocument(entry.key),
-                  child: Text(isSaved ? 'Ondoa' : 'Hifadhi'),
-                ),
-              );
-            },
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              0,
+              AppSpacing.xl,
+              AppSpacing.xl,
+            ),
+            sliver: SliverList.builder(
+              itemCount: documents.length,
+              itemBuilder: (context, index) {
+                final document = documents[index];
+                final isSaved = savedIds.contains(document.id);
+                return Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: AppDecorations.pastelPanel(
+                        context,
+                        isSaved
+                            ? context.colors.primaryContainer
+                            : context.colors.surfaceMuted,
+                      ),
+                      child: Icon(
+                        isSaved
+                            ? Icons.bookmark
+                            : Icons.bookmark_add_outlined,
+                        color: context.colors.primary,
+                      ),
+                    ),
+                    title: Text(
+                      document.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    subtitle: Text(
+                      document.description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                    trailing: TextButton(
+                      onPressed: () {
+                        AppFeedback.tap();
+                        if (isSaved) {
+                          context.session.removeSavedDocument(document.id);
+                        } else {
+                          context.session.saveDocument(document.id);
+                        }
+                      },
+                      child: Text(isSaved ? 'Ondoa' : 'Hifadhi'),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -271,6 +369,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   Future<void> _save() async {
     await context.session.setPreferredLocation(_locationController.text);
     if (!mounted) return;
+    AppFeedback.success();
     showSnack(context, 'Mipangilio imehifadhiwa.');
   }
 
@@ -279,33 +378,85 @@ class SettingsScreenState extends State<SettingsScreen> {
     final notificationsEnabled = context.session.state.notificationsEnabled;
     return Scaffold(
       appBar: AppBar(title: const Text('Mipangilio')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          SwitchListTile(
-            value: notificationsEnabled,
-            onChanged: context.session.setNotificationsEnabled,
-            title: const Text('Arifa za mafunzo na jamii'),
-            subtitle: const Text('Washa au zima vikumbusho kwenye app.'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _locationController,
-            decoration: InputDecoration(
-              labelText: 'Eneo la kawaida',
-              hintText: 'Mfano: Morogoro',
-              prefixIcon: const Icon(Icons.place_outlined),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Muonekano wa app',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Chagua mwanga, giza, au fuata mipangilio ya kifaa.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.colors.muted,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SegmentedButton<AppThemePreference>(
+                    segments: [
+                      for (final preference in AppThemePreference.values)
+                        ButtonSegment(
+                          value: preference,
+                          label: Text(preference.label),
+                        ),
+                    ],
+                    selected: {context.session.state.themePreference},
+                    onSelectionChanged: (selection) {
+                      AppFeedback.selection();
+                      context.session.setThemePreference(selection.first);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
+          Card(
+            child: SwitchListTile(
+              value: notificationsEnabled,
+              onChanged: (value) {
+                AppFeedback.selection();
+                context.session.setNotificationsEnabled(value);
+              },
+              contentPadding: const EdgeInsets.all(AppSpacing.lg),
+              title: const Text('Arifa za mafunzo na jamii'),
+              subtitle: const Text('Washa au zima vikumbusho kwenye app.'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: TextField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Eneo la kawaida',
+                  hintText: 'Mfano: Morogoro',
+                  prefixIcon: Icon(Icons.place_outlined),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           FilledButton.icon(
-            onPressed: _save,
+            onPressed: () {
+              AppFeedback.tap();
+              _save();
+            },
             icon: const Icon(Icons.save_outlined),
             label: const Text('Hifadhi Mipangilio'),
           ),
         ],
+      ),
       ),
     );
   }

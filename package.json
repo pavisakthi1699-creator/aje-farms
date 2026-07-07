@@ -9,7 +9,16 @@
     "start": "node server/index.js",
     "preview": "npm run start",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:server": "node --test server/tests/*.test.js",
+    "test:server:postgres": "node --test server/tests/store-api-postgres.test.js",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "node server/scripts/migrate.js",
+    "db:import": "node server/scripts/import-json-store.js",
+    "smoke:postgres": "node server/scripts/smoke-postgres.js",
+    "preflight:release": "node server/scripts/preflight-release.js",
+    "release:android": "node server/scripts/build-android-release.js"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -20,6 +29,7 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "pg": "^8.22.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-markdown": "^10.1.0",

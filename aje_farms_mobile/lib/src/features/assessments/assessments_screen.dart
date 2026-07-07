@@ -13,35 +13,49 @@ class AssessmentsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tathmini')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
+          Text(
+            'Pima ujuzi wako',
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Jaribu maarifa yako na uwasilishe kazi ya vitendo kutoka shambani.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.xxl),
           ActionCard(
-            color: AppColors.blue,
+            color: context.colors.surfaceMuted,
             icon: Icons.quiz,
             title: 'Jaribio la Kilimo cha Pasheni',
             body: pasheniScore == null
                 ? 'Maswali 5 kuhusu maandalizi, udongo, na matunzo.'
                 : 'Alama yako ya mwisho: $pasheniScore/5. Unaweza kurudia kuboresha.',
             action: pasheniScore == null ? 'Anza Tathmini' : 'Rudia Tathmini',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QuizScreen()),
-            ),
+            onTap: () {
+              AppFeedback.tap();
+              AppNavigator.pushQuiz(context);
+            },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           ActionCard(
-            color: AppColors.peach,
+            color: context.colors.surfacePeach,
             icon: Icons.assignment_turned_in,
             title: 'Kazi ya Vitendo',
             body: fieldScore == null
                 ? 'Eleza hali ya shamba lako na hatua utakazochukua wiki hii.'
                 : 'Kazi imewasilishwa. Alama ya ukamilifu: $fieldScore/5.',
             action: fieldScore == null ? 'Tuma Kazi' : 'Hariri Kazi',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const FieldAssignmentScreen()),
-            ),
+            onTap: () {
+              AppFeedback.tap();
+              AppNavigator.pushFieldAssignment(context);
+            },
           ),
         ],
+      ),
       ),
     );
   }
@@ -128,11 +142,22 @@ class QuizScreenState extends State<QuizScreen> {
     }).length;
     await context.session.saveAssessmentScore('pasheni-basics', score);
     if (!mounted) return;
+    AppFeedback.success();
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: Icon(
+          score >= 4 ? Icons.emoji_events_outlined : Icons.quiz_outlined,
+          color: context.colors.primary,
+          size: 36,
+        ),
         title: const Text('Matokeo ya Tathmini'),
-        content: Text('Umepata $score kati ya ${_quizQuestions.length}.'),
+        content: Text(
+          'Umepata $score kati ya ${_quizQuestions.length}.',
+          style: Theme.of(context).textTheme.bodyLarge,
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -140,6 +165,7 @@ class QuizScreenState extends State<QuizScreen> {
           ),
           FilledButton(
             onPressed: () {
+              AppFeedback.tap();
               Navigator.of(context).pop();
               Navigator.of(context).pop();
             },
@@ -154,48 +180,92 @@ class QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Jaribio la Pasheni')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
           for (final entry in _quizQuestions.indexed) ...[
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${entry.$1 + 1}. ${entry.$2.prompt}',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.md),
                     for (final option in entry.$2.options.indexed)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          _answers[entry.$1] == option.$1
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked,
-                          color: _answers[entry.$1] == option.$1
-                              ? AppColors.primary
-                              : AppColors.muted,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: InteractiveInk(
+                          borderRadius: AppRadius.lg,
+                          enableHaptic: false,
+                          onTap: () {
+                            AppFeedback.selection();
+                            setState(() => _answers[entry.$1] = option.$1);
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _answers[entry.$1] == option.$1
+                                  ? context.colors.primaryContainer
+                                  : context.colors.surface,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: _answers[entry.$1] == option.$1
+                                    ? context.colors.primary
+                                    : context.colors.borderSubtle,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _answers[entry.$1] == option.$1
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: _answers[entry.$1] == option.$1
+                                      ? context.colors.primary
+                                      : context.colors.muted,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    option.$2,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        title: Text(option.$2),
-                        onTap: () =>
-                            setState(() => _answers[entry.$1] = option.$1),
                       ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
           ],
           FilledButton.icon(
-            onPressed: _submit,
+            onPressed: () {
+              AppFeedback.tap();
+              _submit();
+            },
             icon: const Icon(Icons.check_circle_outline),
             label: const Text('Tuma Majibu'),
           ),
         ],
+      ),
       ),
     );
   }
@@ -233,6 +303,7 @@ class FieldAssignmentScreenState extends State<FieldAssignmentScreen> {
     }
     await context.session.saveAssessmentScore('field-assignment', 5);
     if (!mounted) return;
+    AppFeedback.success();
     Navigator.of(context).pop();
     showSnack(context, 'Kazi imewasilishwa na kuhifadhiwa.');
   }
@@ -241,46 +312,52 @@ class FieldAssignmentScreenState extends State<FieldAssignmentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Kazi ya Vitendo')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          TextField(
+          Text(
+            'Eleza ulichoona shambani',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Andika kwa ufupi zao, uchunguzi, na hatua utakazochukua wiki hii.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          AppTextField(
             controller: _cropController,
-            decoration: InputDecoration(
-              labelText: 'Zao au mifugo',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-            ),
+            labelText: 'Zao au mifugo',
+            hintText: 'Mfano: nyanya, pasheni, kuku',
           ),
-          const SizedBox(height: 14),
-          TextField(
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
             controller: _observationController,
+            labelText: 'Umegundua nini?',
+            hintText: 'Eleza dalili au hali uliyoiona shambani',
             minLines: 3,
             maxLines: 5,
-            decoration: InputDecoration(
-              labelText: 'Umegundua nini?',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-            ),
           ),
-          const SizedBox(height: 14),
-          TextField(
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
             controller: _actionController,
+            labelText: 'Hatua utakazochukua',
+            hintText: 'Andika hatua za wiki hii',
             minLines: 3,
             maxLines: 5,
-            decoration: InputDecoration(
-              labelText: 'Hatua utakazochukua',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           FilledButton.icon(
-            onPressed: _submit,
+            onPressed: () {
+              AppFeedback.tap();
+              _submit();
+            },
             icon: const Icon(Icons.assignment_turned_in),
             label: const Text('Hifadhi Kazi'),
           ),
         ],
+      ),
       ),
     );
   }

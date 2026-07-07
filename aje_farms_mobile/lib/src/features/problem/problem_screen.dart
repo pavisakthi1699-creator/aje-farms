@@ -19,36 +19,32 @@ class ProblemScreenState extends State<ProblemScreen> {
   }
 
   void _openChat(BuildContext context, ProblemCategory category) {
+    AppFeedback.tap();
     final detail = _detailController.text.trim();
     final prompt = detail.isEmpty
         ? 'Nina shida kuhusu ${category.topic}. Naweza kupata ushauri?'
         : 'Nina shida kuhusu ${category.topic}. Zao/mnyama: $detail. Naweza kupata ushauri?';
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AiChatScreen(
-          initialPromptTopic: category.topic,
-          initialPromptDetail: detail.isEmpty ? null : detail,
-          initialPrompt: prompt,
-        ),
-      ),
+    AppNavigator.pushAiChat(
+      context,
+      initialPromptTopic: category.topic,
+      initialPromptDetail: detail.isEmpty ? null : detail,
+      initialPrompt: prompt,
     );
   }
 
   void _openUnknownProblem(BuildContext context) {
+    AppFeedback.tap();
     final detail = _detailController.text.trim();
     final prompt = detail.isEmpty
         ? 'Sijui tatizo kwenye shamba langu. Nisaidie kuuliza maswali ya kutambua.'
         : 'Sijui tatizo kwenye $detail. Nisaidie kuuliza maswali ya kutambua.';
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AiChatScreen(
-          initialPromptTopic: 'Sijui tatizo',
-          initialPromptDetail: detail.isEmpty ? null : detail,
-          initialPrompt: prompt,
-        ),
-      ),
+    AppNavigator.pushAiChat(
+      context,
+      initialPromptTopic: 'Sijui tatizo',
+      initialPromptDetail: detail.isEmpty ? null : detail,
+      initialPrompt: prompt,
     );
   }
 
@@ -59,43 +55,36 @@ class ProblemScreenState extends State<ProblemScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tueleze Changamoto')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          const Text(
-            'Eleza Tatizo',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+          Text(
+            'Eleza tatizo',
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Una changamoto gani leo kwenye shamba lako?',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 20),
-          TextField(
+          const SizedBox(height: AppSpacing.xl),
+          AppTextField(
             controller: _detailController,
+            labelText: 'Zao au mnyama (hiari)',
+            hintText: 'Mfano: nyanya, pasheni, kuku wa nyama',
+            prefixIcon: const Icon(Icons.agriculture_outlined),
             textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: 'Zao au mnyama (hiari)',
-              hintText: 'Mfano: nyanya, pasheni, kuku wa nyama',
-              filled: true,
-              fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.agriculture_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
-              ),
-            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: problemCategories.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.md,
               childAspectRatio: 0.86,
             ),
             itemBuilder: (context, index) {
@@ -107,30 +96,63 @@ class ProblemScreenState extends State<ProblemScreen> {
               );
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.md),
           UnknownProblemTile(onTap: () => _openUnknownProblem(context)),
-          const SizedBox(height: 28),
-          Text('Mada Pengekezi',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          ListTile(
-            tileColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            leading: const CircleAvatar(
-              backgroundColor: AppColors.blue,
-              child: Icon(Icons.spa, color: AppColors.primary),
-            ),
-            title: const Text('Kuzuia Ukungu kwenye Nyanya'),
-            subtitle: const Text('Dakika 3 kusoma'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => CourseDetailScreen(
-                      course: learningRepository.suggestedCourse)),
+          const SizedBox(height: AppSpacing.xxxl),
+          Text(
+            'Mada Pengekezi',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Card(
+            child: InteractiveInk(
+              borderRadius: AppRadius.lg,
+              onTap: () => AppNavigator.pushCourse(
+                context,
+                learningRepository.suggestedCourse,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: context.colors.primaryContainer,
+                      child: Icon(Icons.spa, color: context.colors.primary),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Kuzuia Ukungu kwenye Nyanya',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Text(
+                            'Dakika 3 kusoma',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: context.colors.muted,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ExcludeSemantics(
+                      child: Icon(Icons.chevron_right, color: context.colors.muted),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
+      ),
       ),
     );
   }

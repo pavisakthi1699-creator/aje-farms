@@ -3,8 +3,11 @@
 import "../../ui.dart";
 
 class SectionHeader extends StatelessWidget {
-  const SectionHeader(
-      {required this.title, required this.actionIcon, required this.onAction});
+  const SectionHeader({
+    required this.title,
+    required this.actionIcon,
+    required this.onAction,
+  });
 
   final String title;
   final IconData actionIcon;
@@ -15,8 +18,14 @@ class SectionHeader extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-        IconButton.filledTonal(onPressed: onAction, icon: Icon(actionIcon)),
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        ),
+        CircleIconButtonSmall(
+          icon: actionIcon,
+          onPressed: onAction,
+          tooltip: 'Fungua $title',
+          semanticLabel: 'Fungua $title',
+        ),
       ],
     );
   }

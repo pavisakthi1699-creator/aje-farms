@@ -10,32 +10,49 @@ class ExpertPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: context.colors.whatsappSurface,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           children: [
-            const CircleAvatar(
-              radius: 28,
-              backgroundColor: Color(0xFFE8F8EE),
-              child: Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
+            ExcludeSemantics(
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: context.colors.whatsapp.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.chat_bubble_outline,
+                  color: context.colors.whatsapp,
+                  size: 28,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Ongea na Mtaalamu',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 6),
-            const Text(
+            const SizedBox(height: AppSpacing.sm),
+            Text(
               'Pata ushauri binafsi kupitia WhatsApp yetu.',
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: onTap,
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              onPressed: () {
+                AppFeedback.tap();
+                onTap();
+              },
+              icon: const Icon(Icons.chat),
+              label: const Text('Tuma Ujumbe WhatsApp'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
+                backgroundColor: context.colors.whatsapp,
+                foregroundColor: context.colors.onPrimary,
               ),
-              child: const Text('Tuma Ujumbe WhatsApp'),
             ),
           ],
         ),

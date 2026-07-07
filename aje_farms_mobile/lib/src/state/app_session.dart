@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/widgets.dart';
 
 import '../models/community_post.dart';
+import '../services/auth_service.dart';
+import '../services/backend_session_storage.dart';
+import '../theme/app_theme_preference.dart';
 
 class AppSessionState {
   const AppSessionState({
@@ -20,6 +23,7 @@ class AppSessionState {
     this.subscriptionStartedAt,
     this.notificationsEnabled = true,
     this.preferredLocation,
+    this.themePreference = AppThemePreference.system,
   });
 
   final bool hasStarted;
@@ -35,6 +39,7 @@ class AppSessionState {
   final DateTime? subscriptionStartedAt;
   final bool notificationsEnabled;
   final String? preferredLocation;
+  final AppThemePreference themePreference;
 
   bool get hasActiveSubscription => subscriptionPlan != null;
 
@@ -52,6 +57,7 @@ class AppSessionState {
     DateTime? subscriptionStartedAt,
     bool? notificationsEnabled,
     String? preferredLocation,
+    AppThemePreference? themePreference,
     bool clearPhoneNumber = false,
     bool clearSubscription = false,
     bool clearPreferredLocation = false,
@@ -75,6 +81,7 @@ class AppSessionState {
       preferredLocation: clearPreferredLocation
           ? null
           : preferredLocation ?? this.preferredLocation,
+      themePreference: themePreference ?? this.themePreference,
     );
   }
 }
@@ -97,6 +104,7 @@ class AppSessionController extends ChangeNotifier {
       'app_session.subscription_started_at';
   static const _notificationsEnabledKey = 'app_session.notifications_enabled';
   static const _preferredLocationKey = 'app_session.preferred_location';
+  static const _themePreferenceKey = 'app_session.theme_preference';
 
   SharedPreferences? _preferences;
   AppSessionState _state = const AppSessionState();
@@ -132,6 +140,9 @@ class AppSessionController extends ChangeNotifier {
       notificationsEnabled:
           preferences.getBool(_notificationsEnabledKey) ?? true,
       preferredLocation: preferences.getString(_preferredLocationKey),
+      themePreference: AppThemePreference.fromStorage(
+        preferences.getString(_themePreferenceKey),
+      ),
     );
     notifyListeners();
   }
@@ -146,19 +157,26 @@ class AppSessionController extends ChangeNotifier {
     await _save();
   }
 
-  Future<void> signInWithPhone(String phoneNumber) async {
+  Future<void> signInWithPhone(
+    String phoneNumber, {
+    String? sessionToken,
+  }) async {
     _state = _state.copyWith(
       hasStarted: true,
       isGuest: false,
       phoneNumber: phoneNumber,
     );
     notifyListeners();
+    if (sessionToken != null) {
+      await BackendSessionStorage.writeToken(sessionToken);
+    }
     await _save();
   }
 
   Future<void> signOut() async {
     _state = const AppSessionState();
     notifyListeners();
+    await BackendSessionStorage.writeToken(null);
     await _save();
   }
 
@@ -171,6 +189,14 @@ class AppSessionController extends ChangeNotifier {
     _state = _state.copyWith(
       completedLessonIds: {..._state.completedLessonIds, lessonId},
     );
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> syncCompletedLessons(Set<String> lessonIds) async {
+    final next = {..._state.completedLessonIds, ...lessonIds};
+    if (next.length == _state.completedLessonIds.length) return;
+    _state = _state.copyWith(completedLessonIds: next);
     notifyListeners();
     await _save();
   }
@@ -194,10 +220,13 @@ class AppSessionController extends ChangeNotifier {
     return _state.savedDocumentIds.contains(documentId);
   }
 
-  Future<void> activateSubscription(String planTitle) async {
+  Future<void> activateSubscription(
+    String planTitle, {
+    DateTime? startedAt,
+  }) async {
     _state = _state.copyWith(
       subscriptionPlan: planTitle,
-      subscriptionStartedAt: DateTime.now(),
+      subscriptionStartedAt: startedAt ?? DateTime.now(),
     );
     notifyListeners();
     await _save();
@@ -209,8 +238,29 @@ class AppSessionController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> syncSubscriptionFromAuthSession(AuthSession session) async {
+    if (session.sessionToken != null) {
+      await BackendSessionStorage.writeToken(session.sessionToken);
+    }
+    final subscriptionPlan = session.subscriptionPlan;
+    if (subscriptionPlan == null) {
+      await cancelSubscription();
+      return;
+    }
+    await activateSubscription(
+      subscriptionPlan,
+      startedAt: session.subscriptionStartedAt,
+    );
+  }
+
   Future<void> setNotificationsEnabled(bool enabled) async {
     _state = _state.copyWith(notificationsEnabled: enabled);
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setThemePreference(AppThemePreference preference) async {
+    _state = _state.copyWith(themePreference: preference);
     notifyListeners();
     await _save();
   }
@@ -357,6 +407,10 @@ class AppSessionController extends ChangeNotifier {
     } else {
       await preferences.setString(_preferredLocationKey, preferredLocation);
     }
+    await preferences.setString(
+      _themePreferenceKey,
+      _state.themePreference.name,
+    );
   }
 }
 

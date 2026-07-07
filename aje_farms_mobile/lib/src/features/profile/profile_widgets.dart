@@ -9,6 +9,7 @@ class ProfileRow extends StatelessWidget {
     required this.onTap,
     this.subtitle,
     this.color = AppColors.primary,
+    this.showDivider = true,
   });
 
   final IconData icon;
@@ -16,18 +17,69 @@ class ProfileRow extends StatelessWidget {
   final String? subtitle;
   final Color color;
   final VoidCallback onTap;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color.withValues(alpha: 0.12),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-      subtitle: subtitle == null ? null : Text(subtitle!),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    return Column(
+      children: [
+        InteractiveInk(
+          borderRadius: AppRadius.lg,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration:
+                      AppDecorations.pastelPanel(
+                        context,
+                        color.withValues(alpha: 0.12),
+                      ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: context.colors.muted,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                ExcludeSemantics(
+                  child: Icon(Icons.chevron_right, color: context.colors.muted),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          const Divider(
+            height: 1,
+            indent: AppSpacing.lg + 44 + AppSpacing.md,
+            endIndent: AppSpacing.lg,
+          ),
+      ],
     );
   }
 }

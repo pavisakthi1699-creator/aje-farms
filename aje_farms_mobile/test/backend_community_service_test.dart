@@ -1,12 +1,18 @@
-import 'package:aje_farms_mobile/src/models/community_post.dart';
 import 'package:aje_farms_mobile/src/services/backend_community_service.dart';
+import 'package:aje_farms_mobile/src/services/backend_session_storage.dart';
 import 'package:aje_farms_mobile/src/services/community_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
   test('creates a community post with backend', () async {
+    await BackendSessionStorage.writeToken('token-abc');
     late http.Request capturedRequest;
     final service = BackendCommunityService(
       baseUrl: Uri.parse('http://localhost:3000'),
@@ -33,10 +39,12 @@ void main() {
       capturedRequest.url.toString(),
       'http://localhost:3000/api/community/posts',
     );
+    expect(capturedRequest.headers['Authorization'], 'Bearer token-abc');
     expect(capturedRequest.body, contains('"location":"Morogoro"'));
   });
 
   test('adds a reply with backend', () async {
+    await BackendSessionStorage.writeToken('token-abc');
     final service = BackendCommunityService(
       baseUrl: Uri.parse('http://localhost:3000'),
       client: MockClient((request) async {
@@ -44,6 +52,7 @@ void main() {
           request.url.toString(),
           'http://localhost:3000/api/community/posts/post-1/replies',
         );
+        expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response(
           '{"author":"Wewe","body":"Angalia chini ya majani.","time":"Sasa hivi","isExpert":false}',
           200,
@@ -61,6 +70,7 @@ void main() {
   });
 
   test('reports a post with backend', () async {
+    await BackendSessionStorage.writeToken('token-abc');
     final service = BackendCommunityService(
       baseUrl: Uri.parse('http://localhost:3000'),
       client: MockClient((request) async {
@@ -68,6 +78,7 @@ void main() {
           request.url.toString(),
           'http://localhost:3000/api/community/posts/post-1/report',
         );
+        expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response('{"status":"received"}', 200);
       }),
     );
@@ -93,63 +104,4 @@ void main() {
       throwsA(isA<CommunityException>()),
     );
   });
-
-  test('fallback community service uses local service when backend fails',
-      () async {
-    final service = FallbackCommunityService(
-      primary: BackendCommunityService(
-        baseUrl: Uri.parse('http://localhost:3000'),
-        client: MockClient((_) async {
-          return http.Response('{"error":"Offline"}', 500);
-        }),
-      ),
-      fallback: const LocalCommunityForTest(),
-    );
-
-    final post = await service.createPost(
-      author: 'Wewe',
-      content: 'Majani ya nyanya yana madoa ya njano.',
-      location: 'Morogoro',
-      tags: const ['Magonjwa'],
-    );
-
-    expect(post.id, 'local-test');
-    expect(post.location, 'Morogoro');
-  });
-}
-
-class LocalCommunityForTest implements CommunityService {
-  const LocalCommunityForTest();
-
-  @override
-  Future<CommunityPost> createPost({
-    required String author,
-    required String content,
-    required String location,
-    required List<String> tags,
-  }) async {
-    return CommunityPost(
-      id: 'local-test',
-      author: author,
-      location: location,
-      time: 'Sasa hivi',
-      content: content,
-      likes: 0,
-      comments: 0,
-      tags: tags,
-      replies: const [],
-    );
-  }
-
-  @override
-  Future<CommunityReply> addReply({
-    required String postId,
-    required String author,
-    required String body,
-  }) async {
-    return CommunityReply(author: author, body: body, time: 'Sasa hivi');
-  }
-
-  @override
-  Future<void> reportPost(String postId) async {}
 }

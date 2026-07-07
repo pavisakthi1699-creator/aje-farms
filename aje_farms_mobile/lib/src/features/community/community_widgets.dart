@@ -3,161 +3,206 @@
 import "../../ui.dart";
 
 class CommunityPostCard extends StatelessWidget {
-  const CommunityPostCard({required this.post, required this.onOpen});
+  const CommunityPostCard({
+    required this.post,
+    required this.onOpen,
+    this.compact = false,
+  });
 
   final CommunityPost post;
   final VoidCallback onOpen;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    final semanticLabel =
+        'Post ya ${post.author} kutoka ${post.location}. ${post.content}';
+    return AccessibleTappable(
+      label: semanticLabel,
+      hint: post.isUrgent ? 'Inahitaji haraka' : null,
+      onTap: onOpen,
+      child: Card(
+        key: ValueKey(
+          'community-post-${post.id.isEmpty ? post.author : post.id}',
+        ),
+        child: InteractiveInk(
+          borderRadius: AppRadius.xl,
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppColors.primaryContainer,
+                    backgroundColor: context.colors.primaryContainer,
                     child: Text(post.author.substring(0, 1),
-                        style: const TextStyle(
-                            color: AppColors.primary,
+                        style: TextStyle(
+                            color: context.colors.primary,
                             fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(post.author,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w800)),
+                        Text(
+                          post.author,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
                         if (post.isExpert)
-                          const Text('Mtaalamu aliyethibitishwa',
-                              style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800)),
-                        Text('${post.location} - ${post.time}',
-                            style: const TextStyle(
-                                color: AppColors.muted, fontSize: 12)),
+                          Text(
+                            'Mtaalamu aliyethibitishwa',
+                            style: accessibleCaption(
+                              context,
+                              color: context.colors.primary,
+                            ),
+                          ),
+                        Text(
+                          '${post.location} - ${post.time}',
+                          style: accessibleCaption(context),
+                        ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.more_vert, color: AppColors.muted),
+                  Semantics(
+                    label: 'Chaguo zaidi',
+                    child: Icon(Icons.more_vert, color: context.colors.muted),
+                  ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Text(post.content),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                post.content,
+                maxLines: compact ? 3 : null,
+                overflow: compact ? TextOverflow.ellipsis : null,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
                   if (post.isUrgent)
-                    const CommunityBadge(
+                    CommunityBadge(
                       icon: Icons.priority_high,
                       label: 'Inahitaji haraka',
-                      color: AppColors.secondary,
+                      color: context.colors.secondary,
                     ),
-                  for (final tag in post.tags)
+                  for (final tag in compact ? post.tags.take(2) : post.tags)
                     CommunityBadge(
                       icon: Icons.local_offer_outlined,
                       label: tag,
-                      color: AppColors.primary,
+                      color: context.colors.primary,
                     ),
                 ],
               ),
-              if (post.hasImage) ...[
-                const SizedBox(height: 14),
+              if (!compact && post.hasImage) ...[
+                const SizedBox(height: AppSpacing.md),
                 Container(
                   height: 150,
                   decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(18),
+                    color: context.colors.mint,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: AppElevation.borderSubtle(context),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(Icons.image_outlined,
-                        color: AppColors.primary, size: 42),
+                        color: context.colors.primary, size: 42),
                   ),
                 ),
               ],
-              if (post.relatedTopic != null) ...[
-                const SizedBox(height: 14),
+              if (!compact && post.relatedTopic != null) ...[
+                const SizedBox(height: AppSpacing.md),
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: AppDecorations.pastelPanel(
+                    context,
+                    context.colors.primaryContainer,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.menu_book, color: AppColors.primary),
-                      const SizedBox(width: 10),
+                      Icon(Icons.menu_book, color: context.colors.primary),
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
-                        child: Text(post.relatedTopic!,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(
+                          post.relatedTopic!,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Text('${post.likes} likes',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 12),
-                  Text('${post.comments} majibu',
-                      style: const TextStyle(
-                          color: AppColors.muted, fontWeight: FontWeight.w700)),
+                  Text(
+                    '${post.likes} likes',
+                    style: accessibleCaption(context),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(
+                    '${post.comments} majibu',
+                    style: accessibleCaption(context),
+                  ),
                 ],
               ),
-              const SizedBox(height: 14),
+              if (!compact) ...[
+              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: onOpen,
+                      onPressed: () {
+                        AppFeedback.tap();
+                        onOpen();
+                      },
                       icon: const Icon(Icons.mode_comment_outlined),
                       label: const Text('Jibu'),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => AiChatScreen(
-                            initialPromptTopic: 'Jamii',
-                            initialPrompt:
-                                'Nimesoma post ya jamii: "${post.content}". Nisaidie kutoa ushauri salama na wa vitendo.',
-                          ),
-                        ),
-                      ),
+                      onPressed: () {
+                        AppFeedback.tap();
+                        AppNavigator.pushAiChat(
+                          context,
+                          initialPromptTopic: 'Jamii',
+                          initialPrompt:
+                              'Nimesoma post ya jamii: "${post.content}". Nisaidie kutoa ushauri salama na wa vitendo.',
+                        );
+                      },
                       icon: const Icon(Icons.smart_toy_outlined),
                       label: const Text('Uliza AI'),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   IconButton.outlined(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const WhatsAppEscalationScreen()),
-                    ),
+                    tooltip: 'Piga simu kwa msaada',
+                    onPressed: () {
+                      AppFeedback.tap();
+                      AppNavigator.pushWhatsApp(context);
+                    },
                     icon: const Icon(Icons.phone_outlined),
                   ),
                 ],
               ),
+              ],
             ],
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -179,12 +224,15 @@ class CommunityFilters extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (_, index) => ChoiceChip(
           key: ValueKey('community-filter-${filters[index]}'),
           selected: selectedFilter == filters[index],
           label: Text(filters[index]),
-          onSelected: (_) => onSelected(filters[index]),
+          onSelected: (_) {
+            AppFeedback.selection();
+            onSelected(filters[index]);
+          },
         ),
       ),
     );
@@ -203,25 +251,34 @@ class CommunitySummaryCard extends StatelessWidget {
         .where((reply) => reply.isExpert)
         .length;
     return Card(
-      color: AppColors.primaryContainer,
+      color: context.colors.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.groups_outlined, color: AppColors.primary),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: AppDecorations.pastelPanel(context, context.colors.surface),
+              child: Icon(Icons.groups_outlined, color: context.colors.primary),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Jamii hai leo',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 2),
+                  Text(
+                    'Jamii hai leo',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     '${posts.length} mijadala, $expertReplies majibu ya wataalamu.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.colors.muted,
+                        ),
                   ),
                 ],
               ),
@@ -246,27 +303,29 @@ class CommunityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    return Semantics(
+      label: label,
+      child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 14),
-          const SizedBox(width: 5),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+            style: accessibleCaption(context, color: color),
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -279,42 +338,44 @@ class DiscussionActionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.mint,
+      color: context.colors.surfaceMuted,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Hatua inayofuata',
                 style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const Text(
-                'Tumia AI kupata muhtasari au mpe mtaalamu muktadha wa mjadala huu.'),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Tumia AI kupata muhtasari au mpe mtaalamu muktadha wa mjadala huu.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AiChatScreen(
-                          initialPromptTopic: 'Jamii',
-                          initialPrompt:
-                              'Fupisha mjadala huu na pendekeza jibu: "${post.content}".',
-                        ),
-                      ),
-                    ),
+                    onPressed: () {
+                      AppFeedback.tap();
+                      AppNavigator.pushAiChat(
+                        context,
+                        initialPromptTopic: 'Jamii',
+                        initialPrompt:
+                            'Fupisha mjadala huu na pendekeza jibu: "${post.content}".',
+                      );
+                    },
                     icon: const Icon(Icons.smart_toy_outlined),
                     label: const Text('Fupisha na AI'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm),
                 IconButton.outlined(
                   tooltip: 'Mtaalamu',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const WhatsAppEscalationScreen()),
-                  ),
+                  onPressed: () {
+                    AppFeedback.tap();
+                    AppNavigator.pushWhatsApp(context);
+                  },
                   icon: const Icon(Icons.support_agent),
                 ),
               ],
@@ -334,56 +395,65 @@ class CommunityReplyTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: reply.isExpert
-                  ? AppColors.primary
-                  : AppColors.primaryContainer,
-              child: Icon(
-                reply.isExpert ? Icons.verified : Icons.person_outline,
-                color: reply.isExpert ? Colors.white : AppColors.primary,
-                size: 20,
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Card(
+        color: context.colors.surface,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: reply.isExpert
+                    ? context.colors.primary
+                    : context.colors.primaryContainer,
+                child: Icon(
+                  reply.isExpert ? Icons.verified : Icons.person_outline,
+                  color: reply.isExpert ? context.colors.onPrimary : context.colors.primary,
+                  size: 20,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(reply.author,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reply.author,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        Text(
+                          reply.time,
+                          style: accessibleCaption(context),
+                        ),
+                      ],
+                    ),
+                    if (reply.isExpert)
+                      Text(
+                        'Mtaalamu',
+                        style: accessibleCaption(
+                          context,
+                          color: context.colors.primary,
+                        ),
                       ),
-                      Text(reply.time,
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 12)),
-                    ],
-                  ),
-                  if (reply.isExpert)
-                    const Text('Mtaalamu',
-                        style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  Text(reply.body),
-                ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      reply.body,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

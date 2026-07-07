@@ -5,6 +5,8 @@ abstract interface class AuthService {
     required String otp,
     required String challengeId,
   });
+  Future<AuthSession> getSession(String phoneNumber);
+  Future<AuthSession> cancelSubscription(String phoneNumber);
 }
 
 class OtpChallenge {
@@ -20,9 +22,23 @@ class OtpChallenge {
 }
 
 class AuthSession {
-  const AuthSession({required this.phoneNumber});
+  const AuthSession({
+    required this.phoneNumber,
+    this.userId,
+    this.role,
+    this.subscriptionPlan,
+    this.subscriptionStartedAt,
+    this.sessionToken,
+  });
 
   final String phoneNumber;
+  final String? userId;
+  final String? role;
+  final String? subscriptionPlan;
+  final DateTime? subscriptionStartedAt;
+  final String? sessionToken;
+
+  bool get hasActiveSubscription => subscriptionPlan != null;
 }
 
 class AuthException implements Exception {

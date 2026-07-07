@@ -7,9 +7,10 @@ import { registerApiRoutes } from './api.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
+process.env.NODE_ENV ??= 'development';
 
 app.use(express.json({ limit: '64kb' }));
-registerApiRoutes(app);
+await registerApiRoutes(app);
 
 const vite = await createViteServer({
   server: {

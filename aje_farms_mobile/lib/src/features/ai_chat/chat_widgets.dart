@@ -5,10 +5,15 @@ import "../../ui.dart";
 enum ChatRole { user, model }
 
 class ChatMessage {
-  const ChatMessage({required this.role, required this.text});
+  const ChatMessage({
+    required this.role,
+    required this.text,
+    this.sources = const [],
+  });
 
   final ChatRole role;
   final String text;
+  final List<MwalimuAiSource> sources;
 }
 
 class IntakeContextCard extends StatelessWidget {
@@ -22,27 +27,45 @@ class IntakeContextCard extends StatelessWidget {
     final hasDetail = detail != null && detail!.isNotEmpty;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        0,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(18),
+        color: context.colors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: context.colors.primary.withValues(alpha: 0.12),
+        ),
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            backgroundColor: Colors.white,
-            child: Icon(Icons.assignment_outlined, color: AppColors.primary),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: AppDecorations.pastelPanel(context, context.colors.surface),
+            child: Icon(Icons.assignment_outlined, color: context.colors.primary),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Muktadha uliotumwa',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text(hasDetail ? '$topic - $detail' : topic),
+                Text(
+                  'Muktadha uliotumwa',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: context.colors.primary,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  hasDetail ? '$topic - $detail' : topic,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
           ),
@@ -61,47 +84,160 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
+    final showActions = !isUser &&
+        (message.sources.isNotEmpty ||
+            message.text.toLowerCase().contains('mtaalamu') ||
+            message.text.toLowerCase().contains('whatsapp'));
+    final bubbleRadius = Radius.circular(AppRadius.xl);
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isUser ? AppColors.text : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(22),
-            topRight: const Radius.circular(22),
-            bottomLeft: Radius.circular(isUser ? 22 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 22),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(message.text,
-                style: TextStyle(
-                    color: isUser ? Colors.white : AppColors.text,
-                    height: 1.35)),
-            if (!isUser && message.text.contains('Chanzo:')) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: context.colors.primaryContainer,
+              child: Icon(
+                Icons.smart_toy_outlined,
+                color: context.colors.primary,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Flexible(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 300),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: isUser ? context.colors.charcoal : context.colors.surface,
+                border: isUser
+                    ? null
+                    : Border.all(color: context.colors.borderSubtle),
+                borderRadius: BorderRadius.only(
+                  topLeft: bubbleRadius,
+                  topRight: bubbleRadius,
+                  bottomLeft:
+                      Radius.circular(isUser ? AppRadius.xl : AppRadius.sm),
+                  bottomRight:
+                      Radius.circular(isUser ? AppRadius.sm : AppRadius.xl),
+                ),
+                boxShadow: AppElevation.soft(context),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const ReplyActionChip(
-                    icon: Icons.description_outlined,
-                    label: 'Ona Kwenye Mafunzo',
+                  if (!isUser)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Text(
+                        'Mwalimu AI',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: context.colors.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                  Text(
+                    message.text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color:
+                              isUser ? context.colors.onPrimary : context.colors.textPrimary,
+                          height: 1.35,
+                        ),
                   ),
-                  ReplyActionChip(
-                    icon: Icons.support_agent,
-                    label: 'Msaidizi wa Binadamu',
-                    onTap: onEscalate,
-                  ),
+                  if (!isUser && message.sources.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    ...message.sources.map(
+                      (source) => SourceCard(source: source),
+                    ),
+                  ],
+                  if (showActions) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        if (message.sources.isNotEmpty)
+                          const ReplyActionChip(
+                            icon: Icons.description_outlined,
+                            label: 'Ona Kwenye Mafunzo',
+                          ),
+                        ReplyActionChip(
+                          icon: Icons.support_agent,
+                          label: 'Msaidizi wa Binadamu',
+                          onTap: () {
+                            AppFeedback.tap();
+                            onEscalate();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SourceCard extends StatelessWidget {
+  const SourceCard({required this.source});
+
+  final MwalimuAiSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: context.colors.borderSubtle),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.description_outlined,
+            size: 20,
+            color: context.colors.primary,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  source.title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  source.courseTitle,
+                  style: accessibleCaption(context),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  source.excerpt,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -121,25 +257,28 @@ class ReplyActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.blue,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      color: context.colors.surfaceAqua,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InteractiveInk(
+        borderRadius: AppRadius.md,
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: AppColors.primary, size: 18),
-                const SizedBox(width: 8),
+                Icon(icon, color: context.colors.primary, size: 18),
+                const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: context.colors.primary,
+                        ),
                   ),
                 ),
               ],
@@ -156,20 +295,40 @@ class TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return Semantics(
+      label: 'Mwalimu AI anaandika',
+      liveRegion: true,
+      child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(22)),
-      child: const Row(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: context.colors.borderSubtle),
+        boxShadow: AppElevation.soft(context),
+      ),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox.square(
             dimension: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: context.colors.primary,
+            ),
           ),
-          SizedBox(width: 10),
-          Text('Mwalimu AI anaandika...'),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            'Mwalimu AI anaandika...',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.colors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
         ],
+      ),
       ),
     );
   }

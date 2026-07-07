@@ -10,9 +10,10 @@ const app = express();
 const port = Number(process.env.PORT ?? 3000);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.resolve(__dirname, '..', 'dist');
+process.env.NODE_ENV ??= 'production';
 
 app.use(express.json({ limit: '64kb' }));
-registerApiRoutes(app);
+await registerApiRoutes(app);
 
 app.use(express.static(distPath));
 app.get('*', (_req, res) => {

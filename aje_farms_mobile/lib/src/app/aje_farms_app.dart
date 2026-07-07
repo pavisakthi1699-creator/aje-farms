@@ -1,4 +1,6 @@
 import '../ui.dart';
+import 'package:flutter/services.dart';
+import 'app_navigator.dart';
 
 class AjeFarmsApp extends StatefulWidget {
   const AjeFarmsApp({
@@ -15,13 +17,17 @@ class AjeFarmsApp extends StatefulWidget {
 }
 
 class AjeFarmsAppState extends State<AjeFarmsApp> {
+  late final AppDependencies _dependencies =
+      widget.dependencies ?? AppDependencies.production();
   late final AppSessionController _sessionController =
       widget.sessionController ?? AppSessionController();
+  bool _appliedPendingDeepLink = false;
 
   @override
   void initState() {
     super.initState();
-    _sessionController.restore();
+    AppNavigator.captureInitialRoute();
+    _restoreAndSyncSession();
   }
 
   @override
@@ -32,26 +38,89 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
     super.dispose();
   }
 
+  ThemeMode _themeMode(AppThemePreference preference) {
+    return switch (preference) {
+      AppThemePreference.light => ThemeMode.light,
+      AppThemePreference.dark => ThemeMode.dark,
+      AppThemePreference.system => ThemeMode.system,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AppDependenciesScope(
-      dependencies: widget.dependencies ?? AppDependencies.localFirst(),
-      child: AppSessionScope(
-        controller: _sessionController,
-        child: AnimatedBuilder(
-          animation: _sessionController,
-          builder: (context, _) {
-            return MaterialApp(
-              title: 'AJE Farms',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.light(),
-              home: _sessionController.hasStarted
-                  ? const MainShell()
-                  : const OnboardingScreen(),
-            );
-          },
+    return ConnectivityScope(
+      child: AppDependenciesScope(
+        dependencies: _dependencies,
+        child: AppSessionScope(
+          controller: _sessionController,
+          child: AnimatedBuilder(
+            animation: _sessionController,
+            builder: (context, _) {
+              if (_sessionController.hasStarted && !_appliedPendingDeepLink) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted || _appliedPendingDeepLink) {
+                    return;
+                  }
+                  _appliedPendingDeepLink = true;
+                  final navContext = AppNavigator.rootKey.currentContext;
+                  if (navContext != null) {
+                    AppNavigator.applyPending(navContext);
+                  }
+                });
+              }
+              return MaterialApp(
+                title: 'AJE Farms',
+                debugShowCheckedModeBanner: false,
+                navigatorKey: AppNavigator.rootKey,
+                restorationScopeId: 'aje_farms_app',
+                onGenerateRoute: AppNavigator.onGenerateRoute,
+                theme: AppTheme.light(),
+                darkTheme: AppTheme.dark(),
+                themeMode: _themeMode(_sessionController.state.themePreference),
+                builder: (context, child) {
+                  final overlayStyle =
+                      AppTheme.overlayStyle(Theme.of(context).brightness);
+                  return AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: overlayStyle,
+                    child: child ?? const SizedBox.shrink(),
+                  );
+                },
+                home: _sessionController.hasStarted
+                    ? MainShell(
+                        initialTab: AppNavigator.pendingInitialTab() ??
+                            MainShellTab.home,
+                      )
+                    : const OnboardingScreen(),
+              );
+            },
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _restoreAndSyncSession() async {
+    await _sessionController.restore();
+    final phoneNumber = _sessionController.phoneNumber;
+    if (phoneNumber == null || _sessionController.state.isGuest) return;
+
+    try {
+      final session = await _dependencies.authService.getSession(phoneNumber);
+      await _sessionController.signInWithPhone(
+        session.phoneNumber,
+        sessionToken: session.sessionToken,
+      );
+      await _sessionController.syncSubscriptionFromAuthSession(session);
+      final completedLessons =
+          await _dependencies.learningProgressService.completedLessons(
+        session.phoneNumber,
+      );
+      await _sessionController.syncCompletedLessons(completedLessons);
+    } on AuthException {
+      // Keep the locally restored session usable when the backend is temporarily
+      // unreachable. Mutating actions still require backend success.
+    } on LearningProgressException {
+      // Progress sync should not block opening the app.
+    }
   }
 }

@@ -17,10 +17,12 @@ class Lesson {
     required this.type,
     required this.meta,
     required this.description,
+    this.id,
     this.isPremium = false,
     this.isCompleted = false,
   });
 
+  final String? id;
   final String title;
   final LessonType type;
   final String meta;

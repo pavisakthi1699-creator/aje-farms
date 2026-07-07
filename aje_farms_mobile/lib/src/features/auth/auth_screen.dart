@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'package:flutter/foundation.dart';
+
 import "../../ui.dart";
 
 class AuthScreen extends StatefulWidget {
@@ -59,10 +61,12 @@ class AuthScreenState extends State<AuthScreen> {
       return;
     }
     if (requireOtp && _otpController.text.trim().length < 4) {
-      showSnack(context, 'Weka OTP ya mfano ili kuendelea.');
+      showSnack(context, 'Weka OTP uliyoipokea ili kuendelea.');
       return;
     }
     final authService = context.dependencies.authService;
+    final learningProgressService =
+        context.dependencies.learningProgressService;
     final appSession = context.session;
     setState(() => _isLoading = true);
     if (requireOtp) {
@@ -72,7 +76,20 @@ class AuthScreenState extends State<AuthScreen> {
           otp: _otpController.text.trim(),
           challengeId: challenge!.challengeId,
         );
-        await appSession.signInWithPhone(session.phoneNumber);
+        await appSession.signInWithPhone(
+          session.phoneNumber,
+          sessionToken: session.sessionToken,
+        );
+        await appSession.syncSubscriptionFromAuthSession(session);
+        try {
+          final completedLessons =
+              await learningProgressService.completedLessons(
+            session.phoneNumber,
+          );
+          await appSession.syncCompletedLessons(completedLessons);
+        } on LearningProgressException {
+          // Progress sync should not block sign-in.
+        }
       } on AuthException catch (error) {
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -89,44 +106,51 @@ class AuthScreenState extends State<AuthScreen> {
     }
     if (!mounted) return;
     setState(() => _isLoading = false);
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-      (_) => false,
-    );
+    AppNavigator.replaceWithMainShell(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Ingia / Jisajili')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+      body: AppLayout(
+        child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         children: [
           const BrandHeader(),
-          const SizedBox(height: 28),
-          const Text(
+          const SizedBox(height: AppSpacing.xxl),
+          Text(
             'Karibu tena',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Tumia namba yako ya simu kupata mafunzo, kuhifadhi maendeleo yako, na kufungua msaada wa premium.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           Card(
-            color: AppColors.mint,
+            color: context.colors.surfaceMuted,
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.verified_user_outlined,
-                      color: AppColors.primary),
-                  const SizedBox(width: 12),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration:
+                        AppDecorations.pastelPanel(context, context.colors.surface),
+                    child: Icon(
+                      Icons.verified_user_outlined,
+                      color: context.colors.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
-                      'Tutahifadhi kikao chako kwenye kifaa hiki. Kwa sasa OTP ni ya majaribio mpaka huduma ya SMS iunganishwe.',
+                      'Tutahifadhi kikao chako kwenye kifaa hiki baada ya kuthibitisha namba yako kwa OTP.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -134,65 +158,66 @@ class AuthScreenState extends State<AuthScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          TextField(
+          const SizedBox(height: AppSpacing.xl),
+          AppTextField(
             controller: _phoneController,
+            labelText: 'Namba ya simu',
+            helperText: 'Mfano: 712345678',
+            prefixText: '+255 ',
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _sendOtp(),
-            decoration: InputDecoration(
-              labelText: 'Namba ya simu',
-              helperText: 'Mfano: 712345678',
-              prefixText: '+255 ',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
           ),
           if (_otpSent) ...[
-            const SizedBox(height: 16),
-            TextField(
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
               controller: _otpController,
+              labelText: 'OTP',
+              helperText: 'Weka tarakimu 6 ulizopokea',
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _continueToApp(),
-              decoration: InputDecoration(
-                labelText: 'OTP',
-                helperText: 'Weka tarakimu 4 ulizopokea',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
             ),
-            if (_challenge?.debugOtp != null) ...[
-              const SizedBox(height: 8),
+            if (kDebugMode && _challenge?.debugOtp != null) ...[
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'OTP ya majaribio: ${_challenge!.debugOtp}',
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.labelSmall,
               ),
             ],
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           FilledButton.icon(
-            onPressed:
-                _isLoading ? null : (_otpSent ? _continueToApp : _sendOtp),
+            onPressed: _isLoading
+                ? null
+                : () {
+                    AppFeedback.tap();
+                    if (_otpSent) {
+                      _continueToApp();
+                    } else {
+                      _sendOtp();
+                    }
+                  },
             icon: _isLoading
                 ? const SizedBox.square(
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(_otpSent ? Icons.login : Icons.sms_outlined),
-            label: Text(_otpSent ? 'Endelea kwenye App' : 'Tuma OTP'),
+            label: Text(_otpSent ? 'Endelea' : 'Tuma OTP'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           TextButton(
-            onPressed: () => _continueToApp(requireOtp: false),
+            onPressed: _isLoading
+                ? null
+                : () {
+                    AppFeedback.tap();
+                    _continueToApp(requireOtp: false);
+                  },
             child: const Text('Endelea kama mgeni'),
           ),
         ],
+      ),
       ),
     );
   }

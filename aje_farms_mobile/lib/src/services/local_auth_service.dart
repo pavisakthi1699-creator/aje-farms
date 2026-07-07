@@ -27,4 +27,14 @@ class LocalAuthService implements AuthService {
     }
     return AuthSession(phoneNumber: phoneNumber);
   }
+
+  @override
+  Future<AuthSession> getSession(String phoneNumber) async {
+    return AuthSession(phoneNumber: phoneNumber);
+  }
+
+  @override
+  Future<AuthSession> cancelSubscription(String phoneNumber) async {
+    return AuthSession(phoneNumber: phoneNumber);
+  }
 }

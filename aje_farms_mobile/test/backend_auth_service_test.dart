@@ -1,10 +1,16 @@
 import 'package:aje_farms_mobile/src/services/auth_service.dart';
 import 'package:aje_farms_mobile/src/services/backend_auth_service.dart';
+import 'package:aje_farms_mobile/src/services/backend_session_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
   test('requests an OTP challenge from backend', () async {
     late http.Request capturedRequest;
     final service = BackendAuthService(
@@ -35,7 +41,10 @@ void main() {
         expect(request.url.toString(),
             'http://localhost:3000/api/auth/verify-otp');
         expect(request.body, contains('"otp":"1234"'));
-        return http.Response('{"phoneNumber":"+255 712345678"}', 200);
+        return http.Response(
+          '{"phoneNumber":"+255712345678","sessionToken":"token-abc","user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":"Mwezi 1","subscriptionStartedAt":"2026-07-02T10:00:00.000Z"}}',
+          200,
+        );
       }),
     );
 
@@ -45,7 +54,13 @@ void main() {
       challengeId: 'abc',
     );
 
-    expect(session.phoneNumber, '+255 712345678');
+    expect(session.phoneNumber, '+255712345678');
+    expect(session.sessionToken, 'token-abc');
+    expect(session.userId, 'user-1');
+    expect(session.role, 'learner');
+    expect(session.subscriptionPlan, 'Mwezi 1');
+    expect(session.hasActiveSubscription, isTrue);
+    expect(session.subscriptionStartedAt, isNotNull);
   });
 
   test('throws typed exception for backend auth errors', () {
@@ -62,43 +77,50 @@ void main() {
     );
   });
 
-  test('fallback auth service uses local auth when backend fails', () async {
-    final service = FallbackAuthService(
-      primary: BackendAuthService(
-        baseUrl: Uri.parse('http://localhost:3000'),
-        client: MockClient((_) async {
-          return http.Response('{"error":"Offline"}', 500);
-        }),
-      ),
-      fallback: const LocalAuthForTest(),
+  test('loads a backend user session by phone with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-abc');
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        expect(
+          request.url.toString(),
+          'http://localhost:3000/api/users/by-phone/%2B255712345678',
+        );
+        expect(request.headers['Authorization'], 'Bearer token-abc');
+        return http.Response(
+          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":"Wiki 1","subscriptionStartedAt":"2026-07-02T10:00:00.000Z"}}',
+          200,
+        );
+      }),
     );
 
-    final challenge = await service.requestOtp('+255 712345678');
-    final session = await service.verifyOtp(
-      phoneNumber: '+255 712345678',
-      otp: '0000',
-      challengeId: challenge.challengeId,
-    );
+    final session = await service.getSession('+255712345678');
 
-    expect(challenge.challengeId, 'test');
-    expect(session.phoneNumber, '+255 712345678');
+    expect(session.phoneNumber, '+255712345678');
+    expect(session.subscriptionPlan, 'Wiki 1');
   });
-}
 
-class LocalAuthForTest implements AuthService {
-  const LocalAuthForTest();
+  test('cancels backend subscription by phone with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-abc');
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          'http://localhost:3000/api/users/by-phone/%2B255712345678/subscription/cancel',
+        );
+        expect(request.headers['Authorization'], 'Bearer token-abc');
+        return http.Response(
+          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":null,"subscriptionStartedAt":null}}',
+          200,
+        );
+      }),
+    );
 
-  @override
-  Future<OtpChallenge> requestOtp(String phoneNumber) async {
-    return const OtpChallenge(challengeId: 'test', message: 'fallback');
-  }
+    final session = await service.cancelSubscription('+255712345678');
 
-  @override
-  Future<AuthSession> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    required String challengeId,
-  }) async {
-    return AuthSession(phoneNumber: phoneNumber);
-  }
+    expect(session.phoneNumber, '+255712345678');
+    expect(session.subscriptionPlan, isNull);
+  });
 }

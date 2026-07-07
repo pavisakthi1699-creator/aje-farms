@@ -19,6 +19,9 @@ class PaymentTransaction {
     required this.status,
     required this.message,
     this.receiptNumber,
+    this.subscriptionPlan,
+    this.subscriptionStartedAt,
+    this.checkoutInstructions,
   });
 
   final String id;
@@ -29,8 +32,12 @@ class PaymentTransaction {
   final PaymentStatus status;
   final String message;
   final String? receiptNumber;
+  final String? subscriptionPlan;
+  final DateTime? subscriptionStartedAt;
+  final String? checkoutInstructions;
 
   bool get isPaid => status == PaymentStatus.paid;
+  bool get isPending => status == PaymentStatus.pending;
 }
 
 enum PaymentStatus {

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
 import '../models/plan_option.dart';
@@ -48,6 +49,10 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json) {
         .cast<Map<String, dynamic>>()
         .map(_courseFromJson)
         .toList(),
+    documents: (json['documents'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(_documentFromJson)
+        .toList(),
     problemCategories: (json['problemCategories'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .map(_problemCategoryFromJson)
@@ -60,6 +65,20 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json) {
         .cast<Map<String, dynamic>>()
         .map(_planFromJson)
         .toList(),
+  );
+}
+
+AppDocument _documentFromJson(Map<String, dynamic> json) {
+  return AppDocument(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    courseId: json['courseId'] as String,
+    courseTitle: json['courseTitle'] as String,
+    description: json['description'] as String,
+    type: json['type'] as String? ?? 'pdf',
+    sizeLabel: json['sizeLabel'] as String? ?? '',
+    url: json['url'] as String?,
+    isPremium: json['isPremium'] as bool? ?? false,
   );
 }
 
@@ -82,6 +101,7 @@ Course _courseFromJson(Map<String, dynamic> json) {
 
 Lesson _lessonFromJson(Map<String, dynamic> json) {
   return Lesson(
+    id: json['id'] as String?,
     title: json['title'] as String,
     type: _lessonTypeFromWire(json['type'] as String),
     meta: json['meta'] as String,

@@ -9,31 +9,41 @@ class LearningSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final session = context.session;
     final completedLessons = courses
-        .expand((course) => course.lessons)
-        .where((lesson) => lesson.isCompleted)
+        .expand((course) => course.lessons.map((lesson) {
+              return lesson.isCompleted ||
+                  session.isLessonCompleted(lessonProgressKey(course, lesson));
+            }))
+        .where((isCompleted) => isCompleted)
         .length;
     final totalLessons =
         courses.expand((course) => course.lessons).toList().length;
 
     return Card(
-      color: AppColors.primaryContainer,
+      color: context.colors.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(Icons.menu_book_outlined, color: AppColors.primary),
+            Container(
+              width: AppA11y.minTouchTarget,
+              height: AppA11y.minTouchTarget,
+              decoration: AppDecorations.circleIconButton(context),
+              child: Icon(Icons.menu_book_outlined, color: context.colors.primary),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Maktaba yako',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 2),
+                  Text(
+                    'Maktaba yako',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     '$completedLessons kati ya $totalLessons yamekamilika kwenye kozi za mfano.',
                     style: Theme.of(context).textTheme.bodyMedium,
@@ -58,7 +68,7 @@ class CourseCard extends StatelessWidget {
     final session = context.session;
     final completed = course.lessons.where((lesson) {
       return lesson.isCompleted ||
-          session.isLessonCompleted('${course.id}:${lesson.title}');
+          session.isLessonCompleted(lessonProgressKey(course, lesson));
     }).length;
     final total = course.lessons.length;
     final hasPremium = course.lessons.any((lesson) => lesson.isPremium);
@@ -68,7 +78,9 @@ class CourseCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.xl),
+            ),
             child: SizedBox(
               height: 190,
               width: double.infinity,
@@ -76,24 +88,41 @@ class CourseCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   NetworkPhoto(url: course.imageUrl),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          context.colors.charcoal.withValues(alpha: 0.28),
+                        ],
+                      ),
+                    ),
+                  ),
                   Positioned(
-                      left: 16, top: 16, child: Pill(label: course.badge)),
+                    left: AppSpacing.lg,
+                    top: AppSpacing.lg,
+                    child: Pill(label: course.badge),
+                  ),
                   Positioned(
-                    right: 16,
-                    bottom: 16,
+                    right: AppSpacing.lg,
+                    bottom: AppSpacing.lg,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.58),
-                        borderRadius: BorderRadius.circular(999),
+                        color: context.colors.charcoal.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                       child: Text(
                         '$completed/$total masomo',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800),
+                        style: accessibleCaption(
+                          context,
+                          color: context.colors.onPrimary,
+                        ),
                       ),
                     ),
                   ),
@@ -102,74 +131,93 @@ class CourseCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(course.title,
                     style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text(course.description),
-                const SizedBox(height: 14),
-                LinearProgressIndicator(value: course.progress),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  course.description,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.colors.muted,
+                        height: 1.4,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Semantics(
+                  label:
+                      '${(course.progress * 100).round()}% ya ${course.title} imekamilika',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: course.progress,
+                      minHeight: 8,
+                      backgroundColor: context.colors.surfaceMuted,
+                      color: context.colors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     Text(
                       course.progress > 0
                           ? '${(course.progress * 100).round()}% imekamilika'
                           : 'Tayari kuanza',
-                      style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w800),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: context.colors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     const Spacer(),
                     if (hasPremium)
-                      const Row(
+                      Row(
                         children: [
                           Icon(Icons.lock_outline,
-                              size: 16, color: AppColors.muted),
-                          SizedBox(width: 4),
+                              size: 16, color: context.colors.muted),
+                          const SizedBox(width: AppSpacing.xs),
                           Text('Premium',
-                              style: TextStyle(
-                                  color: AppColors.muted,
-                                  fontWeight: FontWeight.w800)),
+                              style: accessibleCaption(context)),
                         ],
                       ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.lg),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => CourseDetailScreen(course: course)),
-                  ),
+                  onPressed: () {
+                    AppFeedback.tap();
+                    AppNavigator.pushCourse(context, course);
+                  },
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Anza Kujifunza'),
                   style:
-                      FilledButton.styleFrom(backgroundColor: AppColors.text),
+                      FilledButton.styleFrom(backgroundColor: context.colors.charcoal),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => AiChatScreen(
-                                  initialPromptTopic: course.title)),
-                        ),
+                        onPressed: () {
+                          AppFeedback.tap();
+                          AppNavigator.pushAiChat(
+                            context,
+                            initialPromptTopic: course.title,
+                          );
+                        },
                         icon: const Icon(Icons.smart_toy_outlined),
                         label: const Text('Uliza AI'),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const WhatsAppEscalationScreen()),
-                        ),
+                        onPressed: () {
+                          AppFeedback.tap();
+                          AppNavigator.pushWhatsApp(context);
+                        },
                         icon: const Icon(Icons.support_agent),
                         label: const Text('Mtaalamu'),
                       ),
@@ -192,36 +240,56 @@ class CourseProgressSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completed =
-        course.lessons.where((lesson) => lesson.isCompleted).length;
+    final completed = course.lessons.where((lesson) {
+      return lesson.isCompleted ||
+          context.session.isLessonCompleted(lessonProgressKey(course, lesson));
+    }).length;
     final total = course.lessons.length;
 
     return Card(
-      color: AppColors.mint,
+      color: context.colors.mint,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.insights, color: AppColors.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text('Mwendelezo wa kozi',
-                      style: Theme.of(context).textTheme.titleMedium),
+                ExcludeSemantics(
+                  child: Icon(Icons.insights, color: context.colors.primary),
                 ),
-                Text('$completed/$total',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Mwendelezo wa kozi',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  '$completed/$total',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: context.colors.primary,
+                      ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: completed / total),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: LinearProgressIndicator(
+                value: completed / total,
+                minHeight: 8,
+                backgroundColor: context.colors.surface,
+                color: context.colors.primary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               completed == 0
                   ? 'Anza na somo la kwanza kisha fuata mpangilio wa masomo.'
                   : 'Masomo ya msingi yamekamilika. Endelea na jaribio au uliza AI swali la kozi.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),
@@ -243,45 +311,76 @@ class LessonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = isCompleted ? AppColors.primary : AppColors.muted;
+    final statusColor = isCompleted ? context.colors.primary : context.colors.muted;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        tileColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor:
-              lesson.isPremium ? Colors.grey.shade100 : AppColors.blue,
-          child: Icon(
-            lesson.isPremium
-                ? Icons.lock_outline
-                : isCompleted
-                    ? Icons.check_circle
-                    : lesson.type.icon,
-            color: lesson.isPremium ? Colors.grey : AppColors.primary,
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Card(
+        child: InteractiveInk(
+          borderRadius: AppRadius.lg,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: lesson.isPremium
+                      ? context.colors.surfaceMuted
+                      : context.colors.surfaceAqua,
+                  child: Icon(
+                    lesson.isPremium
+                        ? Icons.lock_outline
+                        : isCompleted
+                            ? Icons.check_circle
+                            : lesson.type.icon,
+                    color:
+                        lesson.isPremium ? context.colors.muted : context.colors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lesson.title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '${lesson.type.label} - ${lesson.meta}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        lesson.isPremium
+                            ? 'Fungua premium kuendelea'
+                            : isCompleted
+                                ? 'Umekamilisha'
+                                : 'Bado hujaanza',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  lesson.isPremium
+                      ? Icons.lock_outline
+                      : Icons.chevron_right,
+                  color: context.colors.muted,
+                ),
+              ],
+            ),
           ),
         ),
-        title: Text(lesson.title,
-            style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${lesson.type.label} - ${lesson.meta}'),
-            const SizedBox(height: 2),
-            Text(
-              lesson.isPremium
-                  ? 'Fungua premium kuendelea'
-                  : isCompleted
-                      ? 'Umekamilisha'
-                      : 'Bado hujaanza',
-              style: TextStyle(color: statusColor, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        trailing:
-            Icon(lesson.isPremium ? Icons.lock_outline : Icons.chevron_right),
-        onTap: onTap,
       ),
     );
   }
@@ -289,12 +388,16 @@ class LessonTile extends StatelessWidget {
 
 class LessonPreviewSheet extends StatelessWidget {
   const LessonPreviewSheet({
+    required this.courseId,
     required this.lessonId,
+    required this.lessonProgressKey,
     required this.lesson,
     required this.courseTitle,
   });
 
+  final String courseId;
   final String lessonId;
+  final String lessonProgressKey;
   final Lesson lesson;
   final String courseTitle;
 
@@ -302,7 +405,12 @@ class LessonPreviewSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.md,
+          AppSpacing.xl,
+          AppSpacing.xl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,37 +420,67 @@ class LessonPreviewSheet extends StatelessWidget {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(999),
+                  color: context.colors.borderSubtle,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: AppColors.blue,
-                  child: Icon(lesson.type.icon, color: AppColors.primary),
+                  backgroundColor: context.colors.primaryContainer,
+                  child: Icon(lesson.type.icon, color: context.colors.primary),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(lesson.title,
-                          style: Theme.of(context).textTheme.titleMedium),
-                      Text('$courseTitle - ${lesson.type.label}'),
+                      Text(
+                        lesson.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      Text(
+                        '$courseTitle - ${lesson.type.label}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.colors.muted,
+                            ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            Text(lesson.description),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              lesson.description,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: AppSpacing.xl),
             FilledButton.icon(
               onPressed: () async {
-                await context.session.markLessonCompleted(lessonId);
+                AppFeedback.tap();
+                final session = context.session;
+                final learningProgressService =
+                    context.dependencies.learningProgressService;
+                await session.markLessonCompleted(lessonProgressKey);
+                final phoneNumber = session.phoneNumber;
+                if (phoneNumber != null && session.isSignedIn) {
+                  try {
+                    await learningProgressService.markLessonCompleted(
+                      phoneNumber: phoneNumber,
+                      courseId: courseId,
+                      lessonId: lessonId,
+                    );
+                  } on LearningProgressException catch (error) {
+                    if (context.mounted) {
+                      showSnack(context, error.message);
+                    }
+                  }
+                }
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
                 showSnack(context, '${lesson.type.label}: ${lesson.title}');
@@ -357,6 +495,23 @@ class LessonPreviewSheet extends StatelessWidget {
   }
 }
 
+String lessonProgressKey(Course course, Lesson lesson) {
+  return '${course.id}:${lessonContentId(lesson)}';
+}
+
+String lessonContentId(Lesson lesson) {
+  return lesson.id ?? _slug(lesson.title);
+}
+
+String _slug(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s-]'), '')
+      .trim()
+      .replaceAll(RegExp(r'[\s_]+'), '-')
+      .replaceAll(RegExp(r'-+'), '-');
+}
+
 class AskAiPanel extends StatelessWidget {
   const AskAiPanel({required this.courseTitle, required this.onTap});
 
@@ -366,19 +521,27 @@ class AskAiPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.mint,
+      color: context.colors.mint,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Una swali gani?',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text('Mwalimu AI yuko tayari kujibu maswali kuhusu $courseTitle'),
-            const SizedBox(height: 16),
+            Text(
+              'Una swali gani?',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Mwalimu AI yuko tayari kujibu maswali kuhusu $courseTitle',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
-              onPressed: onTap,
+              onPressed: () {
+                AppFeedback.tap();
+                onTap();
+              },
               icon: const Icon(Icons.smart_toy_outlined),
               label: const Text('Uliza AI Sasa'),
             ),

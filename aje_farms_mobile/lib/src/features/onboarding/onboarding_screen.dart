@@ -11,108 +11,57 @@ class OnboardingScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final expanded = AppBreakpoints.isExpanded(context);
+            final minHeight = constraints.maxHeight - AppSpacing.xxxl;
+
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 48,
-                ),
-                child: IntrinsicHeight(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const BrandHeader(),
-                      const SizedBox(height: 24),
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Pill(
-                                label: '24h Jaribio la bure',
-                                color: AppColors.secondary,
-                              ),
-                              const Spacer(),
-                              Container(
-                                width: 76,
-                                height: 76,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(22),
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: AppLayout(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: minHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const BrandHeader(),
+                        const SizedBox(height: AppSpacing.xxl),
+                        Expanded(
+                          child: expanded
+                              ? Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Expanded(
+                                      flex: 3,
+                                      child: _OnboardingHeroCard(),
+                                    ),
+                                    const SizedBox(width: AppSpacing.xxl),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          ..._OnboardingActions.build(context),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Expanded(child: _OnboardingHeroCard()),
+                                    const SizedBox(height: AppSpacing.xxl),
+                                    ..._OnboardingActions.build(context),
+                                  ],
                                 ),
-                                child: const Icon(
-                                  Icons.agriculture,
-                                  color: Colors.white,
-                                  size: 44,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              const Text(
-                                'Kilimo na Ujasiliamali',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.05,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'Pata mafunzo, uliza Mwalimu AI, shiriki na wakulima, na ongea na mtaalamu unapohitaji msaada.',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                  height: 1.35,
-                                ),
-                              ),
-                              const SizedBox(height: 22),
-                              const OnboardingValueRow(
-                                icon: Icons.smart_toy_outlined,
-                                label:
-                                    'Majibu ya haraka kwa changamoto za shamba',
-                              ),
-                              const SizedBox(height: 10),
-                              const OnboardingValueRow(
-                                icon: Icons.menu_book_outlined,
-                                label: 'Masomo ya vitendo kwa mazao na mifugo',
-                              ),
-                              const SizedBox(height: 10),
-                              const OnboardingValueRow(
-                                icon: Icons.support_agent,
-                                label: 'Msaada wa mtaalamu kupitia WhatsApp',
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: () async {
-                          await context.session.startAsGuest();
-                          if (!context.mounted) return;
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                                builder: (_) => const MainShell()),
-                          );
-                        },
-                        icon: const Icon(Icons.arrow_forward),
-                        label: const Text('Anza Sasa'),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AuthScreen()),
-                        ),
-                        icon: const Icon(Icons.phone_iphone),
-                        label: const Text('Ingia / Jisajili'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -121,6 +70,121 @@ class OnboardingScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _OnboardingHeroCard extends StatelessWidget {
+  const _OnboardingHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xxxl),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            context.colors.primary,
+            context.colors.primaryDark,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.hero),
+        boxShadow: AppElevation.float(context),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Pill(
+            label: '24h Jaribio la bure',
+            color: context.colors.secondary,
+          ),
+          const Spacer(),
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: context.colors.onPrimaryFaint,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(
+                color: context.colors.onPrimaryBorder,
+              ),
+            ),
+            child: ExcludeSemantics(
+              child: Center(
+                child: BrandMark(
+                  size: 48,
+                  color: context.colors.onPrimary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          Text(
+            'Kilimo na Ujasiliamali',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  color: context.colors.onPrimary,
+                  fontWeight: FontWeight.w800,
+                  height: 1.05,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Pata mafunzo, uliza Mwalimu AI, shiriki na wakulima, na ongea na mtaalamu unapohitaji msaada.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: context.colors.onPrimarySubtle,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          const OnboardingValueRow(
+            icon: Icons.smart_toy_outlined,
+            label: 'Majibu ya haraka kwa changamoto za shamba',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const OnboardingValueRow(
+            icon: Icons.menu_book_outlined,
+            label: 'Masomo ya vitendo kwa mazao na mifugo',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const OnboardingValueRow(
+            icon: Icons.support_agent,
+            label: 'Msaada wa mtaalamu kupitia WhatsApp',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+abstract final class _OnboardingActions {
+  static List<Widget> build(BuildContext context) {
+    return [
+      FilledButton.icon(
+        onPressed: () async {
+          AppFeedback.tap();
+          await context.session.startAsGuest();
+          if (!context.mounted) return;
+          AppNavigator.replaceWithMainShell(
+            context,
+            tab: AppNavigator.pendingInitialTab() ?? MainShellTab.home,
+          );
+        },
+        icon: const Icon(Icons.arrow_forward),
+        label: const Text('Anza Sasa'),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      OutlinedButton.icon(
+        onPressed: () {
+          AppFeedback.tap();
+          AppNavigator.pushAuth(context);
+        },
+        icon: const Icon(Icons.phone_iphone),
+        label: const Text('Ingia / Jisajili'),
+      ),
+    ];
   }
 }
 
@@ -138,16 +202,14 @@ class OnboardingValueRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: Colors.white, size: 20),
-        const SizedBox(width: 10),
+        Icon(icon, color: context.colors.onPrimary, size: 20),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              height: 1.3,
+            style: accessibleCaption(
+              context,
+              color: context.colors.onPrimary,
             ),
           ),
         ),

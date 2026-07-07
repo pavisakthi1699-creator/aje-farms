@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
 import '../models/plan_option.dart';
@@ -14,6 +15,9 @@ class DemoAppRepository
 
   @override
   List<Course> get courses => _courses;
+
+  @override
+  List<AppDocument> get documents => _documents;
 
   @override
   List<ProblemCategory> get problemCategories => _problemCategories;
@@ -157,6 +161,33 @@ const _courses = [
     ],
   ),
 ];
+
+final _documents = _courses
+    .expand((course) => course.lessons.where((lesson) {
+          return lesson.type == LessonType.pdf;
+        }).map((lesson) {
+          final id = lesson.id ?? _slug(lesson.title);
+          return AppDocument(
+            id: id,
+            title: lesson.title,
+            courseId: course.id,
+            courseTitle: course.title,
+            description: lesson.description,
+            type: 'pdf',
+            sizeLabel: lesson.meta,
+            isPremium: lesson.isPremium,
+          );
+        }))
+    .toList();
+
+String _slug(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s-]'), '')
+      .trim()
+      .replaceAll(RegExp(r'[\s_]+'), '-')
+      .replaceAll(RegExp(r'-+'), '-');
+}
 
 const _problemCategories = [
   ProblemCategory(
