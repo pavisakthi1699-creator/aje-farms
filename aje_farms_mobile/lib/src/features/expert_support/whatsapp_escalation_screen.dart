@@ -37,7 +37,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: context.colors.primary,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -57,7 +57,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
                     'PREVIEW YA UJUMBE',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: context.colors.muted,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 0.6,
                         ),
                   ),

@@ -27,20 +27,25 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export class PostgresStore {
-  constructor({ pool, catalog }) {
+  constructor({ pool, catalog, schema }) {
     this.pool = pool;
     this.catalog = catalog;
+    this.schema = schema;
   }
 
-  static async create(databaseUrl, catalog) {
+  static async create(databaseUrl, catalog, { schema = 'public' } = {}) {
+    const normalizedSchema = normalizeSchemaIdentifier(schema);
     const pool = new pg.Pool({
       connectionString: databaseUrl,
       max: 10,
+      options: `-c search_path=${normalizedSchema},public`,
     });
     const store = new PostgresStore({
       pool,
       catalog,
+      schema: normalizedSchema,
     });
+    await store.#ensureSchema();
     await store.#migrate();
     await store.#seedContentCatalog();
     await store.#seedCommunityCatalog();
@@ -143,7 +148,7 @@ export class PostgresStore {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const result = await this.pool.query(
       `SELECT id, phone_number, role, subscription_plan, subscription_started_at,
-              created_at, updated_at
+              display_name, preferred_location, created_at, updated_at
        FROM users
        WHERE phone_number = $1`,
       [normalizedPhone],
@@ -224,6 +229,35 @@ export class PostgresStore {
       subscriptionStartedAt: null,
       updatedAt,
     };
+  }
+
+  async updateUserProfile(phoneNumber, { displayName, preferredLocation }) {
+    const user = await this.ensureUser(phoneNumber);
+    const nextDisplayName =
+      displayName === undefined
+        ? user.displayName ?? null
+        : typeof displayName === 'string' && displayName.trim().length > 0
+          ? displayName.trim()
+          : null;
+    const nextPreferredLocation =
+      preferredLocation === undefined
+        ? user.preferredLocation ?? null
+        : typeof preferredLocation === 'string' &&
+            preferredLocation.trim().length > 0
+          ? preferredLocation.trim()
+          : null;
+    const updatedAt = new Date().toISOString();
+    const result = await this.pool.query(
+      `UPDATE users
+       SET display_name = $2,
+           preferred_location = $3,
+           updated_at = $4
+       WHERE id = $1
+       RETURNING id, phone_number, role, subscription_plan, subscription_started_at,
+                 display_name, preferred_location, created_at, updated_at`,
+      [user.id, nextDisplayName, nextPreferredLocation, updatedAt],
+    );
+    return userFromRow(result.rows[0]);
   }
 
   async notificationSettings(phoneNumber) {
@@ -872,6 +906,11 @@ export class PostgresStore {
     await this.pool.query(sql);
   }
 
+  async #ensureSchema() {
+    if (this.schema === 'public') return;
+    await this.pool.query(`CREATE SCHEMA IF NOT EXISTS ${this.schema}`);
+  }
+
   async #seedCommunityCatalog() {
     for (const [index, post] of this.catalog.communityPosts.entries()) {
       await this.#insertCommunityPost(
@@ -953,6 +992,16 @@ export class PostgresStore {
       ],
     );
   }
+}
+
+function normalizeSchemaIdentifier(schema) {
+  const normalized = String(schema ?? '').trim();
+  if (!/^[a-z_][a-z0-9_]*$/.test(normalized)) {
+    throw new Error(
+      'AJE_DB_SCHEMA must be a lowercase PostgreSQL identifier, e.g. "aje".',
+    );
+  }
+  return normalized;
 }
 
 function communityPostFromRow(row) {

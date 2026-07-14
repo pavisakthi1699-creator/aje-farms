@@ -132,7 +132,7 @@ class ProblemScreenState extends State<ProblemScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           Text(
                             'Dakika 3 kusoma',

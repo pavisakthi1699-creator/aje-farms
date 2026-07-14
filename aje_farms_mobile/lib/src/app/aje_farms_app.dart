@@ -1,6 +1,5 @@
 import '../ui.dart';
 import 'package:flutter/services.dart';
-import 'app_navigator.dart';
 
 class AjeFarmsApp extends StatefulWidget {
   const AjeFarmsApp({
@@ -111,6 +110,7 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
         sessionToken: session.sessionToken,
       );
       await _sessionController.syncSubscriptionFromAuthSession(session);
+      await _sessionController.syncProfileFromAuthSession(session);
       final completedLessons =
           await _dependencies.learningProgressService.completedLessons(
         session.phoneNumber,

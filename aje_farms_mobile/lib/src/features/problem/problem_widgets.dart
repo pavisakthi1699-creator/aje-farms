@@ -29,7 +29,7 @@ class ProblemCategoryTile extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(category.title,
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+                  style: Theme.of(context).textTheme.titleSmall ?? const TextStyle()),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -100,7 +100,7 @@ class UnknownProblemTile extends StatelessWidget {
                     Text(
                       'Sijui tatizo',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
                     Text(

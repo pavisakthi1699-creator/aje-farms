@@ -51,7 +51,7 @@ class ProfileRow extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
                       if (subtitle != null) ...[

@@ -19,7 +19,7 @@ class PaymentBadge extends StatelessWidget {
       avatar: Icon(Icons.account_balance_wallet_outlined, color: color, size: 16),
       label: Text(
         label,
-        style: TextStyle(color: color, fontWeight: FontWeight.w800),
+        style: TextStyle(color: color, fontWeight: FontWeight.w600),
       ),
       backgroundColor: color.withValues(alpha: 0.12),
       side: BorderSide(color: color.withValues(alpha: 0.32)),

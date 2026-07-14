@@ -12,7 +12,11 @@ void main() {
     await preferences.clear();
     await BackendSessionStorage.writeToken(null);
 
-    await tester.pumpWidget(const AjeFarmsApp());
+    final dependencies = AppDependencies.production();
+    final authRecorder = _RecordingAuthService(dependencies.authService);
+    await tester.pumpWidget(AjeFarmsApp(
+      dependencies: _replaceAuthService(dependencies, authRecorder),
+    ));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Ingia / Jisajili'));
@@ -26,17 +30,29 @@ void main() {
     await tester.tap(find.text('Tuma OTP'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    final debugOtpFinder = find.textContaining('OTP ya majaribio:');
-    expect(debugOtpFinder, findsOneWidget);
-    final debugOtpText = tester.widget<Text>(debugOtpFinder).data!;
-    final otp = RegExp(r'\d{6}').firstMatch(debugOtpText)!.group(0)!;
+    final otp = authRecorder.latestChallenge?.debugOtp;
+    expect(
+      otp,
+      isNotNull,
+      reason: 'Backend did not return a development OTP. Current texts: '
+          '${_screenTexts(tester).join(' | ')}',
+    );
 
-    await tester.enterText(find.byType(EditableText).last, otp);
-    await tester.ensureVisible(find.text('Endelea'));
-    await tester.tap(find.text('Endelea'));
+    await tester.enterText(find.byType(EditableText).last, otp!);
+    final continueButton = find.text('Endelea');
+    await tester.scrollUntilVisible(
+      continueButton,
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(continueButton);
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('Karibu, Mkulima'), findsOneWidget);
+    expect(
+      find.byType(MainShell),
+      findsOneWidget,
+      reason: 'Current texts: ${_screenTexts(tester).join(' | ')}',
+    );
 
     final shellContext = tester.element(find.byType(MainShell));
     Navigator.of(shellContext).push(
@@ -45,7 +61,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Muda wa jaribio umeisha'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Lipa TZS 10,000'), 240);
+    await tester.scrollUntilVisible(
+      find.text('Lipa TZS 10,000'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.enterText(find.byType(TextField), phone);
     await tester.tap(find.text('Lipa TZS 10,000'));
     await tester.pump();
@@ -69,6 +89,83 @@ void main() {
     await tester.tap(find.text('Ondoka kwenye Akaunti'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Anza Sasa'), findsOneWidget);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
   }, timeout: const Timeout(Duration(minutes: 2)));
+}
+
+List<String> _screenTexts(WidgetTester tester) {
+  return find
+      .byType(Text)
+      .evaluate()
+      .map((element) => tester.widget<Text>(find.byWidget(element.widget)).data)
+      .whereType<String>()
+      .toList();
+}
+
+AppDependencies _replaceAuthService(
+  AppDependencies dependencies,
+  AuthService authService,
+) {
+  return AppDependencies(
+    learningRepository: dependencies.learningRepository,
+    communityRepository: dependencies.communityRepository,
+    subscriptionRepository: dependencies.subscriptionRepository,
+    mwalimuAiService: dependencies.mwalimuAiService,
+    authService: authService,
+    communityService: dependencies.communityService,
+    learningProgressService: dependencies.learningProgressService,
+    notificationService: dependencies.notificationService,
+    paymentService: dependencies.paymentService,
+    refreshCatalog: dependencies.refreshCatalog,
+    refreshListenable: dependencies.refreshListenable,
+  );
+}
+
+class _RecordingAuthService implements AuthService {
+  _RecordingAuthService(this._delegate);
+
+  final AuthService _delegate;
+  OtpChallenge? latestChallenge;
+
+  @override
+  Future<OtpChallenge> requestOtp(String phoneNumber) async {
+    latestChallenge = await _delegate.requestOtp(phoneNumber);
+    return latestChallenge!;
+  }
+
+  @override
+  Future<AuthSession> verifyOtp({
+    required String phoneNumber,
+    required String otp,
+    required String challengeId,
+  }) {
+    return _delegate.verifyOtp(
+      phoneNumber: phoneNumber,
+      otp: otp,
+      challengeId: challengeId,
+    );
+  }
+
+  @override
+  Future<AuthSession> getSession(String phoneNumber) {
+    return _delegate.getSession(phoneNumber);
+  }
+
+  @override
+  Future<AuthSession> cancelSubscription(String phoneNumber) {
+    return _delegate.cancelSubscription(phoneNumber);
+  }
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String phoneNumber,
+    String? displayName,
+    String? preferredLocation,
+  }) {
+    return _delegate.updateProfile(
+      phoneNumber: phoneNumber,
+      displayName: displayName,
+      preferredLocation: preferredLocation,
+    );
+  }
 }

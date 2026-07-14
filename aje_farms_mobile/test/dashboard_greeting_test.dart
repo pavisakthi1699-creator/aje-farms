@@ -24,4 +24,14 @@ void main() {
     );
     expect(state.dashboardGreeting, 'Karibu, mkulima wa Morogoro');
   });
+
+  test('display name takes priority over location', () {
+    const state = AppSessionState(
+      hasStarted: true,
+      phoneNumber: '+255712345678',
+      displayName: 'Asha',
+      preferredLocation: 'Morogoro',
+    );
+    expect(state.dashboardGreeting, 'Karibu, Asha');
+  });
 }

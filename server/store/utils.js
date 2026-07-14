@@ -125,6 +125,8 @@ export function userFromRow(row) {
     subscriptionStartedAt: row.subscription_started_at
       ? new Date(row.subscription_started_at).toISOString()
       : null,
+    displayName: row.display_name ?? null,
+    preferredLocation: row.preferred_location ?? null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };

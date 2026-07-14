@@ -1,1 +1,5 @@
-export { createStore, normalizePhoneNumber } from './store/index.js';
+export {
+  createStore,
+  normalizePhoneNumber,
+  resolveStoreConfig,
+} from './store/index.js';

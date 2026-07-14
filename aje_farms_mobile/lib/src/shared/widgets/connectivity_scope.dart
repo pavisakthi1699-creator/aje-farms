@@ -67,6 +67,7 @@ class ConnectivityScopeState extends State<ConnectivityScope> {
   Widget build(BuildContext context) {
     return _ConnectivityInherited(
       notifier: this,
+      isOnline: isOnline,
       child: widget.child,
     );
   }
@@ -75,14 +76,16 @@ class ConnectivityScopeState extends State<ConnectivityScope> {
 class _ConnectivityInherited extends InheritedWidget {
   const _ConnectivityInherited({
     required this.notifier,
+    required this.isOnline,
     required super.child,
   });
 
   final ConnectivityScopeState notifier;
+  final bool isOnline;
 
   @override
   bool updateShouldNotify(_ConnectivityInherited oldWidget) =>
-      notifier.isOnline != oldWidget.notifier.isOnline;
+      isOnline != oldWidget.isOnline;
 }
 
 extension ConnectivityContext on BuildContext {

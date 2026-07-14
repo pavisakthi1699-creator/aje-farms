@@ -46,8 +46,10 @@ class IntakeContextCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
-            decoration: AppDecorations.pastelPanel(context, context.colors.surface),
-            child: Icon(Icons.assignment_outlined, color: context.colors.primary),
+            decoration:
+                AppDecorations.pastelPanel(context, context.colors.surface),
+            child:
+                Icon(Icons.assignment_outlined, color: context.colors.primary),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -57,7 +59,7 @@ class IntakeContextCard extends StatelessWidget {
                 Text(
                   'Muktadha uliotumwa',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: context.colors.primary,
                       ),
                 ),
@@ -88,7 +90,7 @@ class ChatBubble extends StatelessWidget {
         (message.sources.isNotEmpty ||
             message.text.toLowerCase().contains('mtaalamu') ||
             message.text.toLowerCase().contains('whatsapp'));
-    final bubbleRadius = Radius.circular(AppRadius.xl);
+    const bubbleRadius = Radius.circular(AppRadius.xl);
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -113,7 +115,8 @@ class ChatBubble extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 300),
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
-                color: isUser ? context.colors.charcoal : context.colors.surface,
+                color:
+                    isUser ? context.colors.charcoal : context.colors.surface,
                 border: isUser
                     ? null
                     : Border.all(color: context.colors.borderSubtle),
@@ -137,15 +140,16 @@ class ChatBubble extends StatelessWidget {
                         'Mwalimu AI',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: context.colors.primary,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
                     ),
                   Text(
                     message.text,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              isUser ? context.colors.onPrimary : context.colors.textPrimary,
+                          color: isUser
+                              ? context.colors.onPrimary
+                              : context.colors.textPrimary,
                           height: 1.35,
                         ),
                   ),
@@ -219,7 +223,7 @@ class SourceCard extends StatelessWidget {
                 Text(
                   source.title,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -276,7 +280,7 @@ class ReplyActionChip extends StatelessWidget {
                     label,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           color: context.colors.primary,
                         ),
                   ),
@@ -299,36 +303,36 @@ class TypingBubble extends StatelessWidget {
       label: 'Mwalimu AI anaandika',
       liveRegion: true,
       child: Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: context.colors.borderSubtle),
-        boxShadow: AppElevation.soft(context),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox.square(
-            dimension: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: context.colors.primary,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: context.colors.borderSubtle),
+          boxShadow: AppElevation.soft(context),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: context.colors.primary,
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Text(
-            'Mwalimu AI anaandika...',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.colors.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ],
-      ),
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              'Mwalimu AI anaandika...',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.colors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

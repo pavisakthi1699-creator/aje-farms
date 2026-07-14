@@ -118,6 +118,17 @@ test('auth flow creates and restores a user session', async () => {
       `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
     );
     assert.equal(deniedProfile.response.status, 401);
+
+    const updatedProfile = await postJson(
+      baseUrl,
+      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/profile`,
+      { displayName: 'Asha', preferredLocation: 'Morogoro' },
+      await authHeaders(verify.payload.sessionToken),
+    );
+
+    assert.equal(updatedProfile.response.status, 200);
+    assert.equal(updatedProfile.payload.user.displayName, 'Asha');
+    assert.equal(updatedProfile.payload.user.preferredLocation, 'Morogoro');
   });
 });
 

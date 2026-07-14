@@ -167,6 +167,22 @@ export class JsonStore {
     return user;
   }
 
+  async updateUserProfile(phoneNumber, { displayName, preferredLocation }) {
+    const user = await this.ensureUser(phoneNumber);
+    if (displayName !== undefined) {
+      const trimmed = typeof displayName === 'string' ? displayName.trim() : '';
+      user.displayName = trimmed.length > 0 ? trimmed : null;
+    }
+    if (preferredLocation !== undefined) {
+      const trimmed =
+        typeof preferredLocation === 'string' ? preferredLocation.trim() : '';
+      user.preferredLocation = trimmed.length > 0 ? trimmed : null;
+    }
+    user.updatedAt = new Date().toISOString();
+    this.#saveAll();
+    return user;
+  }
+
   async notificationSettings(phoneNumber) {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     return (

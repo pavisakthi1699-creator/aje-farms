@@ -37,4 +37,19 @@ class LocalAuthService implements AuthService {
   Future<AuthSession> cancelSubscription(String phoneNumber) async {
     return AuthSession(phoneNumber: phoneNumber);
   }
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String phoneNumber,
+    String? displayName,
+    String? preferredLocation,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    return AuthSession(
+      phoneNumber: phoneNumber,
+      displayName: displayName?.trim().isEmpty ?? true ? null : displayName?.trim(),
+      preferredLocation:
+          preferredLocation?.trim().isEmpty ?? true ? null : preferredLocation?.trim(),
+    );
+  }
 }

@@ -7,6 +7,11 @@ abstract interface class AuthService {
   });
   Future<AuthSession> getSession(String phoneNumber);
   Future<AuthSession> cancelSubscription(String phoneNumber);
+  Future<AuthSession> updateProfile({
+    required String phoneNumber,
+    String? displayName,
+    String? preferredLocation,
+  });
 }
 
 class OtpChallenge {
@@ -29,6 +34,8 @@ class AuthSession {
     this.subscriptionPlan,
     this.subscriptionStartedAt,
     this.sessionToken,
+    this.displayName,
+    this.preferredLocation,
   });
 
   final String phoneNumber;
@@ -37,6 +44,8 @@ class AuthSession {
   final String? subscriptionPlan;
   final DateTime? subscriptionStartedAt;
   final String? sessionToken;
+  final String? displayName;
+  final String? preferredLocation;
 
   bool get hasActiveSubscription => subscriptionPlan != null;
 }

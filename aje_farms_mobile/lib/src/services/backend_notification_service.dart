@@ -73,6 +73,27 @@ class BackendNotificationService implements NotificationService {
     return _settingsFromJson(payload['settings'] as Map<String, dynamic>);
   }
 
+  @override
+  Future<void> registerDevice({
+    required String phoneNumber,
+    required String token,
+    required String platform,
+  }) async {
+    final response = await _client
+        .post(
+          _baseUrl.resolve(
+            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/notifications/devices',
+          ),
+          headers: await _headers(),
+          body: jsonEncode({
+            'token': token,
+            'platform': platform,
+          }),
+        )
+        .timeout(timeout);
+    _decodeResponse(response);
+  }
+
   Future<Map<String, String>> _headers() async {
     final headers = <String, String>{'Content-Type': 'application/json'};
     final token = await BackendSessionStorage.readToken();

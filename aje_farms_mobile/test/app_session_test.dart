@@ -77,4 +77,48 @@ void main() {
       },
     );
   });
+
+  test('setDisplayName persists locally', () async {
+    final session = AppSessionController();
+    await session.restore();
+    await session.startAsGuest();
+    await session.setDisplayName('Asha');
+
+    expect(session.state.displayName, 'Asha');
+
+    final restored = AppSessionController();
+    await restored.restore();
+    expect(restored.state.displayName, 'Asha');
+  });
+
+  test('syncProfileFromAuthSession applies backend profile fields', () async {
+    final session = AppSessionController();
+    await session.restore();
+
+    await session.syncProfileFromAuthSession(
+      const AuthSession(
+        phoneNumber: '+255712345678',
+        displayName: 'Asha',
+        preferredLocation: 'Morogoro',
+      ),
+    );
+
+    expect(session.state.displayName, 'Asha');
+    expect(session.state.preferredLocation, 'Morogoro');
+  });
+
+  test('syncProfileFromAuthSession clears stale local profile fields',
+      () async {
+    final session = AppSessionController();
+    await session.restore();
+    await session.setDisplayName('Asha');
+    await session.setPreferredLocation('Morogoro');
+
+    await session.syncProfileFromAuthSession(
+      const AuthSession(phoneNumber: '+255712345678'),
+    );
+
+    expect(session.state.displayName, isNull);
+    expect(session.state.preferredLocation, isNull);
+  });
 }

@@ -78,77 +78,98 @@ class HeroActionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.hero),
         child: Material(
           color: Colors.transparent,
+          elevation: 0,
+          shadowColor: Colors.transparent,
           child: InteractiveInk(
             borderRadius: AppRadius.hero,
             onTap: onTap,
             child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [colors.primary, colors.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.hero),
-                boxShadow: AppElevation.float(context),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -4,
-                      top: -4,
-                      child: Opacity(
-                        opacity: 0.18,
-                        child: BrandMark(
-                          size: 112,
-                          color: colors.onPrimary,
+              decoration: const BoxDecoration(),
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  const Positioned.fill(
+                    child: AppPhoto(
+                      source: 'assets/images/hero/farm-field.jpg',
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            colors.primary.withValues(alpha: 0.88),
+                            colors.primaryDark.withValues(alpha: 0.94),
+                          ],
                         ),
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xxl),
+                    child: Stack(
                       children: [
-                        Pill(
-                          label: 'Kipaumbele cha leo',
-                          color: colors.accentWarm,
-                        ),
-                        const SizedBox(height: AppSpacing.xxl),
-                        Text(
-                          'Eleza tatizo la shamba',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(color: colors.onPrimary),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: colors.onPrimarySubtle,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        ExcludeSemantics(
-                          child: FilledButton.icon(
-                            onPressed: () {
-                              AppFeedback.tap();
-                              onTap();
-                            },
-                            icon: const Icon(Icons.search),
-                            label: const Text('Eleza tatizo'),
-                            style: FilledButton.styleFrom(
-                              minimumSize:
-                                  const Size(170, AppA11y.minTouchTarget),
-                              backgroundColor: colors.surface,
-                              foregroundColor: colors.primary,
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Opacity(
+                            opacity: 0.18,
+                            child: BrandMark(
+                              size: 112,
+                              color: colors.onPrimary,
                             ),
                           ),
                         ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Pill(
+                              label: 'Kipaumbele cha leo',
+                              color: colors.accentWarm,
+                            ),
+                            const SizedBox(height: AppSpacing.xxl),
+                            Text(
+                              'Eleza tatizo la shamba',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(color: colors.onPrimary),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(color: colors.onPrimarySubtle),
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            ExcludeSemantics(
+                              child: FilledButton.icon(
+                                onPressed: () {
+                                  AppFeedback.tap();
+                                  onTap();
+                                },
+                                icon: const Icon(Icons.search),
+                                label: const Text('Eleza tatizo'),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(
+                                    170,
+                                    AppA11y.minTouchTarget,
+                                  ),
+                                  backgroundColor: colors.surface,
+                                  foregroundColor: colors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

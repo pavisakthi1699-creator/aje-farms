@@ -67,6 +67,25 @@ tests inject `AppDependencies.demo()`.
 macOS desktop is not generated yet. Add it only if you want this repo to support
 that platform too.
 
+## Frontend Quality Gate
+
+Run the repeatable frontend gate before merging or cutting a release candidate:
+
+```sh
+cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
+bash scripts/frontend_quality_gate.sh
+```
+
+This checks analyzer cleanliness, all Flutter tests, visual regression goldens,
+asset governance, diff whitespace, and backend contract tests.
+
+Golden baselines live in `test/goldens/`. Regenerate them only after intentional
+design review:
+
+```sh
+flutter test test/visual_regression_test.dart --update-goldens
+```
+
 ## Android Release Signing
 
 Debug APKs build without extra setup. For release builds, create
@@ -106,6 +125,37 @@ npm run smoke:postgres
 DATABASE_URL=postgresql://user:pass@host:5432/db npm run smoke:postgres
 ```
 
+Dedicated Supabase backend:
+
+```sh
+AJE_STORE=supabase \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
+npm run smoke:supabase
+```
+
+Non-destructive live readiness check:
+
+```sh
+AJE_STORE=supabase \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
+npm run smoke:supabase:live
+```
+
+Run the backend locally against live Supabase:
+
+```sh
+AJE_STORE=supabase \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
+npm run dev:supabase
+```
+
+Run the connected Flutter smoke against that backend:
+
+```sh
+flutter test integration_test/connected_app_smoke_test.dart \
+  --dart-define=AJE_API_BASE_URL=http://127.0.0.1:3000
+```
+
 Before building a release candidate, run the release preflight from the repo
 root. It checks production backend persistence, release URL wiring, disabled
 debug OTP, Android signing config, and the WhatsApp support number:
@@ -113,8 +163,8 @@ debug OTP, Android signing config, and the WhatsApp support number:
 ```sh
 NODE_ENV=production \
 APP_URL=https://api.example.com \
-AJE_STORE=postgres \
-DATABASE_URL=postgresql://user:pass@host:5432/db \
+AJE_STORE=supabase \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
 AJE_OTP_PEPPER=replace-with-secret \
 AJE_ENABLE_DEBUG_OTP=false \
 AJE_ANDROID_API_BASE_URL=https://api.example.com \
@@ -128,10 +178,12 @@ SMS, Gemini, and payment provider gaps are reported as warnings while those
 provider integrations are intentionally deferred. `npm run release:android`
 runs the same preflight and then builds the signed Android App Bundle.
 
+For the current go-live checklist, including signing, production secrets, SMS,
+Gemini, push, and content publishing, see
+`../docs/go-live-readiness.md`.
+
 ## Next Integrations
 
-- Supabase or Firebase authentication
-- Supabase course/content database
 - Cloud storage for videos, PDFs, and images
 - Server-side Gemini proxy
 - Mobile money payment provider and webhook validation

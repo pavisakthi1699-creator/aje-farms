@@ -59,6 +59,32 @@ void main() {
     );
   });
 
+  test('registers notification device token with backend', () async {
+    await BackendSessionStorage.writeToken('token-abc');
+    final service = BackendNotificationService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          'http://localhost:3000/api/users/by-phone/%2B255712345678/notifications/devices',
+        );
+        expect(request.headers['Authorization'], 'Bearer token-abc');
+        expect(request.body, '{"token":"fcm-token-1","platform":"android"}');
+        return http.Response(
+          '{"device":{"id":"device-1","token":"fcm-token-1","platform":"android"}}',
+          200,
+        );
+      }),
+    );
+
+    await service.registerDevice(
+      phoneNumber: '+255712345678',
+      token: 'fcm-token-1',
+      platform: 'android',
+    );
+  });
+
   test('throws typed exception for backend notification errors', () {
     final service = BackendNotificationService(
       baseUrl: Uri.parse('http://localhost:3000'),

@@ -34,4 +34,11 @@ class LocalNotificationService implements NotificationService {
       learningReminders: true,
     );
   }
+
+  @override
+  Future<void> registerDevice({
+    required String phoneNumber,
+    required String token,
+    required String platform,
+  }) async {}
 }

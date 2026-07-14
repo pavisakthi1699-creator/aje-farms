@@ -48,6 +48,11 @@ abstract interface class NotificationService {
     required String phoneNumber,
     required bool enabled,
   });
+  Future<void> registerDevice({
+    required String phoneNumber,
+    required String token,
+    required String platform,
+  });
   Future<void> markRead({
     required String phoneNumber,
     required String notificationId,

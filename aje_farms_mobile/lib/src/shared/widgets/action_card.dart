@@ -50,7 +50,7 @@ class ActionCard extends StatelessWidget {
                   action,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: context.colors.primary,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
               ],

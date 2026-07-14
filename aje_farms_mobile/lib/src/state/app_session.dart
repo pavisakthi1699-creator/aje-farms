@@ -23,6 +23,7 @@ class AppSessionState {
     this.subscriptionStartedAt,
     this.notificationsEnabled = true,
     this.preferredLocation,
+    this.displayName,
     this.themePreference = AppThemePreference.system,
   });
 
@@ -39,6 +40,7 @@ class AppSessionState {
   final DateTime? subscriptionStartedAt;
   final bool notificationsEnabled;
   final String? preferredLocation;
+  final String? displayName;
   final AppThemePreference themePreference;
 
   bool get hasActiveSubscription => subscriptionPlan != null;
@@ -57,10 +59,12 @@ class AppSessionState {
     DateTime? subscriptionStartedAt,
     bool? notificationsEnabled,
     String? preferredLocation,
+    String? displayName,
     AppThemePreference? themePreference,
     bool clearPhoneNumber = false,
     bool clearSubscription = false,
     bool clearPreferredLocation = false,
+    bool clearDisplayName = false,
   }) {
     return AppSessionState(
       hasStarted: hasStarted ?? this.hasStarted,
@@ -81,6 +85,7 @@ class AppSessionState {
       preferredLocation: clearPreferredLocation
           ? null
           : preferredLocation ?? this.preferredLocation,
+      displayName: clearDisplayName ? null : displayName ?? this.displayName,
       themePreference: themePreference ?? this.themePreference,
     );
   }
@@ -104,6 +109,7 @@ class AppSessionController extends ChangeNotifier {
       'app_session.subscription_started_at';
   static const _notificationsEnabledKey = 'app_session.notifications_enabled';
   static const _preferredLocationKey = 'app_session.preferred_location';
+  static const _displayNameKey = 'app_session.display_name';
   static const _themePreferenceKey = 'app_session.theme_preference';
 
   SharedPreferences? _preferences;
@@ -140,6 +146,7 @@ class AppSessionController extends ChangeNotifier {
       notificationsEnabled:
           preferences.getBool(_notificationsEnabledKey) ?? true,
       preferredLocation: preferences.getString(_preferredLocationKey),
+      displayName: preferences.getString(_displayNameKey),
       themePreference: AppThemePreference.fromStorage(
         preferences.getString(_themePreferenceKey),
       ),
@@ -269,6 +276,33 @@ class AppSessionController extends ChangeNotifier {
     _state = _state.copyWith(
       preferredLocation: location?.trim().isEmpty ?? true ? null : location,
       clearPreferredLocation: location?.trim().isEmpty ?? true,
+    );
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setDisplayName(String? name) async {
+    final trimmed = name?.trim();
+    _state = _state.copyWith(
+      displayName: trimmed == null || trimmed.isEmpty ? null : trimmed,
+      clearDisplayName: trimmed == null || trimmed.isEmpty,
+    );
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> syncProfileFromAuthSession(AuthSession session) async {
+    final displayName = session.displayName?.trim();
+    final preferredLocation = session.preferredLocation?.trim();
+    _state = _state.copyWith(
+      displayName:
+          displayName == null || displayName.isEmpty ? null : displayName,
+      preferredLocation: preferredLocation == null || preferredLocation.isEmpty
+          ? null
+          : preferredLocation,
+      clearDisplayName: displayName == null || displayName.isEmpty,
+      clearPreferredLocation:
+          preferredLocation == null || preferredLocation.isEmpty,
     );
     notifyListeners();
     await _save();
@@ -406,6 +440,12 @@ class AppSessionController extends ChangeNotifier {
       await preferences.remove(_preferredLocationKey);
     } else {
       await preferences.setString(_preferredLocationKey, preferredLocation);
+    }
+    final displayName = _state.displayName;
+    if (displayName == null) {
+      await preferences.remove(_displayNameKey);
+    } else {
+      await preferences.setString(_displayNameKey, displayName);
     }
     await preferences.setString(
       _themePreferenceKey,

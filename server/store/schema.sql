@@ -150,6 +150,12 @@ ALTER TABLE community_posts
 ALTER TABLE community_posts
   ADD COLUMN IF NOT EXISTS moderated_by TEXT;
 
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS preferred_location TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_community_posts_created
   ON community_posts (created_at DESC);
 
@@ -170,3 +176,95 @@ CREATE TABLE IF NOT EXISTS reported_community_posts (
   post_id TEXT PRIMARY KEY REFERENCES community_posts(id) ON DELETE CASCADE,
   reported_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE otp_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auth_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE learning_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_replies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reported_community_posts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS deny_direct_client_access ON users;
+CREATE POLICY deny_direct_client_access ON users
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON otp_challenges;
+CREATE POLICY deny_direct_client_access ON otp_challenges
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON payment_transactions;
+CREATE POLICY deny_direct_client_access ON payment_transactions
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON auth_sessions;
+CREATE POLICY deny_direct_client_access ON auth_sessions
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON learning_progress;
+CREATE POLICY deny_direct_client_access ON learning_progress
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON notification_settings;
+CREATE POLICY deny_direct_client_access ON notification_settings
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON notification_devices;
+CREATE POLICY deny_direct_client_access ON notification_devices
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON notifications;
+CREATE POLICY deny_direct_client_access ON notifications
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON content_courses;
+CREATE POLICY deny_direct_client_access ON content_courses
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON content_documents;
+CREATE POLICY deny_direct_client_access ON content_documents
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON community_posts;
+CREATE POLICY deny_direct_client_access ON community_posts
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON community_replies;
+CREATE POLICY deny_direct_client_access ON community_replies
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON reported_community_posts;
+CREATE POLICY deny_direct_client_access ON reported_community_posts
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);

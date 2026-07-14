@@ -8,7 +8,7 @@ import { chatWithMwalimuServer } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
 import { createOtpCode, createOtpSender } from './sms.js';
-import { createStore, normalizePhoneNumber } from './store.js';
+import { createStore, normalizePhoneNumber, resolveStoreConfig } from './store.js';
 import {
   normalizeApprovedCourse,
   normalizeContentDocument,
@@ -21,12 +21,15 @@ export async function registerApiRoutes(app) {
   const notificationProvider = createNotificationProvider();
 
   app.get('/api/health', (_req, res) => {
-    const storeMode = (process.env.AJE_STORE ?? 'json').toLowerCase();
+    const storeConfig = resolveStoreConfig(process.env);
     const isProduction = process.env.NODE_ENV === 'production';
     const checks = {
       store: {
-        mode: storeMode,
-        ready: storeMode !== 'postgres' || Boolean(process.env.DATABASE_URL),
+        mode: storeConfig.mode,
+        schema: storeConfig.schema,
+        ready:
+          !['postgres', 'supabase'].includes(storeConfig.mode) ||
+          Boolean(storeConfig.databaseUrl),
       },
       sms: {
         provider: process.env.TWILIO_ACCOUNT_SID ? 'twilio' : 'development',
@@ -44,7 +47,7 @@ export async function registerApiRoutes(app) {
       },
       notifications: {
         provider: notificationProvider.name,
-        ready: !isProduction,
+        ready: notificationProvider.isProductionReady || !isProduction,
       },
       ai: {
         provider: process.env.GEMINI_API_KEY ? 'gemini' : 'knowledge-base',
@@ -233,6 +236,19 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
+      res.json({ user });
+    },
+  );
+
+  app.post(
+    '/api/users/by-phone/:phoneNumber/profile',
+    requireAuthSession(store),
+    requireAuthPhoneMatch('phoneNumber'),
+    async (req, res) => {
+      const user = await store.updateUserProfile(req.params.phoneNumber, {
+        displayName: req.body?.displayName,
+        preferredLocation: req.body?.preferredLocation,
+      });
       res.json({ user });
     },
   );
@@ -604,7 +620,7 @@ function isAuthorizedDevelopmentWebhook(req) {
   return req.headers['x-aje-webhook-secret'] === secret;
 }
 
-async function createAndDispatchNotification({
+export async function createAndDispatchNotification({
   store,
   notificationProvider,
   phoneNumber,
@@ -621,10 +637,17 @@ async function createAndDispatchNotification({
     data,
   });
   if (!notification) return null;
-  await notificationProvider.send(
-    notification,
-    await store.notificationDevices(phoneNumber),
-  );
+  try {
+    await notificationProvider.send(
+      notification,
+      await store.notificationDevices(phoneNumber),
+    );
+  } catch (error) {
+    console.error(
+      'Push notification delivery failed:',
+      error instanceof Error ? error.message : error,
+    );
+  }
   return notification;
 }
 

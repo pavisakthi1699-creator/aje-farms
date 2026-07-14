@@ -40,7 +40,7 @@ class CommunityPostCard extends StatelessWidget {
                     child: Text(post.author.substring(0, 1),
                         style: TextStyle(
                             color: context.colors.primary,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -50,7 +50,7 @@ class CommunityPostCard extends StatelessWidget {
                         Text(
                           post.author,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                         ),
                         if (post.isExpert)
@@ -135,7 +135,7 @@ class CommunityPostCard extends StatelessWidget {
                           style: Theme.of(context)
                               .textTheme
                               .labelMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -270,7 +270,7 @@ class CommunitySummaryCard extends StatelessWidget {
                   Text(
                     'Jamii hai leo',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -427,7 +427,7 @@ class CommunityReplyTile extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
                         Text(

@@ -24,9 +24,11 @@ export 'app_spacing.dart';
 export 'app_theme_preference.dart';
 
 class AppTheme {
-  static ThemeData light() => _build(AppColorScheme.light);
+  static ThemeData light({bool useGoogleFonts = true}) =>
+      _build(AppColorScheme.light, useGoogleFonts: useGoogleFonts);
 
-  static ThemeData dark() => _build(AppColorScheme.dark);
+  static ThemeData dark({bool useGoogleFonts = true}) =>
+      _build(AppColorScheme.dark, useGoogleFonts: useGoogleFonts);
 
   static SystemUiOverlayStyle overlayStyle(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
@@ -41,7 +43,10 @@ class AppTheme {
     );
   }
 
-  static ThemeData _build(AppColorScheme colors) {
+  static ThemeData _build(
+    AppColorScheme colors, {
+    required bool useGoogleFonts,
+  }) {
     final brightness =
         colors == AppColorScheme.dark ? Brightness.dark : Brightness.light;
 
@@ -64,51 +69,58 @@ class AppTheme {
       outline: colors.borderSubtle,
     );
 
-    final baseTextTheme = GoogleFonts.atkinsonHyperlegibleTextTheme(
-      TextTheme(
-        headlineLarge: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 30,
-          fontWeight: FontWeight.w700,
-          height: 1.05,
-          letterSpacing: -0.3,
-        ),
-        titleLarge: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
-        ),
-        titleMedium: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
-        labelLarge: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        labelSmall: TextStyle(
-          color: colors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-        bodyLarge: TextStyle(
-          color: colors.textSecondary,
-          fontSize: 15,
-          height: 1.45,
-          fontWeight: FontWeight.w500,
-        ),
-        bodyMedium: TextStyle(
-          color: colors.textPrimary,
-          fontSize: 15,
-          height: 1.45,
-          fontWeight: FontWeight.w500,
-        ),
+    final textTheme = TextTheme(
+      headlineLarge: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 30,
+        fontWeight: FontWeight.w700,
+        height: 1.05,
+        letterSpacing: -0.3,
+      ),
+      titleLarge: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
+      titleMedium: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      titleSmall: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
+      ),
+      labelLarge: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+      labelSmall: TextStyle(
+        color: colors.textSecondary,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+      bodyLarge: TextStyle(
+        color: colors.textSecondary,
+        fontSize: 15,
+        height: 1.45,
+        fontWeight: FontWeight.w500,
+      ),
+      bodyMedium: TextStyle(
+        color: colors.textPrimary,
+        fontSize: 15,
+        height: 1.45,
+        fontWeight: FontWeight.w500,
       ),
     );
+    final baseTextTheme = useGoogleFonts
+        ? GoogleFonts.atkinsonHyperlegibleTextTheme(textTheme)
+        : textTheme;
 
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -257,7 +269,8 @@ class AppTheme {
         labelStyle: baseTextTheme.bodyMedium?.copyWith(
           fontWeight: FontWeight.w600,
         ),
-        hintStyle: baseTextTheme.bodyLarge?.copyWith(color: colors.textSecondary),
+        hintStyle:
+            baseTextTheme.bodyLarge?.copyWith(color: colors.textSecondary),
         helperStyle: baseTextTheme.bodyLarge?.copyWith(
           fontSize: 12,
           color: colors.textSecondary,
@@ -275,7 +288,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         elevation: 0,
-        height: 72,
+        height: 80,
         surfaceTintColor: Colors.transparent,
         overlayColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.pressed)) {
@@ -286,15 +299,16 @@ class AppTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return baseTextTheme.labelSmall?.copyWith(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            height: 1.1,
             color: isSelected ? colors.primary : colors.textSecondary,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final isSelected = states.contains(WidgetState.selected);
           return IconThemeData(
-            size: 24,
+            size: 22,
             color: isSelected ? colors.primary : colors.textSecondary,
           );
         }),

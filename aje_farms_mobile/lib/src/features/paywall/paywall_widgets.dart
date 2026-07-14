@@ -39,7 +39,7 @@ class PlanTile extends StatelessWidget {
                   child: Text(
                     plan.title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                   ),
                 ),
@@ -57,7 +57,7 @@ class PlanTile extends StatelessWidget {
               plan.price,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: context.colors.primary,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
           ),
@@ -141,7 +141,7 @@ class PaymentSummaryCard extends StatelessWidget {
             child: Text(
               '${plan.title} kupitia $method',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
           ),
@@ -149,7 +149,7 @@ class PaymentSummaryCard extends StatelessWidget {
             plan.price,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: context.colors.primary,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
         ],
@@ -238,7 +238,7 @@ class PaymentStatusScreen extends StatelessWidget {
                         title,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                             ),
                       ),
                       const SizedBox(height: AppSpacing.sm),

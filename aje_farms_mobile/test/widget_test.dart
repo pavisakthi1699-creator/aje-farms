@@ -236,7 +236,7 @@ void main() {
     await tester.tap(find.text('Endelea'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Karibu, Mkulima'), findsOneWidget);
+    expect(find.text('Karibu tena'), findsOneWidget);
   });
 
   testWidgets('creates a local community post', (WidgetTester tester) async {
@@ -342,7 +342,7 @@ void main() {
     await tester.tap(find.text('Maji'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mwalimu AI'), findsOneWidget);
+    expect(find.text('Mwalimu AI'), findsWidgets);
     expect(find.text('Muktadha uliotumwa'), findsOneWidget);
     expect(find.text('Maji'), findsWidgets);
   });
@@ -353,10 +353,81 @@ void main() {
     await tester.pumpWidget(buildDemoApp());
     await startDemoShell(tester);
 
+    final navBar = find.byType(NavigationBar);
+    expect(find.descendant(of: navBar, matching: find.text('Nyumbani')),
+        findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Mafunzo')),
+        findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Uliza AI')),
+        findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Jamii')),
+        findsOneWidget);
+    expect(find.descendant(of: navBar, matching: find.text('Akaunti')),
+        findsOneWidget);
+  });
+
+  testWidgets('compact phone navigation renders without overflow',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final session = AppSessionController();
+    await session.restore();
+    await session.startAsGuest();
+
+    await tester.pumpWidget(
+      AppDependenciesScope(
+        dependencies: AppDependencies.demo(),
+        child: AppSessionScope(
+          controller: session,
+          child: const MaterialApp(home: MainShell()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Nyumbani'), findsOneWidget);
-    expect(find.text('Mafunzo'), findsOneWidget);
-    expect(find.text('Uliza AI'), findsOneWidget);
-    expect(find.text('Jamii'), findsOneWidget);
-    expect(find.text('Akaunti'), findsOneWidget);
+    expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact phone navigation at 2x text has no overflow',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final session = AppSessionController();
+    await session.restore();
+    await session.startAsGuest();
+
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+        child: AppDependenciesScope(
+          dependencies: AppDependencies.demo(),
+          child: AppSessionScope(
+            controller: session,
+            child: const MaterialApp(home: MainShell()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nyumbani'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Eleza tatizo la shamba'),
+      120,
+    );
+    expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

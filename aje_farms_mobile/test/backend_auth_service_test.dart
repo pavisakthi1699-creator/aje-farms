@@ -100,6 +100,34 @@ void main() {
     expect(session.subscriptionPlan, 'Wiki 1');
   });
 
+  test('updates backend profile by phone with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-abc');
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.toString(),
+          'http://localhost:3000/api/users/by-phone/%2B255712345678/profile',
+        );
+        expect(request.body, contains('"displayName":"Asha"'));
+        return http.Response(
+          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","displayName":"Asha","preferredLocation":"Morogoro","subscriptionPlan":null,"subscriptionStartedAt":null}}',
+          200,
+        );
+      }),
+    );
+
+    final session = await service.updateProfile(
+      phoneNumber: '+255712345678',
+      displayName: 'Asha',
+      preferredLocation: 'Morogoro',
+    );
+
+    expect(session.displayName, 'Asha');
+    expect(session.preferredLocation, 'Morogoro');
+  });
+
   test('cancels backend subscription by phone with bearer token', () async {
     await BackendSessionStorage.writeToken('token-abc');
     final service = BackendAuthService(

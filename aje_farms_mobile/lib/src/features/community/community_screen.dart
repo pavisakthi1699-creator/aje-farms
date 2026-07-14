@@ -243,7 +243,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
               Text(
                 'Majibu ya wakulima',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
               const SizedBox(height: AppSpacing.md),

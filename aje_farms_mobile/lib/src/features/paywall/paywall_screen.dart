@@ -128,6 +128,7 @@ class PaywallScreenState extends State<PaywallScreen> {
       try {
         final session = await authService.getSession(signedInPhone);
         await appSession.syncSubscriptionFromAuthSession(session);
+        await appSession.syncProfileFromAuthSession(session);
       } on AuthException {
         await appSession.activateSubscription(
           transaction.subscriptionPlan ?? transaction.planTitle,
@@ -228,8 +229,8 @@ class PaywallScreenState extends State<PaywallScreen> {
         header: Padding(
           padding: const EdgeInsets.only(top: AppSpacing.xl),
           child: _PaywallHeroBanner(
-            imageUrl: context.dependencies.learningRepository.featuredCourse
-                .imageUrl,
+            imageUrl:
+                context.dependencies.learningRepository.featuredCourse.imageUrl,
           ),
         ),
         bodyPadding: const EdgeInsets.all(AppSpacing.xl),
@@ -241,104 +242,104 @@ class PaywallScreenState extends State<PaywallScreen> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-          const SizedBox(height: AppSpacing.lg),
-          const PaymentBenefitsCard(),
-          const SizedBox(height: AppSpacing.xxl),
-          ...plans.map(
-            (plan) => PlanTile(
-              plan: plan,
-              selected: plan == selectedPlan,
-              onTap: () => setState(() => _selectedPlan = plan),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'MALIPO YA MOBILE MONEY',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.colors.muted,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: AppSpacing.md,
-                    children: [
-                      for (final method in ['M-Pesa', 'Tigo', 'Airtel'])
-                        ChoiceChip(
-                          key: ValueKey('payment-method-$method'),
-                          selected: _paymentMethod == method,
-                          label: Text(method),
-                          onSelected: (_) {
-                            AppFeedback.selection();
-                            setState(() => _paymentMethod = method);
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  const Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      PaymentBadge(label: 'M-Pesa'),
-                      PaymentBadge(label: 'Tigo'),
-                      PaymentBadge(label: 'Airtel'),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Namba ya simu',
-                      hintText: '0712 345 678',
-                      prefixIcon: Icon(Icons.phone_iphone),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  PaymentSummaryCard(
-                    plan: selectedPlan,
-                    method: _paymentMethod,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  FilledButton.icon(
-                    onPressed: () {
-                      AppFeedback.tap();
-                      _handlePayment();
-                    },
-                    icon: const Icon(Icons.smartphone),
-                    label: Text('Lipa ${selectedPlan.price}'),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.verified_user,
-                        color: context.colors.success,
-                        size: 18,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Flexible(
-                        child: Text(
-                          'Malipo yako ni salama. Tunalinda taarifa zako zote.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(height: AppSpacing.lg),
+            const PaymentBenefitsCard(),
+            const SizedBox(height: AppSpacing.xxl),
+            ...plans.map(
+              (plan) => PlanTile(
+                plan: plan,
+                selected: plan == selectedPlan,
+                onTap: () => setState(() => _selectedPlan = plan),
               ),
             ),
-          ),
+            const SizedBox(height: AppSpacing.xxl),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'MALIPO YA MOBILE MONEY',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: context.colors.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.md,
+                      children: [
+                        for (final method in ['M-Pesa', 'Tigo', 'Airtel'])
+                          ChoiceChip(
+                            key: ValueKey('payment-method-$method'),
+                            selected: _paymentMethod == method,
+                            label: Text(method),
+                            onSelected: (_) {
+                              AppFeedback.selection();
+                              setState(() => _paymentMethod = method);
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        PaymentBadge(label: 'M-Pesa'),
+                        PaymentBadge(label: 'Tigo'),
+                        PaymentBadge(label: 'Airtel'),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Namba ya simu',
+                        hintText: '0712 345 678',
+                        prefixIcon: Icon(Icons.phone_iphone),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    PaymentSummaryCard(
+                      plan: selectedPlan,
+                      method: _paymentMethod,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    FilledButton.icon(
+                      onPressed: () {
+                        AppFeedback.tap();
+                        _handlePayment();
+                      },
+                      icon: const Icon(Icons.smartphone),
+                      label: Text('Lipa ${selectedPlan.price}'),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          color: context.colors.success,
+                          size: 18,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            'Malipo yako ni salama. Tunalinda taarifa zako zote.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

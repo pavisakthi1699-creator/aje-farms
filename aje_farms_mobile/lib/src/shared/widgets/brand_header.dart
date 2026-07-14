@@ -27,12 +27,16 @@ class BrandHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Text(
-            'AJE Farms',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: compact ? 18 : 22,
-                  letterSpacing: -0.2,
-                ),
+          Flexible(
+            child: Text(
+              'AJE Farms',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: compact ? 18 : 22,
+                    letterSpacing: -0.2,
+                  ),
+            ),
           ),
         ],
       ),

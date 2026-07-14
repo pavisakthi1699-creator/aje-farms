@@ -125,7 +125,7 @@ class _OnboardingHeroCard extends StatelessWidget {
             'Kilimo na Ujasiliamali',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: context.colors.onPrimary,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   height: 1.05,
                 ),
           ),

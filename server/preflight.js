@@ -20,10 +20,11 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   validateHttpsUrl(blockers, 'APP_URL', env.APP_URL);
 
   const storeMode = (env.AJE_STORE ?? 'json').toLowerCase();
-  if (storeMode !== 'postgres') {
-    blockers.push('AJE_STORE must be "postgres" for release.');
+  if (storeMode !== 'postgres' && storeMode !== 'supabase') {
+    blockers.push('AJE_STORE must be "postgres" or "supabase" for release.');
   }
-  requireValue(blockers, 'DATABASE_URL', env.DATABASE_URL);
+  const databaseUrlName = storeMode === 'supabase' ? 'SUPABASE_DATABASE_URL' : 'DATABASE_URL';
+  requireValue(blockers, databaseUrlName, env[databaseUrlName] ?? env.DATABASE_URL);
   requireValue(blockers, 'AJE_OTP_PEPPER', env.AJE_OTP_PEPPER, (value) => {
     return value.length < 32
       ? 'must be at least 32 characters for release.'
@@ -60,8 +61,17 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   if (!String(env.AJE_ADMIN_PHONE_NUMBERS ?? '').trim()) {
     warnings.push('AJE_ADMIN_PHONE_NUMBERS is not set; moderation admin access must be managed through stored user roles.');
   }
-  if ((env.AJE_PUSH_PROVIDER ?? 'development') === 'development') {
+  const pushProvider = String(env.AJE_PUSH_PROVIDER ?? 'development').toLowerCase();
+  if (pushProvider === 'development') {
     warnings.push('Push notifications use the development provider; configure a real provider before public launch.');
+  } else if (pushProvider === 'fcm') {
+    if (!hasFcmServiceAccount(env)) {
+      blockers.push(
+        'FCM push provider requires FCM_SERVICE_ACCOUNT_JSON or FCM_PROJECT_ID, FCM_CLIENT_EMAIL, and FCM_PRIVATE_KEY.',
+      );
+    }
+  } else {
+    blockers.push('AJE_PUSH_PROVIDER must be "development" or "fcm".');
   }
   if (!env.GEMINI_API_KEY || placeholderValues.has(env.GEMINI_API_KEY)) {
     warnings.push('GEMINI_API_KEY is missing; AI will use the approved knowledge-base fallback.');
@@ -102,4 +112,17 @@ function validateHttpsUrl(blockers, name, value) {
 
 function hasAll(env, names) {
   return names.every((name) => String(env[name] ?? '').trim().length > 0);
+}
+
+function hasFcmServiceAccount(env) {
+  const serviceAccountJson = String(env.FCM_SERVICE_ACCOUNT_JSON ?? '').trim();
+  if (serviceAccountJson) {
+    try {
+      const parsed = JSON.parse(serviceAccountJson);
+      return Boolean(parsed.project_id && parsed.client_email && parsed.private_key);
+    } catch {
+      return false;
+    }
+  }
+  return hasAll(env, ['FCM_PROJECT_ID', 'FCM_CLIENT_EMAIL', 'FCM_PRIVATE_KEY']);
 }

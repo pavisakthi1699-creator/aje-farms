@@ -32,7 +32,7 @@ class CourseDetailScreen extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: context.colors.onPrimary,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
               background: Stack(

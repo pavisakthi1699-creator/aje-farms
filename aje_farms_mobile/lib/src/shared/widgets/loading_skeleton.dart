@@ -105,10 +105,10 @@ class CourseCatalogSkeleton extends StatelessWidget {
         const SizedBox(height: AppSpacing.xxl),
         Card(
           color: context.colors.surfaceLavender,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
             child: Row(
-              children: const [
+              children: [
                 LoadingSkeleton(width: 48, height: 48, borderRadius: 24),
                 SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -169,11 +169,11 @@ class CommunityFeedSkeleton extends StatelessWidget {
       children: [
         Card(
           color: context.colors.surfaceMuted,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 LoadingSkeleton(height: 18, width: 160),
                 SizedBox(height: AppSpacing.sm),
                 LoadingSkeleton(height: 14, width: 240),
@@ -184,23 +184,26 @@ class CommunityFeedSkeleton extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         const Row(
           children: [
-            LoadingSkeleton(width: 72, height: 34, borderRadius: AppRadius.pill),
+            LoadingSkeleton(
+                width: 72, height: 34, borderRadius: AppRadius.pill),
             SizedBox(width: AppSpacing.sm),
-            LoadingSkeleton(width: 88, height: 34, borderRadius: AppRadius.pill),
+            LoadingSkeleton(
+                width: 88, height: 34, borderRadius: AppRadius.pill),
             SizedBox(width: AppSpacing.sm),
-            LoadingSkeleton(width: 72, height: 34, borderRadius: AppRadius.pill),
+            LoadingSkeleton(
+                width: 72, height: 34, borderRadius: AppRadius.pill),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
         for (var index = 0; index < 3; index += 1)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.xl),
             child: Card(
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     LoadingSkeleton(height: 16, width: 120),
                     SizedBox(height: AppSpacing.sm),
                     LoadingSkeleton(height: 14),

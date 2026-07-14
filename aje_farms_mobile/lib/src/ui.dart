@@ -56,6 +56,7 @@ export 'services/mwalimu_ai_service.dart';
 export 'services/notification_service.dart';
 export 'services/payment_service.dart';
 export 'shared/dashboard_greeting.dart';
+export 'shared/listenable_utils.dart';
 export 'shared/widgets/brand_mark.dart';
 export 'shared/widgets/action_card.dart';
 export 'shared/widgets/adaptive_catalog_sliver.dart';

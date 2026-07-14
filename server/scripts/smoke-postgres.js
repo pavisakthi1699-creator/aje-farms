@@ -20,9 +20,10 @@ function hasCommand(command) {
   return result.status === 0;
 }
 
-const databaseUrl = process.env.DATABASE_URL ?? defaultDatabaseUrl;
+const databaseUrl =
+  process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL ?? defaultDatabaseUrl;
 
-if (!process.env.DATABASE_URL) {
+if (!process.env.SUPABASE_DATABASE_URL && !process.env.DATABASE_URL) {
   if (!hasCommand('docker')) {
     console.error(
       [
@@ -42,7 +43,11 @@ if (!process.env.DATABASE_URL) {
 
 const env = {
   DATABASE_URL: databaseUrl,
-  AJE_STORE: 'postgres',
+  AJE_STORE: process.env.AJE_STORE ?? 'postgres',
+  ...(process.env.SUPABASE_DATABASE_URL
+    ? { SUPABASE_DATABASE_URL: process.env.SUPABASE_DATABASE_URL }
+    : {}),
+  ...(process.env.AJE_DB_SCHEMA ? { AJE_DB_SCHEMA: process.env.AJE_DB_SCHEMA } : {}),
 };
 
 run('node', ['server/scripts/wait-for-postgres.js'], { env });

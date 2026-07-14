@@ -65,6 +65,23 @@ class BackendAuthService implements AuthService {
     return _sessionFromResponse(response);
   }
 
+  @override
+  Future<AuthSession> updateProfile({
+    required String phoneNumber,
+    String? displayName,
+    String? preferredLocation,
+  }) async {
+    final response = await _post(
+      '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/profile',
+      {
+        if (displayName != null) 'displayName': displayName,
+        if (preferredLocation != null) 'preferredLocation': preferredLocation,
+      },
+      authenticated: true,
+    );
+    return _sessionFromResponse(response);
+  }
+
   Future<Map<String, dynamic>> _post(
     String path,
     Map<String, dynamic> body, {
@@ -134,6 +151,8 @@ AuthSession _sessionFromResponse(Map<String, dynamic> response) {
       subscriptionPlan: user['subscriptionPlan'] as String?,
       subscriptionStartedAt: _dateTimeFromJson(user['subscriptionStartedAt']),
       sessionToken: response['sessionToken'] as String?,
+      displayName: user['displayName'] as String?,
+      preferredLocation: user['preferredLocation'] as String?,
     );
   }
 

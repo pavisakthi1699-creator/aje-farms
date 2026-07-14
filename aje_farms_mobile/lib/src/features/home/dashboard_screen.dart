@@ -1,7 +1,5 @@
 // ignore_for_file: use_key_in_widget_constructors
 
-import '../../shared/dashboard_greeting.dart';
-import '../../app/app_navigator.dart';
 import '../../ui.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -68,7 +66,7 @@ class DashboardScreen extends StatelessWidget {
                 child: MiniActionCard(
                   color: context.colors.charcoal,
                   foreground: context.colors.onPrimary,
-                  icon: Icons.star,
+                  icon: Icons.workspace_premium_outlined,
                   title: 'Premium',
                   subtitle: 'Fungua soko',
                   onTap: () => AppNavigator.pushPaywall(context),

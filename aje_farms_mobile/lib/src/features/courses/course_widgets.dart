@@ -40,7 +40,7 @@ class LearningSummaryCard extends StatelessWidget {
                   Text(
                     'Maktaba yako',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -168,7 +168,7 @@ class CourseCard extends StatelessWidget {
                           : 'Tayari kuanza',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             color: context.colors.primary,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
                     const Spacer(),
@@ -268,7 +268,7 @@ class CourseProgressSummary extends StatelessWidget {
                 Text(
                   '$completed/$total',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: context.colors.primary,
                       ),
                 ),
@@ -348,7 +348,7 @@ class LessonTile extends StatelessWidget {
                       Text(
                         lesson.title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -440,7 +440,7 @@ class LessonPreviewSheet extends StatelessWidget {
                       Text(
                         lesson.title,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
                       Text(

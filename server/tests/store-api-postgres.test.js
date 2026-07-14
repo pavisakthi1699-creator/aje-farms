@@ -8,7 +8,7 @@ import express from 'express';
 
 import { registerApiRoutes } from '../api.js';
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
 
 function createTempCommunityFile() {
   const filePath = path.join(
@@ -21,8 +21,11 @@ function createTempCommunityFile() {
 
 async function withPostgresServer(run) {
   const communityFile = createTempCommunityFile();
-  process.env.AJE_STORE = 'postgres';
+  process.env.AJE_STORE = process.env.AJE_STORE ?? 'postgres';
   process.env.DATABASE_URL = databaseUrl;
+  if (process.env.SUPABASE_DATABASE_URL) {
+    process.env.SUPABASE_DATABASE_URL = databaseUrl;
+  }
   process.env.AJE_COMMUNITY_DATA_FILE = communityFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';

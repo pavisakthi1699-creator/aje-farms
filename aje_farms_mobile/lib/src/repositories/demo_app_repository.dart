@@ -44,8 +44,7 @@ const _courses = [
     badge: 'Maarufu',
     icon: Icons.local_florist,
     progress: 0.65,
-    imageUrl:
-        'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/courses/pasheni.jpg',
     outcomes: [
       'Kuchagua eneo sahihi',
       'Kuandaa shamba kabla ya kupanda',
@@ -86,8 +85,7 @@ const _courses = [
     badge: 'Inafaa kwa wanaoanza',
     icon: Icons.egg_alt,
     progress: 0,
-    imageUrl:
-        'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/courses/kuku.jpg',
     outcomes: [
       'Kujenga banda lenye hewa na usalama',
       'Kupanga ratiba ya chanjo',
@@ -127,8 +125,7 @@ const _courses = [
     badge: 'Kozi mpya',
     icon: Icons.grass,
     progress: 0,
-    imageUrl:
-        'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=900&q=80',
+    imageUrl: 'assets/images/courses/nyanya.jpg',
     outcomes: [
       'Kuandaa kitalu bora',
       'Kuhamisha miche yenye afya',

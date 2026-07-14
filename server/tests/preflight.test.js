@@ -8,12 +8,36 @@ test('release preflight reports missing production blockers', () => {
 
   assert.equal(result.ok, false);
   assert.ok(result.blockers.includes('NODE_ENV is required for release.'));
-  assert.ok(result.blockers.includes('AJE_STORE must be "postgres" for release.'));
+  assert.ok(
+    result.blockers.includes(
+      'AJE_STORE must be "postgres" or "supabase" for release.',
+    ),
+  );
   assert.ok(
     result.blockers.includes(
       'aje_farms_mobile/android/key.properties is required to sign release builds.',
     ),
   );
+});
+
+test('release preflight accepts dedicated Supabase config', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.example',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL: 'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.blockers.length, 0);
 });
 
 test('release preflight passes core config and keeps deferred provider warnings', () => {
@@ -37,6 +61,80 @@ test('release preflight passes core config and keeps deferred provider warnings'
   assert.ok(result.warnings.some((warning) => warning.includes('SMS OTP')));
   assert.ok(result.warnings.some((warning) => warning.includes('Payment provider')));
   assert.ok(result.warnings.some((warning) => warning.includes('Push notifications')));
+});
+
+test('release preflight accepts configured FCM push provider', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.example',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'fcm',
+      FCM_PROJECT_ID: 'aje-farms',
+      FCM_CLIENT_EMAIL: 'firebase-adminsdk@example.iam.gserviceaccount.com',
+      FCM_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nkey\\n-----END PRIVATE KEY-----',
+    },
+    (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.blockers.length, 0);
+  assert.ok(!result.warnings.some((warning) => warning.includes('Push notifications')));
+});
+
+test('release preflight blocks incomplete FCM push provider config', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.example',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'fcm',
+      FCM_PROJECT_ID: 'aje-farms',
+    },
+    (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      'FCM push provider requires FCM_SERVICE_ACCOUNT_JSON or FCM_PROJECT_ID, FCM_CLIENT_EMAIL, and FCM_PRIVATE_KEY.',
+    ),
+  );
+});
+
+test('release preflight blocks malformed FCM service account json', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.example',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'fcm',
+      FCM_SERVICE_ACCOUNT_JSON: 'not-json',
+    },
+    (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      'FCM push provider requires FCM_SERVICE_ACCOUNT_JSON or FCM_PROJECT_ID, FCM_CLIENT_EMAIL, and FCM_PRIVATE_KEY.',
+    ),
+  );
 });
 
 test('release preflight blocks weak release secrets and insecure urls', () => {

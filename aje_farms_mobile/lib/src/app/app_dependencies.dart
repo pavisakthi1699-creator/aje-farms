@@ -44,16 +44,16 @@ class AppDependencies {
 
   factory AppDependencies.demo() {
     const repository = DemoAppRepository();
-    return AppDependencies(
+    return const AppDependencies(
       learningRepository: repository,
       communityRepository: repository,
       subscriptionRepository: repository,
-      mwalimuAiService: const DemoMwalimuAiService(),
-      authService: const LocalAuthService(),
-      communityService: const LocalCommunityService(),
-      learningProgressService: const LocalLearningProgressService(),
-      notificationService: const LocalNotificationService(),
-      paymentService: const LocalPaymentService(),
+      mwalimuAiService: DemoMwalimuAiService(),
+      authService: LocalAuthService(),
+      communityService: LocalCommunityService(),
+      learningProgressService: LocalLearningProgressService(),
+      notificationService: LocalNotificationService(),
+      paymentService: LocalPaymentService(),
       refreshCatalog: _demoRefreshCatalog,
     );
   }

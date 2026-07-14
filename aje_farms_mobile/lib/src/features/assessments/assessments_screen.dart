@@ -194,7 +194,7 @@ class QuizScreenState extends State<QuizScreen> {
                     Text(
                       '${entry.$1 + 1}. ${entry.$2.prompt}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: AppSpacing.md),

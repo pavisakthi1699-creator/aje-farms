@@ -109,7 +109,7 @@ class AiChatScreenState extends State<AiChatScreen> {
                     'Mtandaoni',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: context.colors.success,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                 ],

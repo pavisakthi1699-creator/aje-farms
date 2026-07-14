@@ -1,13 +1,7 @@
-import 'package:flutter/material.dart';
-
-import '../models/community_post.dart';
-import '../models/course.dart';
 import '../ui.dart';
 import 'app_deep_link.dart';
 import 'app_route_args.dart';
 import 'app_routes.dart';
-import 'main_shell.dart';
-import 'main_shell_navigation.dart';
 
 class AppNavigator {
   AppNavigator._();
@@ -307,7 +301,8 @@ class AppNavigator {
     return null;
   }
 
-  static CommunityPost? _findCommunityPost(BuildContext context, String postId) {
+  static CommunityPost? _findCommunityPost(
+      BuildContext context, String postId) {
     final posts = [
       ...context.session.state.localPosts,
       ...context.dependencies.communityRepository.posts,
