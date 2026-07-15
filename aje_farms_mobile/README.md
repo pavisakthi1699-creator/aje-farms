@@ -115,6 +115,15 @@ The API exposes a non-secret readiness endpoint:
 curl http://localhost:3000/api/health
 ```
 
+Deployments can use the lightweight liveness endpoint to confirm the API
+process is accepting requests without requiring every optional provider to be
+production-ready:
+
+```sh
+curl http://localhost:3000/api/health/live
+# {"status":"ok"}
+```
+
 Postgres smoke can run with Docker or any reachable managed Postgres:
 
 ```sh

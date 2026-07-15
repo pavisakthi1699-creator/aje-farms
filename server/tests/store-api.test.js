@@ -143,6 +143,15 @@ test('health endpoint reports development readiness', async () => {
   });
 });
 
+test('liveness endpoint reports a running API independently of providers', async () => {
+  await withTestServer(async (baseUrl) => {
+    const health = await getJson(baseUrl, '/api/health/live');
+
+    assert.equal(health.response.status, 200);
+    assert.deepEqual(health.payload, { status: 'ok' });
+  });
+});
+
 test('subscription cancel clears backend subscription state', async () => {
   await withTestServer(async (baseUrl) => {
     const phoneNumber = '+255798765432';

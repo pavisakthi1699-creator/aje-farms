@@ -20,6 +20,10 @@ export async function registerApiRoutes(app) {
   const paymentProvider = createPaymentProvider();
   const notificationProvider = createNotificationProvider();
 
+  app.get('/api/health/live', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
   app.get('/api/health', (_req, res) => {
     const storeConfig = resolveStoreConfig(process.env);
     const isProduction = process.env.NODE_ENV === 'production';
