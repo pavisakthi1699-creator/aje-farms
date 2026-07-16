@@ -19,6 +19,8 @@
     "db:migrate": "node server/scripts/migrate.js",
     "db:import": "node server/scripts/import-json-store.js",
     "import:notebooklm": "node server/scripts/import-notebooklm.js",
+    "ingest:remaining-curriculum": "node server/scripts/ingest-remaining-curriculum.js",
+    "validate:remaining-curriculum": "node server/scripts/validate-remaining-curriculum.js",
     "validate:course": "node server/scripts/validate-course.js",
     "smoke:postgres": "node server/scripts/smoke-postgres.js",
     "smoke:supabase": "AJE_STORE=supabase node server/scripts/smoke-postgres.js",
