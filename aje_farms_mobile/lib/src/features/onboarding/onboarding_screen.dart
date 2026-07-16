@@ -54,7 +54,8 @@ class OnboardingScreen extends StatelessWidget {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
-                                    const Expanded(child: _OnboardingHeroCard()),
+                                    const Expanded(
+                                        child: _OnboardingHeroCard()),
                                     const SizedBox(height: AppSpacing.xxl),
                                     ..._OnboardingActions.build(context),
                                   ],
@@ -97,7 +98,7 @@ class _OnboardingHeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Pill(
-            label: '24h Jaribio la bure',
+            label: 'Mafunzo ya vitendo',
             color: context.colors.secondary,
           ),
           const Spacer(),
@@ -122,7 +123,7 @@ class _OnboardingHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxl),
           Text(
-            'Kilimo na Ujasiliamali',
+            'Kilimo na Ujasiriamali',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: context.colors.onPrimary,
                   fontWeight: FontWeight.w700,
@@ -131,7 +132,7 @@ class _OnboardingHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Pata mafunzo, uliza Mwalimu AI, shiriki na wakulima, na ongea na mtaalamu unapohitaji msaada.',
+            'Soma mafunzo, rekodi changamoto za shamba, shiriki na wakulima, na wasiliana na mtaalamu unapohitaji uthibitisho.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: context.colors.onPrimarySubtle,
                   height: 1.45,
@@ -141,7 +142,7 @@ class _OnboardingHeroCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
           const OnboardingValueRow(
             icon: Icons.smart_toy_outlined,
-            label: 'Majibu ya haraka kwa changamoto za shamba',
+            label: 'Mwongozo wa kurekodi changamoto za shamba',
           ),
           const SizedBox(height: AppSpacing.sm),
           const OnboardingValueRow(

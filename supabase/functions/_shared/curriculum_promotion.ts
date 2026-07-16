@@ -7,6 +7,7 @@ const ITEM_TYPES = new Set([
   "course",
   "module",
   "lesson",
+  "fact",
   "checklist",
   "quiz",
   "faq",
@@ -53,6 +54,9 @@ export function validateCurriculumRow(row: CurriculumRow): { valid: true } | { v
   switch (itemType) {
     case "course":
       if (!row.title_sw) return { valid: false, message: "title_sw is required for course" };
+      if (row.delivery_type && !["video", "text"].includes(row.delivery_type)) {
+        return { valid: false, message: "delivery_type must be video or text" };
+      }
       return { valid: true };
     case "module":
       if (!row.course_code) return { valid: false, message: "course_code is required for module" };
@@ -62,23 +66,39 @@ export function validateCurriculumRow(row: CurriculumRow): { valid: true } | { v
       if (!row.course_code) return { valid: false, message: "course_code is required for lesson" };
       if (!row.module_code) return { valid: false, message: "module_code is required for lesson" };
       if (!row.title_sw) return { valid: false, message: "title_sw is required for lesson" };
+      if (row.lesson_type && !["reading", "video"].includes(row.lesson_type)) {
+        return { valid: false, message: "lesson_type must be reading or video" };
+      }
+      return { valid: true };
+    case "fact":
+      if (!row.course_code) return { valid: false, message: "course_code is required for fact" };
+      if (!row.fact_sw && !row.body_sw && !row.answer_sw) {
+        return { valid: false, message: "fact_sw is required for fact" };
+      }
+      if (!row.source_segment_id) {
+        return { valid: false, message: "source_segment_id is required for fact" };
+      }
       return { valid: true };
     case "checklist":
       if (!row.course_code) return { valid: false, message: "course_code is required for checklist" };
       if (!row.module_code) return { valid: false, message: "module_code is required for checklist" };
       if (!row.lesson_code) return { valid: false, message: "lesson_code is required for checklist" };
       if (!row.title_sw) return { valid: false, message: "title_sw is required for checklist" };
+      if (!row.source_segment_id) {
+        return { valid: false, message: "source_segment_id is required to convert checklist items into grounding facts" };
+      }
       return { valid: true };
     case "quiz":
-      if (!row.course_code) return { valid: false, message: "course_code is required for quiz" };
-      if (!row.module_code) return { valid: false, message: "module_code is required for quiz" };
-      if (!row.lesson_code) return { valid: false, message: "lesson_code is required for quiz" };
-      if (!row.question_sw) return { valid: false, message: "question_sw is required for quiz" };
+      // Quizzes are intentionally accepted and ignored so older NotebookLM
+      // exports remain importable without creating learner quiz content.
       return { valid: true };
     case "faq":
       if (!row.course_code) return { valid: false, message: "course_code is required for faq" };
       if (!row.question_sw || !row.answer_sw) {
         return { valid: false, message: "question_sw and answer_sw are required for faq" };
+      }
+      if (!row.source_segment_id) {
+        return { valid: false, message: "source_segment_id is required to convert FAQ answers into grounding facts" };
       }
       return { valid: true };
     case "content_gap":
@@ -106,12 +126,20 @@ export async function importRow(admin: Supabase, row: CurriculumRow, rowNumber: 
       return importModule(admin, normalized, rowNumber);
     case "lesson":
       return importLesson(admin, normalized, rowNumber);
+    case "fact":
+      return importGroundingFact(admin, normalized, rowNumber);
     case "checklist":
-      return importChecklist(admin, normalized, rowNumber);
+      return importGroundingFact(admin, {
+        ...normalized,
+        fact_sw: parseJsonArray(normalized.items_sw).map(String).join("\n"),
+      }, rowNumber, "checklist");
     case "quiz":
-      return importQuiz(admin, normalized, rowNumber);
+      return { row_number: rowNumber, item_type: "quiz_ignored" };
     case "faq":
-      return importFaq(admin, normalized, rowNumber);
+      return importGroundingFact(admin, {
+        ...normalized,
+        fact_sw: normalized.answer_sw,
+      }, rowNumber, "faq");
     case "content_gap":
       return importContentGap(admin, normalized, rowNumber);
     case "learning_path":
@@ -251,6 +279,7 @@ async function importCourse(admin: Supabase, row: CurriculumRow, rowNumber: numb
     ...basePayload(row, `course-${rowNumber}`),
     title_sw: row.title_sw,
     summary_sw: row.summary_sw ?? null,
+    delivery_type: row.delivery_type === "video" ? "video" : "text",
     ...(category ? { category_id: category.id } : {}),
   };
   const { data, error } = await admin.from("courses").upsert(payload, { onConflict: "code" }).select("id, code").single();
@@ -294,7 +323,7 @@ async function importLesson(admin: Supabase, row: CurriculumRow, rowNumber: numb
     code: row.lesson_code || row.code || codeFromText(row.title_sw ?? `lesson-${rowNumber}`, `lesson-${rowNumber}`),
     title_sw: row.title_sw,
     body_sw: row.body_sw ?? row.source_reference_text ?? null,
-    lesson_type: row.lesson_type ?? "reading",
+    lesson_type: row.lesson_type === "video" ? "video" : "reading",
   };
   const { data, error } = await admin.from("lessons").upsert(payload, { onConflict: "import_source,external_id" }).select("id, code").single();
   if (error) throw error;
@@ -337,51 +366,43 @@ async function importLesson(admin: Supabase, row: CurriculumRow, rowNumber: numb
   return { row_number: rowNumber, item_type: "lesson", id: data.id, code: data.code };
 }
 
-async function importChecklist(admin: Supabase, row: CurriculumRow, rowNumber: number): Promise<PromotionResult> {
-  const lesson = await findLesson(admin, row.course_code, row.module_code, row.lesson_code);
-  const payload = {
-    ...basePayload(row, `checklist-${rowNumber}`),
-    lesson_id: lesson.id,
-    title_sw: row.title_sw,
-    items_sw: parseJsonArray(row.items_sw),
-  };
-  const { data, error } = await admin.from("checklists").upsert(payload, { onConflict: "import_source,external_id" }).select("id, code").single();
-  if (error) throw error;
-  const status = await linkSource(admin, "checklist", data.id, row.source_segment_id, row.source_reference ?? row.source_reference_text);
-  await admin.from("checklists").update({ source_link_status: status }).eq("id", data.id);
-  return { row_number: rowNumber, item_type: "checklist", id: data.id, code: data.code };
-}
-
-async function importQuiz(admin: Supabase, row: CurriculumRow, rowNumber: number): Promise<PromotionResult> {
-  const lesson = await findLesson(admin, row.course_code, row.module_code, row.lesson_code);
-  const payload = {
-    ...basePayload(row, `quiz-${rowNumber}`),
-    lesson_id: lesson.id,
-    question_sw: row.question_sw,
-    options_sw: parseJsonArray(row.options_sw),
-    correct_answer: row.correct_answer ?? null,
-    explanation_sw: row.explanation_sw ?? null,
-  };
-  const { data, error } = await admin.from("quiz_questions").upsert(payload, { onConflict: "import_source,external_id" }).select("id, code").single();
-  if (error) throw error;
-  const status = await linkSource(admin, "quiz_question", data.id, row.source_segment_id, row.source_reference ?? row.source_reference_text);
-  await admin.from("quiz_questions").update({ source_link_status: status }).eq("id", data.id);
-  return { row_number: rowNumber, item_type: "quiz", id: data.id, code: data.code };
-}
-
-async function importFaq(admin: Supabase, row: CurriculumRow, rowNumber: number): Promise<PromotionResult> {
+async function importGroundingFact(
+  admin: Supabase,
+  row: CurriculumRow,
+  rowNumber: number,
+  legacyType = "fact",
+): Promise<PromotionResult> {
   const course = await findCourse(admin, row.course_code);
+  const module = row.module_code
+    ? await findModule(admin, row.course_code, row.module_code)
+    : null;
+  const lesson = row.lesson_code
+    ? await findLesson(admin, row.course_code, row.module_code, row.lesson_code)
+    : null;
+  if (!row.source_segment_id) throw new Error("source_segment_id is required for grounding fact");
+  const fact = row.fact_sw ?? row.body_sw ?? row.answer_sw;
+  if (!fact?.trim()) throw new Error("fact_sw is required for grounding fact");
+  const fallbackCode = `${legacyType}-${rowNumber}`;
   const payload = {
-    ...basePayload(row, `faq-${rowNumber}`),
     course_id: course.id,
-    question_sw: row.question_sw,
-    answer_sw: row.answer_sw,
+    module_id: module?.id ?? null,
+    lesson_id: lesson?.id ?? null,
+    source_segment_id: row.source_segment_id,
+    code: row.code || codeFromText(row.title_sw ?? row.question_sw ?? fact, fallbackCode),
+    fact_sw: fact.trim(),
+    question_sw: row.question_sw ?? null,
+    status: rowStatus(row) === "published" ? "needs_review" : rowStatus(row),
+    risk_level: rowRiskLevel(row),
+    import_source: "notebooklm",
+    external_id: row.external_id || `${legacyType}:${fallbackCode}`,
   };
-  const { data, error } = await admin.from("faq_entries").upsert(payload, { onConflict: "import_source,external_id" }).select("id, code").single();
+  const { data, error } = await admin
+    .from("grounding_facts")
+    .upsert(payload, { onConflict: "import_source,external_id" })
+    .select("id, code")
+    .single();
   if (error) throw error;
-  const status = await linkSource(admin, "faq_entry", data.id, row.source_segment_id, row.source_reference ?? row.source_reference_text);
-  await admin.from("faq_entries").update({ source_link_status: status }).eq("id", data.id);
-  return { row_number: rowNumber, item_type: "faq", id: data.id, code: data.code };
+  return { row_number: rowNumber, item_type: "fact", id: data.id, code: data.code };
 }
 
 async function importContentGap(admin: Supabase, row: CurriculumRow, rowNumber: number): Promise<PromotionResult> {

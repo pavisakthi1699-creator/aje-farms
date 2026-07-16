@@ -46,12 +46,14 @@ function evidenceFor(row) {
 }
 
 function enrichRows(rows, sourceDocumentId) {
-  return rows.map((row) => ({
-    ...row,
-    item_type: row.item_type ?? row.record_type ?? "module",
-    source_document_ids: [sourceDocumentId],
-    source_reference: evidenceFor(row),
-  }));
+  return rows
+    .map((row) => ({
+      ...row,
+      item_type: row.item_type ?? row.record_type ?? "module",
+      source_document_ids: [sourceDocumentId],
+      source_reference: evidenceFor(row),
+    }))
+    .filter((row) => !["quiz", "checklist", "faq"].includes(row.item_type));
 }
 
 function buildContentCourse(rows, sourceDocument) {
@@ -82,53 +84,6 @@ function buildContentCourse(rows, sourceDocument) {
       source: sourceMeta,
     }));
 
-  const checklistLessons = rows
-    .filter((row) => row.item_type === "checklist")
-    .map((row) => ({
-      id: row.code ?? row.external_id,
-      title: row.title_sw,
-      type: "checklist",
-      meta: `${parseJsonArray(row.items_sw).length} hatua`,
-      description: parseJsonArray(row.items_sw).join(" | "),
-      isPremium: false,
-      moduleCode: row.module_code,
-      lessonCode: row.lesson_code,
-      items: parseJsonArray(row.items_sw),
-      source: sourceMeta,
-    }));
-
-  const quizLessons = rows
-    .filter((row) => row.item_type === "quiz")
-    .map((row) => ({
-      id: row.code ?? row.external_id,
-      title: row.question_sw,
-      type: "quiz",
-      meta: "Swali 1",
-      description: row.explanation_sw ?? row.question_sw,
-      isPremium: false,
-      moduleCode: row.module_code,
-      lessonCode: row.lesson_code,
-      question: row.question_sw,
-      options: parseJsonArray(row.options_sw),
-      correctAnswer: row.correct_answer ?? null,
-      explanation: row.explanation_sw ?? null,
-      source: sourceMeta,
-    }));
-
-  const faqLessons = rows
-    .filter((row) => row.item_type === "faq")
-    .map((row) => ({
-      id: row.code ?? row.external_id,
-      title: row.question_sw,
-      type: "faq",
-      meta: "Jibu",
-      description: row.answer_sw,
-      isPremium: false,
-      question: row.question_sw,
-      answer: row.answer_sw,
-      source: sourceMeta,
-    }));
-
   return {
     id: CONTENT_COURSE_ID,
     sourceCourseCode: COURSE_CODE,
@@ -146,22 +101,7 @@ function buildContentCourse(rows, sourceDocument) {
       sortOrder: Number(row.sort_order ?? 0),
       source: sourceMeta,
     })),
-    lessons: [
-      ...readingLessons,
-      {
-        id: "ushuhuda-wangu-pdf",
-        title: sourceDocument.title,
-        type: "pdf",
-        meta: "PDF",
-        description: "Kitabu asili kilichotumika kujenga kozi hii.",
-        isPremium: false,
-        url: null,
-        source: sourceMeta,
-      },
-      ...checklistLessons,
-      ...quizLessons,
-      ...faqLessons,
-    ],
+    lessons: readingLessons,
     contentGaps: rows
       .filter((row) => row.item_type === "content_gap")
       .map((row) => ({
@@ -229,7 +169,7 @@ async function main() {
          import_source, batch_hash, file_name, row_count, valid_count, error_count,
          status, metadata, completed_at
        ) values (
-         'notebooklm', $1, $2, $3, $3, 0, 'approved',
+         'notebooklm', $1, $2, $3, $3, 0, 'needs_review',
          $4::jsonb, now()
        )
        on conflict (batch_hash) do update
@@ -283,7 +223,7 @@ async function main() {
          code, title_sw, language_code, status, risk_level, import_source,
          external_id, source_reference, source_link_status, sort_order,
          summary_sw, description_sw
-       ) values ($1, $2, 'sw', 'approved', $3, 'notebooklm', $4, $5, 'pending_review', $6, $7, $7)
+       ) values ($1, $2, 'sw', 'draft', $3, 'notebooklm', $4, $5, 'pending_review', $6, $7, $7)
        on conflict (code) do update
        set title_sw = excluded.title_sw,
            status = excluded.status,
@@ -317,7 +257,7 @@ async function main() {
         `insert into public.course_modules (
            course_id, code, title_sw, status, risk_level, import_source,
            external_id, source_reference, source_link_status, sort_order, summary_sw
-         ) values ($1, $2, $3, 'approved', $4, 'notebooklm', $5, $6, 'pending_review', $7, $8)
+         ) values ($1, $2, $3, 'draft', $4, 'notebooklm', $5, $6, 'pending_review', $7, $8)
          on conflict (course_id, code) do update
          set title_sw = excluded.title_sw,
              status = excluded.status,
@@ -355,7 +295,7 @@ async function main() {
         `insert into public.lessons (
            module_id, code, title_sw, body_sw, lesson_type, status, risk_level,
            import_source, external_id, source_reference, source_link_status, sort_order
-         ) values ($1, $2, $3, $4, $5, 'approved', $6, 'notebooklm', $7, $8, 'pending_review', $9)
+         ) values ($1, $2, $3, $4, $5, 'draft', $6, 'notebooklm', $7, $8, 'pending_review', $9)
          on conflict (module_id, code) do update
          set title_sw = excluded.title_sw,
              body_sw = excluded.body_sw,
@@ -393,7 +333,7 @@ async function main() {
         `insert into public.learning_paths (
            code, title_sw, status, description_sw, import_source,
            external_id, source_reference, sort_order
-         ) values ($1, $2, 'approved', $3, 'notebooklm', $4, $5, $6)
+         ) values ($1, $2, 'draft', $3, 'notebooklm', $4, $5, $6)
          on conflict (code) do update
          set title_sw = excluded.title_sw,
              status = excluded.status,
@@ -429,7 +369,7 @@ async function main() {
     const contentCourse = buildContentCourse(rows, sourceDocument);
     await pool.query(
       `insert into public.content_courses (id, status, payload, updated_at)
-       values ($1, 'approved', $2::jsonb, now())
+       values ($1, 'draft', $2::jsonb, now())
        on conflict (id) do update
        set status = excluded.status,
            payload = excluded.payload,
@@ -438,6 +378,7 @@ async function main() {
     );
     result.contentCourse = {
       id: contentCourse.id,
+      status: "draft",
       lessons: contentCourse.lessons.length,
       modules: contentCourse.modules.length,
       contentGaps: contentCourse.contentGaps.length,
@@ -453,7 +394,7 @@ async function main() {
     );
     await pool.query(
       `update public.curriculum_import_batches
-       set status = 'published',
+       set status = 'needs_review',
            metadata = metadata || $2::jsonb,
            completed_at = now()
        where id = $1`,

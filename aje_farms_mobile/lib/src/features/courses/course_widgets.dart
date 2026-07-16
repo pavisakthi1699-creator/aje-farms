@@ -1,6 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
 import "../../ui.dart";
+import "package:url_launcher/url_launcher.dart";
 
 class LearningSummaryCard extends StatelessWidget {
   const LearningSummaryCard({required this.courses});
@@ -30,7 +31,8 @@ class LearningSummaryCard extends StatelessWidget {
               width: AppA11y.minTouchTarget,
               height: AppA11y.minTouchTarget,
               decoration: AppDecorations.circleIconButton(context),
-              child: Icon(Icons.menu_book_outlined, color: context.colors.primary),
+              child:
+                  Icon(Icons.menu_book_outlined, color: context.colors.primary),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -45,7 +47,7 @@ class LearningSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '$completedLessons kati ya $totalLessons yamekamilika kwenye kozi za mfano.',
+                    '$completedLessons kati ya $totalLessons yamekamilika kwenye mafunzo yako.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
@@ -72,6 +74,7 @@ class CourseCard extends StatelessWidget {
     }).length;
     final total = course.lessons.length;
     final hasPremium = course.lessons.any((lesson) => lesson.isPremium);
+    final progress = total == 0 ? 0.0 : completed / total;
 
     return Card(
       child: Column(
@@ -148,11 +151,11 @@ class CourseCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Semantics(
                   label:
-                      '${(course.progress * 100).round()}% ya ${course.title} imekamilika',
+                      '${(progress * 100).round()}% ya ${course.title} imekamilika',
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                     child: LinearProgressIndicator(
-                      value: course.progress,
+                      value: progress,
                       minHeight: 8,
                       backgroundColor: context.colors.surfaceMuted,
                       color: context.colors.primary,
@@ -163,8 +166,8 @@ class CourseCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      course.progress > 0
-                          ? '${(course.progress * 100).round()}% imekamilika'
+                      progress > 0
+                          ? '${(progress * 100).round()}% imekamilika'
                           : 'Tayari kuanza',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             color: context.colors.primary,
@@ -178,8 +181,7 @@ class CourseCard extends StatelessWidget {
                           Icon(Icons.lock_outline,
                               size: 16, color: context.colors.muted),
                           const SizedBox(width: AppSpacing.xs),
-                          Text('Premium',
-                              style: accessibleCaption(context)),
+                          Text('Premium', style: accessibleCaption(context)),
                         ],
                       ),
                   ],
@@ -192,8 +194,8 @@ class CourseCard extends StatelessWidget {
                   },
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Anza Kujifunza'),
-                  style:
-                      FilledButton.styleFrom(backgroundColor: context.colors.charcoal),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: context.colors.charcoal),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
@@ -311,7 +313,8 @@ class LessonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = isCompleted ? context.colors.primary : context.colors.muted;
+    final statusColor =
+        isCompleted ? context.colors.primary : context.colors.muted;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Card(
@@ -336,8 +339,9 @@ class LessonTile extends StatelessWidget {
                         : isCompleted
                             ? Icons.check_circle
                             : lesson.type.icon,
-                    color:
-                        lesson.isPremium ? context.colors.muted : context.colors.primary,
+                    color: lesson.isPremium
+                        ? context.colors.muted
+                        : context.colors.primary,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -363,18 +367,17 @@ class LessonTile extends StatelessWidget {
                             : isCompleted
                                 ? 'Umekamilisha'
                                 : 'Bado hujaanza',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
                     ],
                   ),
                 ),
                 Icon(
-                  lesson.isPremium
-                      ? Icons.lock_outline
-                      : Icons.chevron_right,
+                  lesson.isPremium ? Icons.lock_outline : Icons.chevron_right,
                   color: context.colors.muted,
                 ),
               ],
@@ -439,9 +442,10 @@ class LessonPreviewSheet extends StatelessWidget {
                     children: [
                       Text(
                         lesson.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                       Text(
                         '$courseTitle - ${lesson.type.label}',
@@ -459,6 +463,42 @@ class LessonPreviewSheet extends StatelessWidget {
               lesson.description,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
+            if (lesson.sourceTitle != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.verified_outlined,
+                    size: 18,
+                    color: context.colors.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Chanzo: ${lesson.sourceTitle}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (lesson.type == LessonType.video) ...[
+              const SizedBox(height: AppSpacing.xl),
+              FilledButton.icon(
+                onPressed: lesson.resourceUrl == null
+                    ? null
+                    : () => _openVideo(context, lesson.resourceUrl!),
+                icon: const Icon(Icons.play_circle_outline),
+                label: Text(
+                  lesson.resourceUrl == null
+                      ? 'Video bado haijachapishwa'
+                      : 'Tazama Video',
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             FilledButton.icon(
               onPressed: () async {
@@ -486,12 +526,22 @@ class LessonPreviewSheet extends StatelessWidget {
                 showSnack(context, '${lesson.type.label}: ${lesson.title}');
               },
               icon: Icon(lesson.type.icon),
-              label: const Text('Fungua Somo la Mfano'),
+              label: const Text('Kamilisha Somo'),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+Future<void> _openVideo(BuildContext context, String resourceUrl) async {
+  final uri = Uri.tryParse(resourceUrl);
+  if (uri == null ||
+      !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (context.mounted) {
+      showSnack(context, 'Video haikuweza kufunguka. Jaribu tena baadaye.');
+    }
   }
 }
 

@@ -63,8 +63,6 @@ class AppNavigator {
         return _page(settings, const SavedDocumentsScreen());
       case AppRoutes.assessments:
         return _page(settings, const AssessmentsScreen());
-      case AppRoutes.quiz:
-        return _page(settings, const QuizScreen());
       case AppRoutes.fieldAssignment:
         return _page(settings, const FieldAssignmentScreen());
       case AppRoutes.whatsapp:
@@ -150,10 +148,6 @@ class AppNavigator {
 
   static Future<void> pushAssessments(BuildContext context) {
     return Navigator.of(context).pushNamed(AppRoutes.assessments);
-  }
-
-  static Future<void> pushQuiz(BuildContext context) {
-    return Navigator.of(context).pushNamed(AppRoutes.quiz);
   }
 
   static Future<void> pushFieldAssignment(BuildContext context) {
@@ -262,9 +256,6 @@ class AppNavigator {
         break;
       case DeepLinkKind.assessments:
         pushAssessments(context);
-        break;
-      case DeepLinkKind.quiz:
-        pushQuiz(context);
         break;
       case DeepLinkKind.fieldAssignment:
         pushFieldAssignment(context);

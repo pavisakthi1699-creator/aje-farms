@@ -87,9 +87,10 @@ class MainShellState extends State<MainShell> {
     return Column(
       children: [
         OfflineBanner(
-          showCatalogStale:
-              AppDependenciesScope.of(context).cachedRepository?.lastRefreshFailed ==
-                  true,
+          showCatalogStale: AppDependenciesScope.of(context)
+                  .cachedRepository
+                  ?.lastRefreshFailed ==
+              true,
         ),
         Expanded(
           child: IndexedStack(
@@ -143,8 +144,8 @@ class MainShellState extends State<MainShell> {
                   AppSpacing.md,
                 ),
                 child: DecoratedBox(
-                  decoration:
-                      AppDecorations.surfaceCard(context, radius: AppRadius.hero),
+                  decoration: AppDecorations.surfaceCard(context,
+                      radius: AppRadius.hero),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.hero),
                     child: NavigationBar(

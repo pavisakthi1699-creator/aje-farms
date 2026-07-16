@@ -2,6 +2,7 @@ export type CurriculumItemType =
   | "course"
   | "module"
   | "lesson"
+  | "fact"
   | "checklist"
   | "quiz"
   | "faq"
@@ -24,6 +25,7 @@ export type CurriculumRow = {
   title_sw?: string;
   summary_sw?: string;
   body_sw?: string;
+  fact_sw?: string;
   question_sw?: string;
   answer_sw?: string;
   options_sw?: string[] | string;
@@ -35,6 +37,7 @@ export type CurriculumRow = {
   source_segment_id?: string;
   status?: "draft" | "needs_review" | "approved" | "published" | "archived" | "failed";
   risk_level?: "normal" | "medium" | "high";
+  delivery_type?: "video" | "text";
   lesson_type?: "reading" | "video" | "pdf" | "checklist" | "quiz" | "practical_task" | "audio";
   source_document_ids?: string[] | string;
   video_source_document_id?: string;

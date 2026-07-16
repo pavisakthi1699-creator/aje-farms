@@ -10,64 +10,64 @@ class DemoMwalimuAiService implements MwalimuAiService {
     final lower = prompt.toLowerCase();
     if (lower.contains('pasheni')) {
       return _answer(
-        'Kwa pasheni, hakikisha udongo unapisha maji vizuri na eneo halituamishi maji. Angalia kama kuna majani ya njano, madoa au wadudu chini ya jani kabla ya kuchagua dawa. Tumia nguzo na waya kusaidia mmea kupanda vizuri.',
+        'Kwa pasheni, rekodi hali ya majani, shina, unyevu na muda ambao dalili zimeonekana. Piga picha ya sehemu iliyoathirika na wasiliana na mtaalamu wa eneo lako kabla ya kutumia dawa.',
         const MwalimuAiSource(
-          id: 'pasheni:mwongozo-mfupi-wa-pasheni',
+          id: 'pasheni:kufuatilia-afya-ya-mmea',
           courseId: 'pasheni',
-          lessonId: 'mwongozo-mfupi-wa-pasheni',
+          lessonId: 'kufuatilia-afya-ya-mmea',
           courseTitle: 'Kilimo cha Pasheni',
-          title: 'Mwongozo mfupi wa pasheni',
-          type: 'pdf',
+          title: 'Kufuatilia afya ya mmea',
+          type: 'reading',
           excerpt:
-              'Pakua muhtasari wa hatua za kupanda, kuweka nguzo, kumwagilia na kutambua dalili za mwanzo.',
+              'Kagua majani, shina na unyevu mara kwa mara, kisha pata uthibitisho wa mtaalamu kabla ya kutumia tiba.',
         ),
       );
     }
     if (lower.contains('nyanya') || lower.contains('ukungu')) {
       return _answer(
-        'Kwa nyanya, anza kwa kutenga miche iliyoathirika, epuka maji kusimama kwenye shina, na fuatilia ukungu chini ya majani. Ondoa majani yaliyoathirika na tumia ushauri wa mtaalamu kabla ya dawa.',
+        'Kwa nyanya, piga picha ya dalili, rekodi sehemu ya mmea iliyoathirika na hali ya unyevu. Usichague dawa kwa jina la dalili pekee; pata utambuzi wa mtaalamu wa eneo lako.',
         const MwalimuAiSource(
-          id: 'nyanya:udhibiti-wa-wadudu',
+          id: 'nyanya:kufuatilia-miche-na-mimea',
           courseId: 'nyanya',
-          lessonId: 'udhibiti-wa-wadudu',
+          lessonId: 'kufuatilia-miche-na-mimea',
           courseTitle: 'Kilimo cha Nyanya',
-          title: 'Udhibiti wa wadudu',
-          type: 'pdf',
+          title: 'Kufuatilia miche na mimea',
+          type: 'reading',
           excerpt:
-              'Tambua viwavi, vidukari na ukungu mapema kabla ya kuchagua dawa au hatua ya shamba.',
+              'Kagua majani na ukuaji, rekodi dalili na tambua tatizo kwa msaada wa mtaalamu kabla ya kutumia dawa.',
         ),
       );
     }
     if (lower.contains('kuku') || lower.contains('ufugaji')) {
       return _answer(
-        'Kwa kuku, zingatia banda lenye hewa, usafi, maji safi, chakula bora na ratiba ya chanjo. Usafi wa banda hupunguza magonjwa.',
+        'Kwa kuku, rekodi umri, idadi, dalili na muda zilipoanza. Tenga kuku mwenye dalili kali inapowezekana na wasiliana na daktari wa mifugo kwa utambuzi, chanjo au dawa.',
         const MwalimuAiSource(
-          id: 'kuku:misingi-ya-ufugaji-wa-kuku',
+          id: 'kuku:kuweka-kumbukumbu-za-afya',
           courseId: 'kuku',
-          lessonId: 'misingi-ya-ufugaji-wa-kuku',
+          lessonId: 'kuweka-kumbukumbu-za-afya',
           courseTitle: 'Ufugaji wa Kuku',
-          title: 'Misingi ya ufugaji wa kuku',
-          type: 'video',
+          title: 'Kuweka kumbukumbu za afya',
+          type: 'reading',
           excerpt:
-              'Jifunze mahitaji ya banda, maji, chakula na usafi kabla ya kuleta vifaranga.',
+              'Rekodi dalili na historia ya kundi, kisha tumia mwongozo wa daktari wa mifugo kwa chanjo na dawa.',
         ),
       );
     }
     if (lower.contains('wadudu') || lower.contains('viwavi')) {
       return _plain(
-          'Kwa wadudu, kagua chini ya majani asubuhi au jioni, tambua kama ni viwavi, vidukari au funza, kisha ondoa sehemu zilizoathirika. Usitumie dawa kabla ya kujua mdudu na kiwango cha madhara.');
+          'Kwa wadudu, piga picha ya mdudu na sehemu iliyoathirika, rekodi zao na eneo, kisha pata utambuzi kabla ya kuchagua hatua. Usitumie dawa usiyoifahamu.');
     }
     if (lower.contains('mbolea') || lower.contains('udongo')) {
       return _plain(
-          'Kwa mbolea na udongo, angalia rangi ya majani, ukuaji wa mmea na historia ya shamba. Kama huna kipimo cha udongo, anza na samadi iliyoiva vizuri na fuata dozi ndogo ya mbolea kulingana na zao.');
+          'Kwa mbolea na udongo, rekodi zao, hatua ya ukuaji na historia ya shamba. Kipimo cha udongo na ushauri wa mtaalamu wa eneo lako vinahitajika kabla ya kuchagua aina au kipimo cha mbolea.');
     }
     if (lower.contains('maji') || lower.contains('umwagiliaji')) {
       return _plain(
-          'Kwa maji, hakikisha udongo una unyevu lakini hautuamishi maji. Mwagilia asubuhi au jioni, tengeneza mifereji midogo kama maji yanasimama, na punguza kumwagilia kama majani yanaonekana kulegea baada ya mvua.');
+          'Kwa maji, rekodi zao, aina ya udongo, mvua na hali ya unyevu. Kagua kama maji yanasimama au udongo umekauka, kisha linganisha na mwongozo wa zao na eneo lako.');
     }
     if (lower.contains('soko') || lower.contains('bei')) {
       return _plain(
-          'Kwa soko, linganisha bei kwa wanunuzi wawili au watatu, panga kuvuna kulingana na ubora unaotakiwa, na hifadhi mazao sehemu yenye kivuli kabla ya kusafirisha.');
+          'Kwa soko, thibitisha tarehe, eneo, daraja la bidhaa na chanzo cha bei. Linganisha taarifa kutoka zaidi ya mnunuzi mmoja kabla ya kufanya uamuzi.');
     }
     return _plain(
         'Sina taarifa ya kutosha kwenye maelezo yako. Eleza zao au mnyama, eneo, dalili kuu, na muda ambao tatizo limeanza ili nipendekeze hatua salama inayofuata.');

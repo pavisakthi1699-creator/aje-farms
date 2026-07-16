@@ -70,6 +70,19 @@ export async function registerApiRoutes(app) {
     res.json(await store.catalogSnapshot());
   });
 
+  app.get('/api/lessons/:lessonId/video', async (req, res) => {
+    if (typeof store.lessonVideoUrl !== 'function') {
+      res.status(404).json({ error: 'Video haipatikani.' });
+      return;
+    }
+    const url = await store.lessonVideoUrl(req.params.lessonId);
+    if (!url) {
+      res.status(404).json({ error: 'Video haijachapishwa au haipatikani.' });
+      return;
+    }
+    res.redirect(302, url);
+  });
+
   app.get(
     '/api/admin/content/courses',
     requireAuthSession(store),
@@ -600,10 +613,15 @@ export async function registerApiRoutes(app) {
     }
 
     try {
+      const groundingSources =
+        typeof store.groundingSources === 'function'
+          ? await store.groundingSources(message)
+          : null;
       const answer = await chatWithMwalimuServer(
         message,
         Array.isArray(history) ? history : [],
         (await store.catalogSnapshot()).courses,
+        groundingSources,
       );
       res.json(answer);
     } catch (error) {

@@ -32,95 +32,95 @@ class NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(title: const Text('Arifa')),
       body: AppLayout(
         child: isSignedIn && _inboxFuture != null
-          ? FutureBuilder<NotificationInbox>(
-              future: _inboxFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return ListView(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    children: const [
-                      Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppSpacing.lg),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LoadingSkeleton(height: 18, width: 180),
-                              SizedBox(height: AppSpacing.sm),
-                              LoadingSkeleton(height: 14, width: 240),
-                            ],
+            ? FutureBuilder<NotificationInbox>(
+                future: _inboxFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ListView(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      children: const [
+                        Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSpacing.lg),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                LoadingSkeleton(height: 18, width: 180),
+                                SizedBox(height: AppSpacing.sm),
+                                LoadingSkeleton(height: 14, width: 240),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                }
-
-                final inbox = snapshot.data;
-                return FadeInContent(
-                  child: ListView(
-                    key: AppPageStorage.notifications,
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    children: [
-                      if (snapshot.hasError)
-                        const _NotificationTile(
-                          icon: Icons.cloud_off_outlined,
-                          title: 'Arifa hazijapatikana',
-                          body: 'Tumia mtandao kisha jaribu tena.',
-                        ),
-                      if (inbox != null) ...[
-                        _NotificationTile(
-                          icon: inbox.settings.enabled
-                              ? Icons.notifications_active_outlined
-                              : Icons.notifications_off_outlined,
-                          title: inbox.settings.enabled
-                              ? 'Arifa zimewashwa'
-                              : 'Arifa zimezimwa',
-                          body: inbox.settings.enabled
-                              ? 'Tutakutumia majibu mapya na taarifa muhimu.'
-                              : 'Washa arifa kwenye mipangilio ili kupata vikumbusho.',
-                          accentColor: context.colors.primaryContainer,
-                        ),
-                        for (final notification in inbox.notifications)
-                          _NotificationTile(
-                            icon: notification.isRead
-                                ? Icons.mark_email_read_outlined
-                                : Icons.notifications_outlined,
-                            title: notification.title,
-                            body: notification.body,
-                            isUnread: !notification.isRead,
-                            trailing: notification.isRead
-                                ? null
-                                : TextButton(
-                                    onPressed: () {
-                                      AppFeedback.tap();
-                                      _markRead(
-                                        phoneNumber,
-                                        notification.id,
-                                      );
-                                    },
-                                    child: const Text('Soma'),
-                                  ),
-                          ),
-                        if (inbox.notifications.isEmpty)
-                          const _NotificationTile(
-                            icon: Icons.inbox_outlined,
-                            title: 'Hakuna arifa mpya',
-                            body:
-                                'Tutakuonyesha majibu ya jamii, taarifa za usimamizi, na vikumbusho hapa.',
-                          ),
                       ],
-                      ..._localReminderTiles(context),
-                    ],
-                  ),
-                );
-              },
-            )
-          : ListView(
-              key: AppPageStorage.notifications,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              children: _localReminderTiles(context),
-            ),
+                    );
+                  }
+
+                  final inbox = snapshot.data;
+                  return FadeInContent(
+                    child: ListView(
+                      key: AppPageStorage.notifications,
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      children: [
+                        if (snapshot.hasError)
+                          const _NotificationTile(
+                            icon: Icons.cloud_off_outlined,
+                            title: 'Arifa hazijapatikana',
+                            body: 'Tumia mtandao kisha jaribu tena.',
+                          ),
+                        if (inbox != null) ...[
+                          _NotificationTile(
+                            icon: inbox.settings.enabled
+                                ? Icons.notifications_active_outlined
+                                : Icons.notifications_off_outlined,
+                            title: inbox.settings.enabled
+                                ? 'Arifa zimewashwa'
+                                : 'Arifa zimezimwa',
+                            body: inbox.settings.enabled
+                                ? 'Tutakutumia majibu mapya na taarifa muhimu.'
+                                : 'Washa arifa kwenye mipangilio ili kupata vikumbusho.',
+                            accentColor: context.colors.primaryContainer,
+                          ),
+                          for (final notification in inbox.notifications)
+                            _NotificationTile(
+                              icon: notification.isRead
+                                  ? Icons.mark_email_read_outlined
+                                  : Icons.notifications_outlined,
+                              title: notification.title,
+                              body: notification.body,
+                              isUnread: !notification.isRead,
+                              trailing: notification.isRead
+                                  ? null
+                                  : TextButton(
+                                      onPressed: () {
+                                        AppFeedback.tap();
+                                        _markRead(
+                                          phoneNumber,
+                                          notification.id,
+                                        );
+                                      },
+                                      child: const Text('Soma'),
+                                    ),
+                            ),
+                          if (inbox.notifications.isEmpty)
+                            const _NotificationTile(
+                              icon: Icons.inbox_outlined,
+                              title: 'Hakuna arifa mpya',
+                              body:
+                                  'Tutakuonyesha majibu ya jamii, taarifa za usimamizi, na vikumbusho hapa.',
+                            ),
+                        ],
+                        ..._localReminderTiles(context),
+                      ],
+                    ),
+                  );
+                },
+              )
+            : ListView(
+                key: AppPageStorage.notifications,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                children: _localReminderTiles(context),
+              ),
       ),
     );
   }
@@ -157,10 +157,10 @@ class NotificationsScreenState extends State<NotificationsScreen> {
         ),
       if (state.assessmentScores.isNotEmpty)
         _NotificationTile(
-          icon: Icons.quiz_outlined,
-          title: 'Matokeo ya tathmini',
+          icon: Icons.assignment_turned_in_outlined,
+          title: 'Kazi zilizowasilishwa',
           body:
-              'Umefanya tathmini ${state.assessmentScores.length}. Endelea kujifunza.',
+              'Umewasilisha kazi ${state.assessmentScores.length}. Endelea kutumia maarifa shambani.',
           accentColor: context.colors.surfaceLavender,
         ),
       if (state.savedDocumentIds.isNotEmpty)

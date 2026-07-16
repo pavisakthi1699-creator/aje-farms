@@ -56,16 +56,16 @@ class CourseDetailScreen extends StatelessWidget {
                       child: Semantics(
                         button: true,
                         enabled: true,
-                        label: 'Cheza somo la mfano',
+                        label: 'Fungua somo la kwanza',
                         child: MinTouchTarget(
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
                               customBorder: const CircleBorder(),
-                              splashColor:
-                                  context.colors.onPrimary.withValues(alpha: 0.12),
-                              highlightColor:
-                                  context.colors.onPrimary.withValues(alpha: 0.06),
+                              splashColor: context.colors.onPrimary
+                                  .withValues(alpha: 0.12),
+                              highlightColor: context.colors.onPrimary
+                                  .withValues(alpha: 0.06),
                               onTap: () {
                                 AppFeedback.tap();
                                 _openLessonPreview(context, course, heroLesson);

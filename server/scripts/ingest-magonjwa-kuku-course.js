@@ -327,7 +327,7 @@ function buildContentCourse(rows, sourceDocument) {
     fileName: sourceDocument.file_name,
     storagePath: sourceDocument.storage_path,
   };
-  const itemRows = rows.filter((row) => ["lesson", "checklist", "quiz", "faq"].includes(row.item_type));
+  const itemRows = rows.filter((row) => row.item_type === "lesson");
   return {
     id: CONTENT_COURSE_ID,
     sourceCourseCode: COURSE_CODE,
@@ -353,33 +353,17 @@ function buildContentCourse(rows, sourceDocument) {
       ...itemRows.map((row) => ({
         id: row.lesson_code ?? row.code ?? row.external_id,
         title: row.title_sw ?? row.question_sw,
-        type: row.item_type === "lesson" ? row.lesson_type : row.item_type === "quiz" ? "quiz" : row.item_type,
-        meta: row.item_type === "quiz" ? "Swali" : row.item_type === "faq" ? "Jibu" : row.item_type === "checklist" ? "Checklist" : "Somo",
-        description: row.body_sw ?? row.answer_sw ?? row.explanation_sw ?? row.question_sw ?? row.title_sw,
+        type: "reading",
+        meta: "Somo",
+        description: row.body_sw ?? row.title_sw,
         isPremium: false,
         moduleCode: row.module_code ?? null,
         moduleTitle: moduleByCode.get(row.module_code)?.title_sw ?? null,
         status: row.status,
         riskLevel: row.risk_level,
         sourceReference: row.source_reference,
-        question: row.question_sw ?? null,
-        answer: row.answer_sw ?? row.correct_answer ?? null,
-        options: row.options_sw ?? [],
-        items: row.items_sw ?? [],
         source,
       })),
-      {
-        id: "magonjwa-ya-kuku-pdf",
-        title: sourceDocument.title,
-        type: "pdf",
-        meta: "PDF",
-        description: "Kitabu asili kilichotumika kujenga kozi hii.",
-        isPremium: false,
-        status: "needs_review",
-        riskLevel: "high",
-        url: null,
-        source,
-      },
     ],
     contentGaps: rows.filter((row) => row.item_type === "content_gap").map((row) => ({
       code: row.code,
@@ -423,7 +407,10 @@ async function main() {
       throw new Error(`Expected one source document for ${SOURCE_FILE_NAME}, found ${sourceResult.rowCount}`);
     }
     const sourceDocument = sourceResult.rows[0];
-    const rows = buildRows(fs.readFileSync(MD_PATH, "utf8"), sourceDocument.id);
+    const rows = buildRows(
+      fs.readFileSync(MD_PATH, "utf8"),
+      sourceDocument.id,
+    ).filter((row) => !["quiz", "checklist", "faq"].includes(row.item_type));
     validateRows(rows);
 
     const batchHash = crypto.createHash("sha256").update(JSON.stringify({ rows })).digest("hex");

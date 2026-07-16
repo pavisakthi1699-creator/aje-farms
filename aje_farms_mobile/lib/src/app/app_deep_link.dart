@@ -11,7 +11,6 @@ enum DeepLinkKind {
   settings,
   savedDocuments,
   assessments,
-  quiz,
   fieldAssignment,
   whatsapp,
   createCommunityPost,
@@ -41,8 +40,6 @@ class DeepLinkTarget {
   const DeepLinkTarget.savedDocuments() : this._(DeepLinkKind.savedDocuments);
 
   const DeepLinkTarget.assessments() : this._(DeepLinkKind.assessments);
-
-  const DeepLinkTarget.quiz() : this._(DeepLinkKind.quiz);
 
   const DeepLinkTarget.fieldAssignment() : this._(DeepLinkKind.fieldAssignment);
 
@@ -85,10 +82,10 @@ abstract final class AppDeepLinks {
       AppRoutes.settings => const DeepLinkTarget.settings(),
       AppRoutes.savedDocuments => const DeepLinkTarget.savedDocuments(),
       AppRoutes.assessments => const DeepLinkTarget.assessments(),
-      AppRoutes.quiz => const DeepLinkTarget.quiz(),
       AppRoutes.fieldAssignment => const DeepLinkTarget.fieldAssignment(),
       AppRoutes.whatsapp => const DeepLinkTarget.whatsapp(),
-      AppRoutes.createCommunityPost => const DeepLinkTarget.createCommunityPost(),
+      AppRoutes.createCommunityPost =>
+        const DeepLinkTarget.createCommunityPost(),
       AppRoutes.aiChatSession => const DeepLinkTarget.aiChatSession(),
       _ when path.startsWith(AppRoutes.coursePrefix) =>
         DeepLinkTarget.course(path.substring(AppRoutes.coursePrefix.length)),

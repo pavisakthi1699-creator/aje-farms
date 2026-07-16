@@ -20,6 +20,38 @@ export function approvedCoursesFromCatalog(catalog) {
   return catalog.courses.map(normalizeApprovedCourse);
 }
 
+export function isLearnerReadyCourse(course) {
+  if (course.riskLevel === 'high' || course.risk_level === 'high') return false;
+  if (
+    course.status != null &&
+    course.status !== 'approved' &&
+    course.status !== 'published'
+  ) {
+    return false;
+  }
+  if (Array.isArray(course.contentGaps) && course.contentGaps.length > 0) {
+    return false;
+  }
+  const reviewedItems = [
+    ...(Array.isArray(course.modules) ? course.modules : []),
+    ...(Array.isArray(course.lessons) ? course.lessons : []),
+  ];
+  const lessons = Array.isArray(course.lessons) ? course.lessons : [];
+  if (lessons.length === 0) return false;
+  if (
+    lessons.some(
+      (lesson) => lesson.type !== 'reading' && lesson.type !== 'video',
+    )
+  ) {
+    return false;
+  }
+  return reviewedItems.every((item) => {
+    if (item.riskLevel === 'high' || item.risk_level === 'high') return false;
+    if (item.status == null) return true;
+    return item.status === 'approved' || item.status === 'published';
+  });
+}
+
 export function documentsFromCourses(courses) {
   return courses.flatMap((course) => {
     const normalizedCourse = normalizeApprovedCourse(course);

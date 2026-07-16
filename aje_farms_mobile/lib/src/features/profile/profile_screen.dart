@@ -9,10 +9,10 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.session;
     final displayName = session.state.displayName;
-    final phoneLabel = displayName ?? session.phoneNumber ?? 'Mgeni wa demo';
+    final phoneLabel = displayName ?? session.phoneNumber ?? 'Mgeni';
     final memberLabel = displayName == null
-        ? (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni wa Demo')
-        : (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni wa Demo');
+        ? (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni')
+        : (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni');
     final subscriptionPlan = session.state.subscriptionPlan;
 
     return Scaffold(
@@ -85,7 +85,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       subscriptionPlan == null
-                          ? 'Majaribio (Trial)'
+                          ? 'Ufikiaji wa kawaida'
                           : 'Premium',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: context.colors.secondary,
@@ -99,7 +99,7 @@ class ProfileScreen extends StatelessWidget {
                           context, context.colors.peach),
                       child: Text(
                         subscriptionPlan == null
-                            ? 'Muda wako wa majaribio unaendelea. Jiunge sasa ili uendelee kupata ushauri baada ya trial.'
+                            ? 'Unaweza kusoma mafunzo ya msingi na kuhifadhi maendeleo yako.'
                             : '$subscriptionPlan imewashwa kwenye kifaa hiki. Unaweza kuendelea na masomo na Mwalimu AI.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -160,8 +160,8 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () => AppNavigator.pushSavedDocuments(context),
                   ),
                   ProfileRow(
-                    icon: Icons.quiz_outlined,
-                    title: 'Tathmini na kazi',
+                    icon: Icons.assignment_turned_in_outlined,
+                    title: 'Kazi za vitendo',
                     onTap: () => AppNavigator.pushAssessments(context),
                   ),
                   ProfileRow(
@@ -172,7 +172,7 @@ class ProfileScreen extends StatelessWidget {
                   ProfileRow(
                     icon: Icons.help_outline,
                     title: 'Msaada / WhatsApp',
-                    subtitle: 'Tupo kwa ajili yako 24/7',
+                    subtitle: 'Wasiliana nasi kupitia WhatsApp',
                     color: context.colors.success,
                     showDivider: false,
                     onTap: () => AppNavigator.pushWhatsApp(context),
@@ -196,7 +196,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             Center(
               child: Text(
-                'Toleo la App 2.4.0',
+                'AJE Farms',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: context.colors.muted,
                     ),

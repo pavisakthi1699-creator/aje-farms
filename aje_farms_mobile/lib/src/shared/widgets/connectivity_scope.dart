@@ -89,6 +89,5 @@ class _ConnectivityInherited extends InheritedWidget {
 }
 
 extension ConnectivityContext on BuildContext {
-  bool get isDeviceOnline =>
-      ConnectivityScope.maybeOf(this)?.isOnline ?? true;
+  bool get isDeviceOnline => ConnectivityScope.maybeOf(this)?.isOnline ?? true;
 }

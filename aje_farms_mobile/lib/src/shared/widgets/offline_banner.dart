@@ -26,7 +26,8 @@ class OfflineBanner extends StatelessWidget {
 
     final surfaceColor =
         offline ? context.colors.surfacePeach : context.colors.surfaceMuted;
-    final iconColor = offline ? context.colors.secondary : context.colors.primary;
+    final iconColor =
+        offline ? context.colors.secondary : context.colors.primary;
 
     return Semantics(
       liveRegion: true,
@@ -45,7 +46,8 @@ class OfflineBanner extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: AppDecorations.pastelPanel(context, context.colors.surface),
+                  decoration: AppDecorations.pastelPanel(
+                      context, context.colors.surface),
                   child: Icon(
                     offline ? Icons.wifi_off : Icons.cloud_off_outlined,
                     color: iconColor,

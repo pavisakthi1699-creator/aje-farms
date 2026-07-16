@@ -11,7 +11,7 @@ class CommunityTeaser extends StatelessWidget {
   Widget build(BuildContext context) {
     return AccessibleTappable(
       label: 'Jiunge na Jamii',
-      hint: 'Wakulima 1,200+ wanajadili pasheni, nyanya na kuku.',
+      hint: 'Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.',
       onTap: onTap,
       child: Card(
         child: InteractiveInk(
@@ -24,8 +24,8 @@ class CommunityTeaser extends StatelessWidget {
                 Container(
                   width: AppA11y.minTouchTarget,
                   height: AppA11y.minTouchTarget,
-                  decoration:
-                      AppDecorations.pastelPanel(context, context.colors.surfaceMuted),
+                  decoration: AppDecorations.pastelPanel(
+                      context, context.colors.surfaceMuted),
                   child: Icon(
                     Icons.groups_outlined,
                     color: context.colors.primary,
@@ -44,7 +44,7 @@ class CommunityTeaser extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Wakulima 1,200+ wanajadili pasheni, nyanya na kuku.',
+                        'Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: context.colors.muted,
                             ),

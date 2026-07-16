@@ -31,178 +31,181 @@ class CommunityPostCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: context.colors.primaryContainer,
-                    child: Text(post.author.substring(0, 1),
-                        style: TextStyle(
-                            color: context.colors.primary,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.author,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                        if (post.isExpert)
-                          Text(
-                            'Mtaalamu aliyethibitishwa',
-                            style: accessibleCaption(
-                              context,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: context.colors.primaryContainer,
+                      child: Text(post.author.substring(0, 1),
+                          style: TextStyle(
                               color: context.colors.primary,
-                            ),
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.author,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
-                        Text(
-                          '${post.location} - ${post.time}',
-                          style: accessibleCaption(context),
+                          if (post.isExpert)
+                            Text(
+                              'Mtaalamu aliyethibitishwa',
+                              style: accessibleCaption(
+                                context,
+                                color: context.colors.primary,
+                              ),
+                            ),
+                          Text(
+                            '${post.location} - ${post.time}',
+                            style: accessibleCaption(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Semantics(
+                      label: 'Chaguo zaidi',
+                      child: Icon(Icons.more_vert, color: context.colors.muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  post.content,
+                  maxLines: compact ? 3 : null,
+                  overflow: compact ? TextOverflow.ellipsis : null,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.4,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    if (post.isUrgent)
+                      CommunityBadge(
+                        icon: Icons.priority_high,
+                        label: 'Inahitaji haraka',
+                        color: context.colors.secondary,
+                      ),
+                    for (final tag in compact ? post.tags.take(2) : post.tags)
+                      CommunityBadge(
+                        icon: Icons.local_offer_outlined,
+                        label: tag,
+                        color: context.colors.primary,
+                      ),
+                  ],
+                ),
+                if (!compact && post.hasImage) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: context.colors.mint,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: AppElevation.borderSubtle(context),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.image_outlined,
+                          color: context.colors.primary, size: 42),
+                    ),
+                  ),
+                ],
+                if (!compact && post.relatedTopic != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: AppDecorations.pastelPanel(
+                      context,
+                      context.colors.primaryContainer,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.menu_book, color: context.colors.primary),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            post.relatedTopic!,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Semantics(
-                    label: 'Chaguo zaidi',
-                    child: Icon(Icons.more_vert, color: context.colors.muted),
-                  ),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                post.content,
-                maxLines: compact ? 3 : null,
-                overflow: compact ? TextOverflow.ellipsis : null,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      height: 1.4,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (post.isUrgent)
-                    CommunityBadge(
-                      icon: Icons.priority_high,
-                      label: 'Inahitaji haraka',
-                      color: context.colors.secondary,
-                    ),
-                  for (final tag in compact ? post.tags.take(2) : post.tags)
-                    CommunityBadge(
-                      icon: Icons.local_offer_outlined,
-                      label: tag,
-                      color: context.colors.primary,
-                    ),
-                ],
-              ),
-              if (!compact && post.hasImage) ...[
                 const SizedBox(height: AppSpacing.md),
-                Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: context.colors.mint,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: AppElevation.borderSubtle(context),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.image_outlined,
-                        color: context.colors.primary, size: 42),
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '${post.likes} wamependa',
+                      style: accessibleCaption(context),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Text(
+                      '${post.comments} majibu',
+                      style: accessibleCaption(context),
+                    ),
+                  ],
                 ),
-              ],
-              if (!compact && post.relatedTopic != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: AppDecorations.pastelPanel(
-                    context,
-                    context.colors.primaryContainer,
-                  ),
-                  child: Row(
+                if (!compact) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
                     children: [
-                      Icon(Icons.menu_book, color: context.colors.primary),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            AppFeedback.tap();
+                            onOpen();
+                          },
+                          icon: const Icon(Icons.mode_comment_outlined),
+                          label: const Text('Jibu'),
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
-                        child: Text(
-                          post.relatedTopic!,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            AppFeedback.tap();
+                            AppNavigator.pushAiChat(
+                              context,
+                              initialPromptTopic: 'Jamii',
+                              initialPrompt:
+                                  'Nimesoma post ya jamii: "${post.content}". Nisaidie kutoa ushauri salama na wa vitendo.',
+                            );
+                          },
+                          icon: const Icon(Icons.smart_toy_outlined),
+                          label: const Text('Uliza AI'),
                         ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      IconButton.outlined(
+                        tooltip: 'Piga simu kwa msaada',
+                        onPressed: () {
+                          AppFeedback.tap();
+                          AppNavigator.pushWhatsApp(context);
+                        },
+                        icon: const Icon(Icons.phone_outlined),
                       ),
                     ],
                   ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Text(
-                    '${post.likes} likes',
-                    style: accessibleCaption(context),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    '${post.comments} majibu',
-                    style: accessibleCaption(context),
-                  ),
                 ],
-              ),
-              if (!compact) ...[
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        AppFeedback.tap();
-                        onOpen();
-                      },
-                      icon: const Icon(Icons.mode_comment_outlined),
-                      label: const Text('Jibu'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        AppFeedback.tap();
-                        AppNavigator.pushAiChat(
-                          context,
-                          initialPromptTopic: 'Jamii',
-                          initialPrompt:
-                              'Nimesoma post ya jamii: "${post.content}". Nisaidie kutoa ushauri salama na wa vitendo.',
-                        );
-                      },
-                      icon: const Icon(Icons.smart_toy_outlined),
-                      label: const Text('Uliza AI'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  IconButton.outlined(
-                    tooltip: 'Piga simu kwa msaada',
-                    onPressed: () {
-                      AppFeedback.tap();
-                      AppNavigator.pushWhatsApp(context);
-                    },
-                    icon: const Icon(Icons.phone_outlined),
-                  ),
-                ],
-              ),
               ],
-            ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }
@@ -259,7 +262,8 @@ class CommunitySummaryCard extends StatelessWidget {
             Container(
               width: 44,
               height: 44,
-              decoration: AppDecorations.pastelPanel(context, context.colors.surface),
+              decoration:
+                  AppDecorations.pastelPanel(context, context.colors.surface),
               child: Icon(Icons.groups_outlined, color: context.colors.primary),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -268,7 +272,7 @@ class CommunitySummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Jamii hai leo',
+                    'Jamii ya AJE Farms',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -306,26 +310,26 @@ class CommunityBadge extends StatelessWidget {
     return Semantics(
       label: label,
       child: Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              label,
+              style: accessibleCaption(context, color: color),
+            ),
+          ],
+        ),
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 14),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: accessibleCaption(context, color: color),
-          ),
-        ],
-      ),
-    ),
     );
   }
 }
@@ -348,7 +352,7 @@ class DiscussionActionPanel extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Tumia AI kupata muhtasari au mpe mtaalamu muktadha wa mjadala huu.',
+              'Tumia AI kupanga muhtasari wa mjadala au mpe mtaalamu muktadha wake.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -362,11 +366,11 @@ class DiscussionActionPanel extends StatelessWidget {
                         context,
                         initialPromptTopic: 'Jamii',
                         initialPrompt:
-                            'Fupisha mjadala huu na pendekeza jibu: "${post.content}".',
+                            'Fupisha mjadala huu, taja taarifa ambazo hazijathibitishwa, na orodhesha maswali ya kumuuliza mtaalamu: "${post.content}".',
                       );
                     },
                     icon: const Icon(Icons.smart_toy_outlined),
-                    label: const Text('Fupisha na AI'),
+                    label: const Text('Andaa muhtasari'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -410,7 +414,9 @@ class CommunityReplyTile extends StatelessWidget {
                     : context.colors.primaryContainer,
                 child: Icon(
                   reply.isExpert ? Icons.verified : Icons.person_outline,
-                  color: reply.isExpert ? context.colors.onPrimary : context.colors.primary,
+                  color: reply.isExpert
+                      ? context.colors.onPrimary
+                      : context.colors.primary,
                   size: 20,
                 ),
               ),

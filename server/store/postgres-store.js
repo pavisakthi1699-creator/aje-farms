@@ -10,6 +10,7 @@ import {
   documentsFromCourses,
   hashOtp,
   hasApprovedLessonInCourses,
+  isLearnerReadyCourse,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizePhoneNumber,
@@ -67,13 +68,296 @@ export class PostgresStore {
   }
 
   async approvedContentCourses() {
+    if (process.env.AJE_STORE === 'supabase') {
+      return this.#publishedStructuredCourses();
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_courses
        WHERE status = 'approved'
        ORDER BY id ASC`,
     );
-    return result.rows.map((row) => normalizeApprovedCourse(row.payload));
+    return result.rows
+      .filter((row) => isLearnerReadyCourse(row.payload))
+      .map((row) => normalizeApprovedCourse(row.payload));
+  }
+
+  async #publishedStructuredCourses() {
+    const result = await this.pool.query(
+      `SELECT
+         c.id::text AS course_id,
+         c.code AS course_code,
+         c.title_sw AS course_title,
+         COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+         COALESCE(c.delivery_type, 'text') AS delivery_type,
+         m.id::text AS module_id,
+         m.title_sw AS module_title,
+         m.sort_order AS module_order,
+         l.id::text AS lesson_id,
+         l.title_sw AS lesson_title,
+         l.body_sw AS lesson_body,
+         l.lesson_type,
+         l.duration_minutes,
+         l.sort_order AS lesson_order,
+         (
+           SELECT sd.title
+           FROM content_source_links csl
+           JOIN source_segments ss ON ss.id = csl.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE csl.content_type = 'lesson'
+             AND csl.content_id = l.id
+             AND csl.link_status = 'linked'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+           ORDER BY csl.created_at
+           LIMIT 1
+         ) AS source_title,
+         (
+           SELECT lr.external_url
+           FROM lesson_resources lr
+           WHERE lr.lesson_id = l.id
+             AND lr.resource_type = 'video'
+             AND lr.status = 'published'
+           ORDER BY lr.created_at
+           LIMIT 1
+         ) AS video_url,
+         (
+           SELECT lr.storage_path
+           FROM lesson_resources lr
+           WHERE lr.lesson_id = l.id
+             AND lr.resource_type = 'video'
+             AND lr.status = 'published'
+           ORDER BY lr.created_at
+           LIMIT 1
+         ) AS video_storage_path
+       FROM courses c
+       JOIN course_modules m ON m.course_id = c.id
+       JOIN lessons l ON l.module_id = m.id
+       WHERE c.status = 'published'
+         AND m.status = 'published'
+         AND l.status = 'published'
+         AND c.source_link_status = 'linked'
+         AND m.source_link_status = 'linked'
+         AND l.source_link_status = 'linked'
+         AND l.lesson_type IN ('reading', 'video')
+         AND (
+           (COALESCE(c.delivery_type, 'text') = 'text'
+             AND l.lesson_type = 'reading'
+             AND NULLIF(BTRIM(l.body_sw), '') IS NOT NULL)
+           OR
+           (c.delivery_type = 'video'
+             AND l.lesson_type = 'video'
+             AND EXISTS (
+               SELECT 1
+               FROM lesson_resources lr
+               WHERE lr.lesson_id = l.id
+                 AND lr.resource_type = 'video'
+                 AND lr.status = 'published'
+                 AND (lr.external_url IS NOT NULL OR lr.storage_path IS NOT NULL)
+             ))
+         )
+         AND EXISTS (
+           SELECT 1
+           FROM content_source_links csl
+           JOIN source_segments ss ON ss.id = csl.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE csl.content_type = 'lesson'
+             AND csl.content_id = l.id
+             AND csl.link_status = 'linked'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         )
+         AND EXISTS (
+           SELECT 1
+           FROM grounding_facts gf
+           JOIN source_segments ss ON ss.id = gf.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE (gf.lesson_id = l.id OR (gf.lesson_id IS NULL AND gf.course_id = c.id))
+             AND gf.status = 'published'
+             AND gf.risk_level <> 'high'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         )
+       ORDER BY c.sort_order, c.code, m.sort_order, l.sort_order`,
+    );
+
+    const courses = new Map();
+    for (const row of result.rows) {
+      let course = courses.get(row.course_id);
+      if (!course) {
+        course = {
+          id: row.course_code,
+          title: row.course_title,
+          description: row.course_description,
+          badge:
+            row.delivery_type === 'video'
+              ? 'Kozi ya video'
+              : 'Kozi ya maandishi',
+          icon: row.delivery_type === 'video' ? 'play_circle' : 'menu_book',
+          progress: 0,
+          imageUrl: courseImageForCode(row.course_code),
+          outcomes: [],
+          lessons: [],
+        };
+        courses.set(row.course_id, course);
+      }
+      if (
+        row.module_title &&
+        !course.outcomes.includes(row.module_title)
+      ) {
+        course.outcomes.push(row.module_title);
+      }
+      course.lessons.push({
+        id: row.lesson_id,
+        title: row.lesson_title,
+        type: row.lesson_type === 'video' ? 'video' : 'reading',
+        meta: row.duration_minutes
+          ? `Dakika ${row.duration_minutes}`
+          : row.lesson_type === 'video'
+            ? 'Video'
+            : 'Somo',
+        description: row.lesson_body ?? '',
+        sourceTitle: row.source_title ?? null,
+        resourceUrl:
+          row.video_url ??
+          (row.video_storage_path
+            ? `/api/lessons/${row.lesson_id}/video`
+            : null),
+        resourcePath: row.video_storage_path ?? null,
+        isPremium: false,
+        isCompleted: false,
+      });
+    }
+    return [...courses.values()].map(normalizeApprovedCourse);
+  }
+
+  async lessonVideoUrl(lessonId) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const result = await this.pool.query(
+      `SELECT lr.external_url, lr.storage_path
+       FROM lesson_resources lr
+       JOIN lessons l ON l.id = lr.lesson_id
+       JOIN course_modules m ON m.id = l.module_id
+       JOIN courses c ON c.id = m.course_id
+       WHERE l.id = $1
+         AND lr.resource_type = 'video'
+         AND lr.status = 'published'
+         AND l.status = 'published'
+         AND m.status = 'published'
+         AND c.status = 'published'
+         AND c.source_link_status = 'linked'
+         AND m.source_link_status = 'linked'
+         AND l.source_link_status = 'linked'
+         AND EXISTS (
+           SELECT 1
+           FROM content_source_links csl
+           JOIN source_segments ss ON ss.id = csl.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE csl.content_type = 'lesson'
+             AND csl.content_id = l.id
+             AND csl.link_status = 'linked'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         )
+         AND EXISTS (
+           SELECT 1
+           FROM grounding_facts gf
+           JOIN source_segments ss ON ss.id = gf.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE (gf.lesson_id = l.id OR (gf.lesson_id IS NULL AND gf.course_id = c.id))
+             AND gf.status = 'published'
+             AND gf.risk_level <> 'high'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         )
+       ORDER BY lr.created_at
+       LIMIT 1`,
+      [lessonId],
+    );
+    const resource = result.rows[0];
+    if (!resource) return null;
+    if (resource.external_url) return safePublicHttpUrl(resource.external_url);
+    if (!resource.storage_path) return null;
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return null;
+    const response = await fetch(
+      `${supabaseUrl}/storage/v1/object/sign/source-documents/${encodeStoragePath(resource.storage_path)}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 900 }),
+      },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const signedPath = payload.signedURL ?? payload.signedUrl;
+    return signedPath ? new URL(signedPath, supabaseUrl).toString() : null;
+  }
+
+  async groundingSources(message) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const result = await this.pool.query(
+      `SELECT
+         gf.id::text,
+         c.code AS course_id,
+         c.title_sw AS course_title,
+         gf.lesson_id::text,
+         COALESCE(l.title_sw, c.title_sw) AS title,
+         gf.fact_sw AS excerpt,
+         sd.title AS source_title,
+         ss.page_start,
+         ss.page_end,
+         ss.time_start_seconds,
+         ss.time_end_seconds
+       FROM grounding_facts gf
+       JOIN courses c ON c.id = gf.course_id
+       LEFT JOIN lessons l ON l.id = gf.lesson_id
+       JOIN source_segments ss ON ss.id = gf.source_segment_id
+       JOIN source_documents sd ON sd.id = ss.source_document_id
+       WHERE gf.status = 'published'
+         AND gf.risk_level <> 'high'
+         AND c.status = 'published'
+         AND c.source_link_status = 'linked'
+         AND (gf.lesson_id IS NULL OR l.status = 'published')
+         AND ss.review_status IN ('approved', 'published')
+         AND sd.processing_status IN ('approved', 'published')
+       ORDER BY gf.updated_at DESC
+       LIMIT 250`,
+    );
+    const terms = String(message ?? '')
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((term) => term.length >= 3);
+    if (terms.length === 0) return [];
+    return result.rows
+      .map((row) => {
+        const haystack = `${row.title} ${row.excerpt} ${row.source_title}`.toLowerCase();
+        const score = terms.reduce(
+          (total, term) => total + (haystack.includes(term) ? 1 : 0),
+          0,
+        );
+        return {
+          id: row.id,
+          courseId: row.course_id,
+          lessonId: row.lesson_id,
+          courseTitle: row.course_title,
+          title: row.title,
+          excerpt: row.excerpt,
+          sourceTitle: row.source_title,
+          citation: sourceCitationFromRow(row),
+          score,
+        };
+      })
+      .filter((source) => source.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
+      .map(({ score: _score, ...source }) => source);
   }
 
   async contentCoursesForAdmin() {
@@ -106,6 +390,11 @@ export class PostgresStore {
   }
 
   async approvedContentDocuments() {
+    if (process.env.AJE_STORE === 'supabase') {
+      // Source PDFs are private evidence, not learner downloads. A future
+      // entitlement-aware endpoint can expose selected documents explicitly.
+      return [];
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_documents
@@ -912,6 +1201,18 @@ export class PostgresStore {
   }
 
   async #seedCommunityCatalog() {
+    await this.pool.query(
+      `UPDATE community_posts
+       SET moderation_status = 'hidden',
+           moderated_at = NOW(),
+           moderated_by = 'content-readiness-migration'
+       WHERE id = ANY($1)`,
+      [[
+        'seed-pasheni-disease',
+        'seed-kuku-start',
+        'seed-nyanya-market',
+      ]],
+    );
     for (const [index, post] of this.catalog.communityPosts.entries()) {
       await this.#insertCommunityPost(
         {
@@ -947,10 +1248,29 @@ export class PostgresStore {
       await this.pool.query(
         `INSERT INTO content_courses (id, status, payload, updated_at)
          VALUES ($1, 'approved', $2, $3)
-         ON CONFLICT (id) DO NOTHING`,
+         ON CONFLICT (id) DO UPDATE
+         SET status = EXCLUDED.status,
+             payload = EXCLUDED.payload,
+             updated_at = EXCLUDED.updated_at
+         WHERE CASE
+           WHEN jsonb_typeof(content_courses.payload -> 'contentVersion') = 'number'
+             THEN (content_courses.payload ->> 'contentVersion')::integer
+           ELSE 0
+         END < (EXCLUDED.payload ->> 'contentVersion')::integer`,
         [course.id, JSON.stringify(course), new Date().toISOString()],
       );
     }
+    await this.pool.query(
+      `UPDATE content_documents
+       SET status = 'draft', updated_at = NOW()
+       WHERE id = ANY($1)
+         AND payload ->> 'courseId' = ANY($2)`,
+      [[
+        'mwongozo-mfupi-wa-pasheni',
+        'ratiba-ya-chanjo',
+        'udhibiti-wa-wadudu',
+      ], ['pasheni', 'kuku', 'nyanya']],
+    );
     for (const document of documentsFromCourses(courses)) {
       await this.pool.query(
         `INSERT INTO content_documents (id, status, payload, updated_at)
@@ -1087,6 +1407,52 @@ function contentDocumentFromRow(row) {
     document: normalizeContentDocument(row.payload),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
+}
+
+function courseImageForCode(code) {
+  const normalized = String(code ?? '').toLowerCase();
+  if (normalized.includes('kuku')) return 'assets/images/courses/kuku.jpg';
+  if (normalized.includes('rice') || normalized.includes('mpunga')) {
+    return 'assets/images/courses/mpunga.jpg';
+  }
+  return 'assets/images/courses/nyanya.jpg';
+}
+
+function sourceCitationFromRow(row) {
+  if (row.page_start != null) {
+    return row.page_end != null && row.page_end !== row.page_start
+      ? `${row.source_title}, kurasa ${row.page_start}-${row.page_end}`
+      : `${row.source_title}, ukurasa ${row.page_start}`;
+  }
+  if (row.time_start_seconds != null) {
+    return `${row.source_title}, ${formatTimecode(row.time_start_seconds)}-${formatTimecode(row.time_end_seconds ?? row.time_start_seconds)}`;
+  }
+  return row.source_title;
+}
+
+function formatTimecode(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  const minutes = Math.floor(total / 60);
+  const remainder = total % 60;
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function encodeStoragePath(path) {
+  return String(path)
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+}
+
+function safePublicHttpUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return url.protocol === 'https:' || url.protocol === 'http:'
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function importJsonStoreToPostgres(pool, rawState) {

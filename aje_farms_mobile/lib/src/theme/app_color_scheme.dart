@@ -226,7 +226,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       onPrimarySubtle: lerpColor(onPrimarySubtle, other.onPrimarySubtle),
       onPrimaryFaint: lerpColor(onPrimaryFaint, other.onPrimaryFaint),
       onPrimaryBorder: lerpColor(onPrimaryBorder, other.onPrimaryBorder),
-      onPrimaryContainer: lerpColor(onPrimaryContainer, other.onPrimaryContainer),
+      onPrimaryContainer:
+          lerpColor(onPrimaryContainer, other.onPrimaryContainer),
       textPrimary: lerpColor(textPrimary, other.textPrimary),
       textSecondary: lerpColor(textSecondary, other.textSecondary),
       borderSubtle: lerpColor(borderSubtle, other.borderSubtle),

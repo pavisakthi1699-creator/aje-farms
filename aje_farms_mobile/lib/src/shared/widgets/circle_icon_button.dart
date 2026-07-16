@@ -28,8 +28,9 @@ class CircleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = semanticLabel ?? tooltip!;
     final enabled = onPressed != null;
-    final iconColor =
-        enabled ? context.colors.primary : context.colors.muted.withValues(alpha: 0.6);
+    final iconColor = enabled
+        ? context.colors.primary
+        : context.colors.muted.withValues(alpha: 0.6);
 
     final button = Semantics(
       button: true,

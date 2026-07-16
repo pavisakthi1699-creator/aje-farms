@@ -151,10 +151,19 @@ function initialCommunityState(catalog) {
 
 function normalizeCommunityState(raw, catalog) {
   const seed = initialCommunityState(catalog);
+  const seedIds = new Set(seed.communityPosts.map((post) => post.id));
+  const legacySeedIds = new Set([
+    'seed-pasheni-disease',
+    'seed-kuku-start',
+    'seed-nyanya-market',
+  ]);
+  const storedPosts = Array.isArray(raw.communityPosts)
+    ? raw.communityPosts.filter(
+        (post) => !seedIds.has(post.id) && !legacySeedIds.has(post.id),
+      )
+    : [];
   return {
-    communityPosts: Array.isArray(raw.communityPosts)
-      ? raw.communityPosts
-      : seed.communityPosts,
+    communityPosts: [...storedPosts, ...seed.communityPosts],
     reportedPostIds: Array.isArray(raw.reportedPostIds)
       ? raw.reportedPostIds
       : seed.reportedPostIds,

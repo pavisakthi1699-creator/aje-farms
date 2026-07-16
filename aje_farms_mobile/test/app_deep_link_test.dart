@@ -45,8 +45,8 @@ void main() {
         DeepLinkKind.savedDocuments,
       );
       expect(
-        AppDeepLinks.parse('/assessments/quiz')?.kind,
-        DeepLinkKind.quiz,
+        AppDeepLinks.parse('/assessments/field')?.kind,
+        DeepLinkKind.fieldAssignment,
       );
       expect(
         AppDeepLinks.parse('/support/whatsapp')?.kind,

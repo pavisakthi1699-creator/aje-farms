@@ -42,8 +42,7 @@ class InteractiveInkState extends State<InteractiveInk> {
       borderRadius: radius,
       splashColor: context.colors.primary.withValues(alpha: 0.08),
       highlightColor: context.colors.primary.withValues(alpha: 0.04),
-      onHighlightChanged:
-          widget.enabled && !reduceMotion ? _setPressed : null,
+      onHighlightChanged: widget.enabled && !reduceMotion ? _setPressed : null,
       onTap: !widget.enabled || widget.onTap == null
           ? null
           : () {

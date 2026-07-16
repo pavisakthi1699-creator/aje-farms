@@ -66,15 +66,17 @@ TextStyle accessibleCaption(
   FontWeight fontWeight = FontWeight.w700,
 }) {
   final scale = MediaQuery.textScalerOf(context).scale(1);
-  final size = (AppA11y.minReadableLabel * scale).clamp(
-    AppA11y.minReadableLabel,
-    18.0,
-  ).toDouble();
+  final size = (AppA11y.minReadableLabel * scale)
+      .clamp(
+        AppA11y.minReadableLabel,
+        18.0,
+      )
+      .toDouble();
   return Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: color ?? context.colors.textSecondary,
-        fontSize: size,
-        fontWeight: fontWeight,
-      ) ??
+            color: color ?? context.colors.textSecondary,
+            fontSize: size,
+            fontWeight: fontWeight,
+          ) ??
       TextStyle(
         color: color ?? context.colors.textSecondary,
         fontSize: size,

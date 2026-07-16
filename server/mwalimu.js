@@ -19,8 +19,15 @@ function readApiKey() {
   return apiKey;
 }
 
-export async function chatWithMwalimuServer(message, history = [], courses) {
-  const sources = findApprovedSources(message, courses);
+export async function chatWithMwalimuServer(
+  message,
+  history = [],
+  courses,
+  groundingSources,
+) {
+  const sources = Array.isArray(groundingSources)
+    ? groundingSources
+    : findApprovedSources(message, courses);
   const apiKey = readApiKey();
   if (!apiKey) {
     return answerFromKnowledgeBase(message, sources);
@@ -48,7 +55,7 @@ export async function chatWithMwalimuServer(message, history = [], courses) {
               'Vyanzo vilivyoidhinishwa:',
               ...sources.map(
                 (source, index) =>
-                  `${index + 1}. ${source.title} (${source.courseTitle})\n${source.excerpt}`,
+                  `${index + 1}. ${source.title} (${source.courseTitle})\n${source.excerpt}\nRejea: ${source.citation ?? source.sourceTitle ?? 'Mafunzo yaliyoidhinishwa'}`,
               ),
             ].join('\n'),
           },
@@ -81,6 +88,7 @@ function answerFromKnowledgeBase(_message, sources) {
     text: [
       `Kwa ${primary.courseTitle}:`,
       primary.excerpt,
+      primary.citation ? `Rejea: ${primary.citation}` : '',
       sources.length > 1
         ? `Pia rejea ${sources.slice(1).map((source) => source.title).join(', ')}.`
         : '',

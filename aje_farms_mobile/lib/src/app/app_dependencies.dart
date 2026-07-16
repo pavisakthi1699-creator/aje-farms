@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../models/app_document.dart';
+import '../models/course.dart';
+import '../models/problem_category.dart';
 import '../repositories/cached_app_repository.dart';
 import '../repositories/community_repository.dart';
 import '../repositories/demo_app_repository.dart';
@@ -64,6 +67,7 @@ class AppDependencies {
 
   factory AppDependencies.production() {
     const fallbackRepository = DemoAppRepository();
+    const emptyLearningRepository = _EmptyLearningRepository();
     final apiBaseUrl = Uri.tryParse(_apiBaseUrl);
     final hasBackend = apiBaseUrl != null &&
         apiBaseUrl.hasScheme &&
@@ -78,7 +82,7 @@ class AppDependencies {
     late final SubscriptionRepository subscriptionRepository;
     Listenable? refreshListenable;
     final cachedRepository = CachedAppRepository(
-      learningSeed: fallbackRepository,
+      learningSeed: emptyLearningRepository,
       communitySeed: fallbackRepository,
       subscriptionSeed: fallbackRepository,
     );
@@ -125,6 +129,26 @@ class AppDependencies {
 
 const _apiBaseUrl = String.fromEnvironment('AJE_API_BASE_URL',
     defaultValue: String.fromEnvironment('MWALIMU_API_BASE_URL'));
+
+class _EmptyLearningRepository implements LearningRepository {
+  const _EmptyLearningRepository();
+
+  @override
+  List<Course> get courses => const [];
+
+  @override
+  List<AppDocument> get documents => const [];
+
+  @override
+  List<ProblemCategory> get problemCategories =>
+      const DemoAppRepository().problemCategories;
+
+  @override
+  Course? get featuredCourse => null;
+
+  @override
+  Course? get suggestedCourse => null;
+}
 
 class AppDependenciesScope extends InheritedNotifier<Listenable> {
   AppDependenciesScope({

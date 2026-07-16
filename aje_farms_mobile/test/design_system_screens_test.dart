@@ -39,8 +39,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BrandMark), findsWidgets);
-    expect(find.text('Kilimo na Ujasiliamali'), findsOneWidget);
-    expect(find.text('24h Jaribio la bure'), findsOneWidget);
+    expect(find.text('Kilimo na Ujasiriamali'), findsOneWidget);
+    expect(find.text('Mafunzo ya vitendo'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

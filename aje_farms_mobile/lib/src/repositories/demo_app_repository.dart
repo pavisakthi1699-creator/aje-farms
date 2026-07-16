@@ -29,10 +29,10 @@ class DemoAppRepository
   List<PlanOption> get plans => _plans;
 
   @override
-  Course get featuredCourse => _courses.first;
+  Course? get featuredCourse => _courses.first;
 
   @override
-  Course get suggestedCourse => _courses.last;
+  Course? get suggestedCourse => _courses.last;
 }
 
 const _courses = [
@@ -43,7 +43,7 @@ const _courses = [
         'Jifunze maandalizi ya shamba, upandaji, matunzo, magonjwa na masoko.',
     badge: 'Maarufu',
     icon: Icons.local_florist,
-    progress: 0.65,
+    progress: 0,
     imageUrl: 'assets/images/courses/pasheni.jpg',
     outcomes: [
       'Kuchagua eneo sahihi',
@@ -53,28 +53,25 @@ const _courses = [
     ],
     lessons: [
       Lesson(
-        title: 'Maandalizi ya shamba',
-        type: LessonType.video,
-        meta: 'DKK 5',
+        title: 'Kuchagua eneo la shamba',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Tambua eneo lenye mwanga, maji yanayopita vizuri na nafasi ya mistari kabla ya kupanda pasheni.',
-        isCompleted: true,
+            'Chunguza mwanga, njia ya maji na nafasi ya kupanga mistari. Rekodi hali ya eneo kabla ya kuandaa shamba.',
       ),
       Lesson(
-        title: 'Mwongozo mfupi wa pasheni',
-        type: LessonType.pdf,
-        meta: '2 MB',
+        title: 'Kuandaa shamba na nguzo',
+        type: LessonType.reading,
+        meta: 'Dakika 6',
         description:
-            'Pakua muhtasari wa hatua za kupanda, kuweka nguzo, kumwagilia na kutambua dalili za mwanzo.',
-        isCompleted: true,
+            'Panga eneo la kupanda na mfumo wa kuusaidia mmea kukua. Rekebisha mpango kulingana na hali ya shamba lako.',
       ),
       Lesson(
-        title: 'Jaribio la maarifa',
-        type: LessonType.quiz,
-        meta: 'Maswali 10',
+        title: 'Kufuatilia afya ya mmea',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Pima kama uko tayari kuendelea kwenye hatua za magonjwa, mavuno na masoko.',
-        isPremium: true,
+            'Kagua majani, shina na unyevu mara kwa mara. Piga picha na wasiliana na mtaalamu kabla ya kutumia tiba usiyoifahamu.',
       ),
     ],
   ),
@@ -94,26 +91,25 @@ const _courses = [
     ],
     lessons: [
       Lesson(
-        title: 'Misingi ya ufugaji wa kuku',
-        type: LessonType.video,
-        meta: 'DKK 6',
+        title: 'Kuandaa banda',
+        type: LessonType.reading,
+        meta: 'Dakika 6',
         description:
-            'Jifunze mahitaji ya banda, maji, chakula na usafi kabla ya kuleta vifaranga.',
+            'Kagua nafasi, hewa, usalama na urahisi wa kusafisha banda kabla ya kuleta kuku.',
       ),
       Lesson(
-        title: 'Ratiba ya chanjo',
-        type: LessonType.pdf,
-        meta: '1 MB',
+        title: 'Maji, chakula na usafi',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Orodha ya chanjo muhimu na muda wa kuzitoa kwa kuku wa nyama au mayai.',
+            'Weka utaratibu wa maji safi, chakula na usafi, kisha andika mabadiliko unayoona kila siku.',
       ),
       Lesson(
-        title: 'Biashara ya kuku',
-        type: LessonType.quiz,
-        meta: 'Premium',
+        title: 'Kuweka kumbukumbu za afya',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Kadiria gharama, mapato na masoko kabla ya kuongeza idadi ya kuku.',
-        isPremium: true,
+            'Rekodi dalili, umri na historia ya kundi. Kwa chanjo, dawa au dalili kali, tumia ratiba iliyoidhinishwa na daktari wa mifugo wa eneo lako.',
       ),
     ],
   ),
@@ -135,56 +131,30 @@ const _courses = [
     lessons: [
       Lesson(
         title: 'Kuandaa kitalu',
-        type: LessonType.video,
-        meta: 'DKK 4',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Chagua mbegu, andaa kivuli na linda miche dhidi ya maji mengi na wadudu.',
+            'Panga sehemu ya kitalu, ulinzi wa miche na utaratibu wa kukagua unyevu bila kuzidisha maji.',
       ),
       Lesson(
-        title: 'Udhibiti wa wadudu',
-        type: LessonType.pdf,
-        meta: '2 MB',
+        title: 'Kufuatilia miche na mimea',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Tambua viwavi, vidukari na ukungu mapema kabla ya kuchagua dawa au hatua ya shamba.',
+            'Kagua majani na ukuaji, rekodi dalili na piga picha. Tambua tatizo kwa msaada wa mtaalamu kabla ya kutumia dawa.',
       ),
       Lesson(
-        title: 'Maandalizi ya soko',
-        type: LessonType.quiz,
-        meta: 'Premium',
+        title: 'Kujiandaa kwa mavuno',
+        type: LessonType.reading,
+        meta: 'Dakika 5',
         description:
-            'Panga kuvuna, kupanga madaraja na kuzungumza na wanunuzi kabla ya msimu.',
-        isPremium: true,
+            'Panga uvunaji, upangaji wa ubora, hifadhi ya muda mfupi na mawasiliano na wanunuzi bila kutegemea bei isiyothibitishwa.',
       ),
     ],
   ),
 ];
 
-final _documents = _courses
-    .expand((course) => course.lessons.where((lesson) {
-          return lesson.type == LessonType.pdf;
-        }).map((lesson) {
-          final id = lesson.id ?? _slug(lesson.title);
-          return AppDocument(
-            id: id,
-            title: lesson.title,
-            courseId: course.id,
-            courseTitle: course.title,
-            description: lesson.description,
-            type: 'pdf',
-            sizeLabel: lesson.meta,
-            isPremium: lesson.isPremium,
-          );
-        }))
-    .toList();
-
-String _slug(String value) {
-  return value
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^\w\s-]'), '')
-      .trim()
-      .replaceAll(RegExp(r'[\s_]+'), '-')
-      .replaceAll(RegExp(r'-+'), '-');
-}
+const List<AppDocument> _documents = [];
 
 const _problemCategories = [
   ProblemCategory(
@@ -225,7 +195,7 @@ const _problemCategories = [
     icon: Icons.trending_up,
     color: Color(0xFFD5961B),
     summary: 'Bei, wanunuzi, muda wa kuuza na maandalizi ya mavuno.',
-    examples: ['Bei ya leo', 'Wanunuzi'],
+    examples: ['Kulinganisha bei', 'Wanunuzi'],
   ),
   ProblemCategory(
     title: 'Ufugaji',
@@ -239,76 +209,16 @@ const _problemCategories = [
 
 const _communityPosts = [
   CommunityPost(
-    id: 'seed-pasheni-disease',
-    author: 'Joseph M.',
-    location: 'Morogoro',
-    time: 'Saa 2 zilizopita',
-    content: 'Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.',
-    likes: 12,
-    comments: 4,
-    tags: ['Pasheni', 'Magonjwa'],
-    replies: [
-      CommunityReply(
-        author: 'Mtaalamu AJE',
-        body:
-            'Angalia kama kuna madoa chini ya jani na kama maji yanasimama karibu na shina. Ukiona ukungu, tenga sehemu iliyoathirika kwanza.',
-        time: 'Dakika 45 zilizopita',
-        isExpert: true,
-      ),
-      CommunityReply(
-        author: 'Mama Asha',
-        body:
-            'Nilipunguza kumwagilia na kuondoa majani yaliyoathirika, hali ikaanza kuwa nzuri.',
-        time: 'Dakika 20 zilizopita',
-      ),
-    ],
-    hasImage: true,
-    isUrgent: true,
-  ),
-  CommunityPost(
-    id: 'seed-kuku-start',
-    author: 'Mama Asha',
-    location: 'Mbeya',
-    time: 'Saa 5 zilizopita',
-    content: 'Natafuta mwongozo wa kuanza ufugaji wa kuku wa nyama.',
-    relatedTopic: 'Ufugaji wa Kuku',
-    likes: 34,
-    comments: 8,
-    tags: ['Mifugo', 'Kuku'],
-    replies: [
-      CommunityReply(
-        author: 'Daudi K.',
-        body:
-            'Anza na idadi ndogo, andaa banda lenye hewa na hakikisha ratiba ya chanjo iko tayari kabla ya vifaranga.',
-        time: 'Saa 3 zilizopita',
-      ),
-      CommunityReply(
-        author: 'Mtaalamu AJE',
-        body:
-            'Kozi ya ufugaji wa kuku ina checklist ya banda na ratiba ya chanjo. Itakusaidia kupanga gharama za mwanzo.',
-        time: 'Saa 1 iliyopita',
-        isExpert: true,
-      ),
-    ],
-  ),
-  CommunityPost(
-    id: 'seed-nyanya-market',
-    author: 'Mtaalamu AJE',
-    location: 'Arusha',
-    time: 'Leo',
+    id: 'seed-community-guidelines',
+    author: 'Timu ya AJE Farms',
+    location: 'Tanzania',
+    time: 'Mwongozo wa jamii',
     content:
-        'Bei ya nyanya imepanda kwenye baadhi ya masoko. Wakulima waangalie ubora na kupanga kuvuna asubuhi ili kupunguza kuharibika.',
-    relatedTopic: 'Kilimo cha Nyanya',
-    likes: 57,
-    comments: 11,
-    tags: ['Masoko', 'Nyanya'],
-    replies: [
-      CommunityReply(
-        author: 'Joseph M.',
-        body: 'Je, kuna bei elekezi kwa Morogoro wiki hii?',
-        time: 'Saa 1 iliyopita',
-      ),
-    ],
+        'Karibu kwenye jamii ya AJE Farms. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.',
+    likes: 0,
+    comments: 0,
+    tags: ['Jamii', 'Mwongozo'],
+    replies: [],
     isExpert: true,
   ),
 ];

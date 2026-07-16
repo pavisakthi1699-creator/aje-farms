@@ -146,50 +146,51 @@ class AiChatScreenState extends State<AiChatScreen> {
           Expanded(
             child: AppLayout(
               child: ListView.separated(
-              key: AppPageStorage.aiChat,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              itemCount: _messages.length + (_isLoading ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-              itemBuilder: (context, index) {
-                if (_isLoading && index == _messages.length) {
-                  return const Align(
-                    alignment: Alignment.centerLeft,
-                    child: TypingBubble(),
+                key: AppPageStorage.aiChat,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                itemCount: _messages.length + (_isLoading ? 1 : 0),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  if (_isLoading && index == _messages.length) {
+                    return const Align(
+                      alignment: Alignment.centerLeft,
+                      child: TypingBubble(),
+                    );
+                  }
+                  return ChatBubble(
+                    message: _messages[index],
+                    onEscalate: () => AppNavigator.pushWhatsApp(context),
                   );
-                }
-                return ChatBubble(
-                  message: _messages[index],
-                  onEscalate: () => AppNavigator.pushWhatsApp(context),
-                );
-              },
-            ),
+                },
+              ),
             ),
           ),
           if (_messages.length == 1 && !_isLoading)
             AppLayout(
               child: SizedBox(
-              height: 58,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
-                scrollDirection: Axis.horizontal,
-                itemCount: suggestions.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: AppSpacing.sm),
-                itemBuilder: (_, index) => ActionChip(
-                  label: Text(
-                    suggestions[index],
-                    style: Theme.of(context).textTheme.labelMedium,
+                height: 58,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm,
                   ),
-                  onPressed: () {
-                    AppFeedback.selection();
-                    _send(suggestions[index]);
-                  },
+                  scrollDirection: Axis.horizontal,
+                  itemCount: suggestions.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: AppSpacing.sm),
+                  itemBuilder: (_, index) => ActionChip(
+                    label: Text(
+                      suggestions[index],
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    onPressed: () {
+                      AppFeedback.selection();
+                      _send(suggestions[index]);
+                    },
+                  ),
                 ),
               ),
-            ),
             ),
           AppLayout(
             child: ChatComposerBar(
@@ -207,17 +208,29 @@ class AiChatScreenState extends State<AiChatScreen> {
   List<String> _suggestionsFor(String? topic) {
     final lower = topic?.toLowerCase() ?? '';
     if (lower.contains('wadudu')) {
-      return ['Dalili zipi ni hatari?', 'Nifanye nini leo?', 'Dawa ya kuanza'];
+      return [
+        'Nirekodi dalili gani?',
+        'Hatua salama ya kwanza',
+        'Nipige picha gani?'
+      ];
     }
     if (lower.contains('mbolea')) {
-      return ['Nitumie mbolea gani?', 'Kipimo kwa shimo', 'Udongo umechoka'];
+      return [
+        'Nahitaji taarifa gani?',
+        'Je, nipime udongo?',
+        'Historia ya shamba'
+      ];
     }
     if (lower.contains('maji')) {
       return ['Ratiba ya kumwagilia', 'Maji yanasimama', 'Dalili za ukame'];
     }
     if (lower.contains('ufugaji')) {
-      return ['Ratiba ya chanjo', 'Chakula cha kuku', 'Banda lenye hewa'];
+      return ['Nirekodi dalili gani?', 'Usafi wa banda', 'Nimpateje daktari?'];
     }
-    return ['Dawa gani kwa ukungu?', 'Mbolea ya DAP', 'Matatizo ya Nyanya'];
+    return [
+      'Nirekodi dalili gani?',
+      'Hatua salama ya kwanza',
+      'Matatizo ya nyanya'
+    ];
   }
 }

@@ -39,15 +39,15 @@ class BackendCatalogService implements CatalogService {
       throw const CatalogException(
           'Catalog service returned an invalid response.');
     }
-    return _snapshotFromJson(payload);
+    return _snapshotFromJson(payload, _baseUrl);
   }
 }
 
-CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json) {
+CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {
   return CatalogSnapshot(
     courses: (json['courses'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
-        .map(_courseFromJson)
+        .map((course) => _courseFromJson(course, baseUrl))
         .toList(),
     documents: (json['documents'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>()
@@ -82,7 +82,7 @@ AppDocument _documentFromJson(Map<String, dynamic> json) {
   );
 }
 
-Course _courseFromJson(Map<String, dynamic> json) {
+Course _courseFromJson(Map<String, dynamic> json, Uri baseUrl) {
   return Course(
     id: json['id'] as String,
     title: json['title'] as String,
@@ -94,18 +94,23 @@ Course _courseFromJson(Map<String, dynamic> json) {
     outcomes: (json['outcomes'] as List<dynamic>).cast<String>(),
     lessons: (json['lessons'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
-        .map(_lessonFromJson)
+        .map((lesson) => _lessonFromJson(lesson, baseUrl))
         .toList(),
   );
 }
 
-Lesson _lessonFromJson(Map<String, dynamic> json) {
+Lesson _lessonFromJson(Map<String, dynamic> json, Uri baseUrl) {
+  final rawResourceUrl = json['resourceUrl'] as String?;
   return Lesson(
     id: json['id'] as String?,
     title: json['title'] as String,
     type: _lessonTypeFromWire(json['type'] as String),
     meta: json['meta'] as String,
     description: json['description'] as String,
+    sourceTitle: json['sourceTitle'] as String?,
+    resourceUrl: rawResourceUrl == null
+        ? null
+        : baseUrl.resolve(rawResourceUrl).toString(),
     isPremium: json['isPremium'] as bool? ?? false,
     isCompleted: json['isCompleted'] as bool? ?? false,
   );
@@ -165,7 +170,7 @@ CommunityReply _replyFromJson(Map<String, dynamic> json) {
 LessonType _lessonTypeFromWire(String value) {
   return LessonType.values.firstWhere(
     (type) => type.name == value,
-    orElse: () => LessonType.video,
+    orElse: () => LessonType.reading,
   );
 }
 
@@ -179,6 +184,7 @@ IconData _iconFromWire(String value) {
     'handshake' => Icons.handshake,
     'local_florist' => Icons.local_florist,
     'menu_book' => Icons.menu_book,
+    'play_circle' => Icons.play_circle_outline,
     'spa' => Icons.spa,
     'star' => Icons.star,
     'trending_up' => Icons.trending_up,

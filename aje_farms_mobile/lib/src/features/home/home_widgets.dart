@@ -12,7 +12,7 @@ class TrialStatusCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: plan == null
-          ? 'Jaribio linaendelea. Masomo ${session.completedLessonIds.length} yamehifadhiwa.'
+          ? 'Umeanza kujifunza. Masomo ${session.completedLessonIds.length} yamehifadhiwa.'
           : '$plan imewashwa. Premium iko hai.',
       child: Card(
         child: Padding(
@@ -38,7 +38,7 @@ class TrialStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      plan == null ? 'Jaribio linaendelea' : '$plan imewashwa',
+                      plan == null ? 'Umeanza kujifunza' : '$plan imewashwa',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -280,8 +280,22 @@ class CourseProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final completed = course.lessons.where((lesson) {
+      return lesson.isCompleted ||
+          context.session.isLessonCompleted(lessonProgressKey(course, lesson));
+    }).length;
+    final total = course.lessons.length;
+    final progress = total == 0 ? 0.0 : completed / total;
+    final nextLesson = course.lessons.cast<Lesson?>().firstWhere(
+          (lesson) =>
+              lesson != null &&
+              !lesson.isCompleted &&
+              !context.session
+                  .isLessonCompleted(lessonProgressKey(course, lesson)),
+          orElse: () => null,
+        );
     final progressLabel =
-        '${(course.progress * 100).round()}% ya ${course.title} imekamilika';
+        '${(progress * 100).round()}% ya ${course.title} imekamilika';
     return AccessibleTappable(
       label: 'Endelea na kozi ${course.title}',
       hint: progressLabel,
@@ -315,19 +329,21 @@ class CourseProgressCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Somo linalofuata: Udhibiti wa changamoto',
+                        nextLesson == null
+                            ? 'Masomo yote yamekamilika'
+                            : 'Somo linalofuata: ${nextLesson.title}',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
                           Text(
-                            'Sehemu ya 4/6',
+                            '$completed/$total masomo',
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                           const Spacer(),
                           Text(
-                            '${(course.progress * 100).round()}%',
+                            '${(progress * 100).round()}%',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelLarge
@@ -344,7 +360,7 @@ class CourseProgressCard extends StatelessWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                           child: LinearProgressIndicator(
-                            value: course.progress,
+                            value: progress,
                             minHeight: 8,
                             backgroundColor: context.colors.surfaceMuted,
                             color: context.colors.primary,

@@ -7,6 +7,6 @@ abstract interface class LearningRepository {
   List<AppDocument> get documents;
   List<ProblemCategory> get problemCategories;
 
-  Course get featuredCourse;
-  Course get suggestedCourse;
+  Course? get featuredCourse;
+  Course? get suggestedCourse;
 }

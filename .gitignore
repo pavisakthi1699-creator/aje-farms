@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 server/data.local.json
+supabase/.temp/
+aje_farms_mobile/test/failures/

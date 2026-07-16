@@ -34,7 +34,7 @@ void main() {
     await tester.pumpWidget(buildDemoApp());
 
     expect(find.text('AJE Farms'), findsOneWidget);
-    expect(find.text('Kilimo na Ujasiliamali'), findsOneWidget);
+    expect(find.text('Kilimo na Ujasiriamali'), findsOneWidget);
     expect(find.text('Anza Sasa'), findsOneWidget);
   });
 
@@ -46,7 +46,7 @@ void main() {
 
     expect(find.text('Karibu, Mkulima'), findsOneWidget);
     expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
-    expect(find.text('Jaribio linaendelea'), findsOneWidget);
+    expect(find.text('Umeanza kujifunza'), findsOneWidget);
   });
 
   testWidgets('guides farmer from home problem intake into AI chat',
@@ -79,7 +79,7 @@ void main() {
     expect(find.text('Msaidizi wa Binadamu'), findsOneWidget);
   });
 
-  testWidgets('continues a course and opens lesson and premium states',
+  testWidgets('continues a course and completes a reading lesson',
       (WidgetTester tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(buildDemoApp());
@@ -93,26 +93,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mwendelezo wa kozi'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Maandalizi ya shamba'), 220);
-    expect(find.text('Maandalizi ya shamba'), findsOneWidget);
-    expect(find.text('Umekamilisha'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Kuchagua eneo la shamba'), 220);
+    expect(find.text('Kuchagua eneo la shamba'), findsOneWidget);
+    expect(find.text('Bado hujaanza'), findsWidgets);
 
-    await tester.tap(find.text('Maandalizi ya shamba'));
+    await tester.tap(find.text('Kuchagua eneo la shamba'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Fungua Somo la Mfano'), findsOneWidget);
-    expect(find.textContaining('Tambua eneo'), findsOneWidget);
+    expect(find.text('Kamilisha Somo'), findsOneWidget);
+    expect(find.textContaining('Chunguza mwanga'), findsOneWidget);
 
-    await tester.tap(find.text('Fungua Somo la Mfano'));
+    await tester.tap(find.text('Kamilisha Somo'));
     await tester.pump();
 
-    expect(find.textContaining('Video: Maandalizi ya shamba'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('Jaribio la maarifa'));
-    await tester.tap(find.text('Jaribio la maarifa'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Muda wa jaribio umeisha'), findsOneWidget);
+    expect(
+        find.textContaining('Somo: Kuchagua eneo la shamba'), findsOneWidget);
   });
 
   testWidgets('opens community discussion and replies with AI handoff',
@@ -131,21 +126,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Jamii hai leo'), findsOneWidget);
+    expect(find.text('Jamii ya AJE Farms'), findsOneWidget);
     expect(
         find.text(
-            'Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.'),
+            'Karibu kwenye jamii ya AJE Farms. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.'),
         findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('community-filter-Magonjwa')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Inahitaji haraka'), findsOneWidget);
-    expect(find.text('Natafuta mwongozo wa kuanza ufugaji wa kuku wa nyama.'),
-        findsNothing);
-
     final postCard =
-        find.byKey(const ValueKey('community-post-seed-pasheni-disease'));
+        find.byKey(const ValueKey('community-post-seed-community-guidelines'));
     await tester.ensureVisible(postCard);
     await tester.tap(postCard);
     await tester.pumpAndSettle();
@@ -155,15 +143,15 @@ void main() {
     expect(find.text('Hatua inayofuata'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField),
-        'Nitapunguza maji na kuangalia chini ya majani.');
+        'Nimeandika eneo, zao na dalili ili kumuuliza mtaalamu.');
     await tester.tap(find.byKey(const ValueKey('community-send-reply')));
     await tester.pumpAndSettle();
 
     expect(find.text('Jibu limehifadhiwa.'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Fupisha na AI'));
+    await tester.ensureVisible(find.text('Andaa muhtasari'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Fupisha na AI'));
+    await tester.tap(find.text('Andaa muhtasari'));
     await tester.pumpAndSettle();
 
     expect(find.text('Muktadha uliotumwa'), findsOneWidget);
@@ -182,7 +170,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Mwalimu AI bila kikomo'), findsOneWidget);
+    expect(find.text('Ufikiaji wa Mwalimu AI'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('plan-Wiki 1')));
     await tester.pumpAndSettle();
@@ -272,7 +260,7 @@ void main() {
     );
   });
 
-  testWidgets('opens premium lesson when subscription is active',
+  testWidgets('keeps reading lessons available when subscription is active',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -303,12 +291,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('Jaribio la maarifa'), 220);
-    await tester.tap(find.text('Jaribio la maarifa'));
+    await tester.scrollUntilVisible(find.text('Kuchagua eneo la shamba'), 220);
+    await tester.tap(find.text('Kuchagua eneo la shamba'));
     await tester.pumpAndSettle();
 
     expect(find.text('Muda wa jaribio umeisha'), findsNothing);
-    expect(find.text('Fungua Somo la Mfano'), findsOneWidget);
+    expect(find.text('Kamilisha Somo'), findsOneWidget);
   });
 
   testWidgets('dashboard remains usable at large text scale',

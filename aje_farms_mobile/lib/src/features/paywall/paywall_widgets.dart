@@ -26,11 +26,14 @@ class PlanTile extends StatelessWidget {
           child: ListTile(
             contentPadding: const EdgeInsets.all(AppSpacing.lg),
             leading: CircleAvatar(
-              backgroundColor:
-                  selected ? context.colors.primary : context.colors.surfaceMuted,
+              backgroundColor: selected
+                  ? context.colors.primary
+                  : context.colors.surfaceMuted,
               child: Icon(
                 plan.icon,
-                color: selected ? context.colors.onPrimary : context.colors.textPrimary,
+                color: selected
+                    ? context.colors.onPrimary
+                    : context.colors.textPrimary,
               ),
             ),
             title: Row(
@@ -73,9 +76,9 @@ class PaymentBenefitsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const benefits = [
-      (Icons.smart_toy_outlined, 'Mwalimu AI bila kikomo'),
-      (Icons.menu_book_outlined, 'Masomo na nyaraka za premium'),
-      (Icons.support_agent, 'Kipaumbele kwa msaada wa mtaalamu'),
+      (Icons.smart_toy_outlined, 'Ufikiaji wa Mwalimu AI'),
+      (Icons.menu_book_outlined, 'Masomo yaliyo kwenye kifurushi'),
+      (Icons.support_agent, 'Njia ya kuwasiliana na mtaalamu'),
     ];
 
     return Card(
@@ -92,9 +95,10 @@ class PaymentBenefitsCard extends StatelessWidget {
                     Container(
                       width: 36,
                       height: 36,
-                      decoration:
-                          AppDecorations.pastelPanel(context, context.colors.surface),
-                      child: Icon(benefit.$1, color: context.colors.primary, size: 20),
+                      decoration: AppDecorations.pastelPanel(
+                          context, context.colors.surface),
+                      child: Icon(benefit.$1,
+                          color: context.colors.primary, size: 20),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
@@ -203,78 +207,79 @@ class PaymentStatusScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Card(
-                color: context.colors.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xxxl),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          color: _surfaceColor(context),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _iconColor(context).withValues(alpha: 0.18),
+                  color: context.colors.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xxxl),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: _surfaceColor(context),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  _iconColor(context).withValues(alpha: 0.18),
+                            ),
                           ),
-                        ),
-                        child: pending
-                            ? Padding(
-                                padding: const EdgeInsets.all(AppSpacing.xl),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 4,
+                          child: pending
+                              ? Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.xl),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 4,
+                                    color: _iconColor(context),
+                                  ),
+                                )
+                              : Icon(
+                                  _icon(context),
                                   color: _iconColor(context),
+                                  size: 48,
                                 ),
-                              )
-                            : Icon(
-                                _icon(context),
-                                color: _iconColor(context),
-                                size: 48,
-                              ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        body,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: context.colors.muted,
-                              height: 1.45,
-                            ),
-                      ),
-                      if (isSuccess || onRetry != null) ...[
+                        ),
                         const SizedBox(height: AppSpacing.xxl),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: onRetry ??
-                                () {
-                                  AppFeedback.success();
-                                  Navigator.of(context)
-                                      .popUntil((route) => route.isFirst);
-                                },
-                            icon: Icon(
-                              isSuccess
-                                  ? Icons.home_outlined
-                                  : Icons.refresh,
-                            ),
-                            label: Text(
-                              isSuccess ? 'Rudi Nyumbani' : 'Jaribu Tena',
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          body,
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: context.colors.muted,
+                                    height: 1.45,
+                                  ),
+                        ),
+                        if (isSuccess || onRetry != null) ...[
+                          const SizedBox(height: AppSpacing.xxl),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: onRetry ??
+                                  () {
+                                    AppFeedback.success();
+                                    Navigator.of(context)
+                                        .popUntil((route) => route.isFirst);
+                                  },
+                              icon: Icon(
+                                isSuccess ? Icons.home_outlined : Icons.refresh,
+                              ),
+                              label: Text(
+                                isSuccess ? 'Rudi Nyumbani' : 'Jaribu Tena',
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
                 ),
               ),
             ),

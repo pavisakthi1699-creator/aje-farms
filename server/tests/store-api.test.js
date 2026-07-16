@@ -234,7 +234,10 @@ test('learning progress is authenticated and survives store restart', async () =
     const catalog = await getJson(baseUrl, '/api/catalog');
     assert.equal(catalog.response.status, 200);
     assert.equal(catalog.payload.courses[0].progress, 0);
-    assert.equal(catalog.payload.courses[0].lessons[0].id, 'maandalizi-ya-shamba');
+    assert.equal(
+      catalog.payload.courses[0].lessons[0].id,
+      'kuchagua-eneo-la-shamba',
+    );
     assert.equal(catalog.payload.courses[0].lessons[0].isCompleted, false);
 
     const marked = await postJson(
@@ -242,7 +245,7 @@ test('learning progress is authenticated and survives store restart', async () =
       `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/progress/lessons`,
       {
         courseId: 'pasheni',
-        lessonId: 'maandalizi-ya-shamba',
+        lessonId: 'kuchagua-eneo-la-shamba',
       },
       await authHeaders(token),
     );
@@ -256,7 +259,7 @@ test('learning progress is authenticated and survives store restart', async () =
     );
     assert.equal(progress.response.status, 200);
     assert.deepEqual(progress.payload.completedLessons, [
-      'pasheni:maandalizi-ya-shamba',
+      'pasheni:kuchagua-eneo-la-shamba',
     ]);
 
     const saved = JSON.parse(fs.readFileSync(process.env.AJE_DATA_FILE, 'utf8'));
@@ -467,10 +470,16 @@ test('admin content documents can be drafted and published into catalog', async 
     const catalog = await getJson(baseUrl, '/api/catalog');
     assert.equal(catalog.response.status, 200);
     assert.ok(Array.isArray(catalog.payload.documents));
-    const document = catalog.payload.documents.find(
-      (item) => item.id === 'mwongozo-mfupi-wa-pasheni',
-    );
-    assert.ok(document);
+    const document = {
+      id: 'admin-document-test',
+      title: 'Nyaraka ya Majaribio',
+      courseId: 'pasheni',
+      courseTitle: 'Kilimo cha Pasheni',
+      description: 'Nyaraka ya kuthibitisha mzunguko wa uhariri.',
+      type: 'pdf',
+      sizeLabel: 'PDF',
+      isPremium: false,
+    };
 
     const draft = await putJson(
       baseUrl,

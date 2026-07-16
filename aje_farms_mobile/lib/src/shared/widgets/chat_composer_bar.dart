@@ -35,7 +35,8 @@ class ChatComposerBar extends StatelessWidget {
           AppSpacing.lg,
         ),
         child: DecoratedBox(
-          decoration: AppDecorations.surfaceCard(context, radius: AppRadius.hero),
+          decoration:
+              AppDecorations.surfaceCard(context, radius: AppRadius.hero),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,

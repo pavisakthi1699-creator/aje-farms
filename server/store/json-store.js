@@ -9,6 +9,7 @@ import {
   documentsFromCourses,
   hashOtp,
   hasApprovedLessonInCourses,
+  isLearnerReadyCourse,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizePhoneNumber,
@@ -34,26 +35,7 @@ export class JsonStore {
     this.catalog = catalog;
     this.filePath = filePath;
     this.state = this.#load();
-    if (this.state.contentCourses.length === 0) {
-      this.state.contentCourses = approvedCoursesFromCatalog(this.catalog).map(
-        (course) => ({
-          id: course.id,
-          status: 'approved',
-          course,
-          updatedAt: new Date().toISOString(),
-        }),
-      );
-    }
-    if (this.state.contentDocuments.length === 0) {
-      this.state.contentDocuments = documentsFromCourses(
-        this.approvedContentCourses(),
-      ).map((document) => ({
-        id: document.id,
-        status: 'approved',
-        document,
-        updatedAt: new Date().toISOString(),
-      }));
-    }
+    this.#refreshBuiltInContent();
     this.community = new CommunityJsonStore(catalog, filePath, {
       persist: () => this.#saveAll(),
     });
@@ -73,6 +55,7 @@ export class JsonStore {
   approvedContentCourses() {
     return this.state.contentCourses
       .filter((item) => item.status === 'approved')
+      .filter((item) => isLearnerReadyCourse(item.course))
       .map((item) => item.course);
   }
 
@@ -486,6 +469,52 @@ export class JsonStore {
     );
   }
 
+  #refreshBuiltInContent() {
+    const now = new Date().toISOString();
+    const builtInCourses = approvedCoursesFromCatalog(this.catalog);
+    const builtInCourseIds = new Set(builtInCourses.map((course) => course.id));
+    const existingById = new Map(
+      this.state.contentCourses.map((record) => [record.id, record]),
+    );
+    this.state.contentCourses = [
+      ...this.state.contentCourses.filter(
+        (record) => !builtInCourseIds.has(record.id),
+      ),
+      ...builtInCourses.map((course) => {
+        const existing = existingById.get(course.id);
+        const existingVersion = Number(existing?.course?.contentVersion ?? 0);
+        const builtInVersion = Number(course.contentVersion ?? 0);
+        if (existing && existingVersion >= builtInVersion) return existing;
+        return {
+          id: course.id,
+          status: 'approved',
+          course,
+          updatedAt: now,
+        };
+      }),
+    ];
+
+    const builtInDocuments = documentsFromCourses(builtInCourses);
+    const legacyBuiltInDocumentIds = new Set([
+      'mwongozo-mfupi-wa-pasheni',
+      'ratiba-ya-chanjo',
+      'udhibiti-wa-wadudu',
+    ]);
+    this.state.contentDocuments = [
+      ...this.state.contentDocuments.filter(
+        (record) =>
+          !legacyBuiltInDocumentIds.has(record.id) ||
+          !builtInCourseIds.has(record.document?.courseId),
+      ),
+      ...builtInDocuments.map((document) => ({
+        id: document.id,
+        status: 'approved',
+        document,
+        updatedAt: now,
+      })),
+    ];
+  }
+
   #load() {
     if (!fs.existsSync(this.filePath)) {
       return initialMutableState();
@@ -584,10 +613,19 @@ function normalizeCommunityState(raw, catalog) {
     ...post,
     replies: post.replies.map((reply) => ({ ...reply })),
   }));
+  const seedIds = new Set(seedPosts.map((post) => post.id));
+  const legacySeedIds = new Set([
+    'seed-pasheni-disease',
+    'seed-kuku-start',
+    'seed-nyanya-market',
+  ]);
+  const storedPosts = Array.isArray(raw.communityPosts)
+    ? raw.communityPosts.filter(
+        (post) => !seedIds.has(post.id) && !legacySeedIds.has(post.id),
+      )
+    : [];
   return {
-    communityPosts: Array.isArray(raw.communityPosts)
-      ? raw.communityPosts
-      : seedPosts,
+    communityPosts: [...storedPosts, ...seedPosts],
     reportedPostIds: Array.isArray(raw.reportedPostIds)
       ? raw.reportedPostIds
       : [],

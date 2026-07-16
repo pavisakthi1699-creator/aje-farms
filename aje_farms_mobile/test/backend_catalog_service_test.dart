@@ -27,7 +27,15 @@ void main() {
     expect(catalog.courses.single.id, 'pilipili');
     expect(catalog.documents.single.id, 'pilipili-mwongozo');
     expect(catalog.courses.single.icon, Icons.grass);
-    expect(catalog.courses.single.lessons.single.type.name, 'pdf');
+    expect(
+      catalog.courses.single.lessons.map((lesson) => lesson.type.name),
+      ['video', 'reading'],
+    );
+    expect(
+      catalog.courses.single.lessons.first.resourceUrl,
+      'http://localhost:3000/api/lessons/video-1/video',
+    );
+    expect(catalog.courses.single.lessons.first.sourceTitle, 'Video ya AJE');
     expect(catalog.problemCategories.single.color, const Color(0xFFE15241));
     expect(catalog.communityPosts.single.replies.single.isExpert, isTrue);
     expect(catalog.plans.single.recommended, isTrue);
@@ -53,6 +61,23 @@ void main() {
     expect(repository.problemCategories.single.title, 'Magonjwa');
     expect(repository.plans.single.title, 'Mwaka 1');
   });
+
+  test('cached repository accepts an empty reviewed course catalogue',
+      () async {
+    const fallback = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: fallback,
+      communitySeed: fallback,
+      subscriptionSeed: fallback,
+    );
+
+    await repository.refresh(_EmptyCourseCatalogService());
+
+    expect(repository.courses, isEmpty);
+    expect(repository.featuredCourse, isNull);
+    expect(repository.suggestedCourse, isNull);
+    expect(repository.lastRefreshFailed, isFalse);
+  });
 }
 
 class _FakeCatalogService implements CatalogService {
@@ -63,6 +88,20 @@ class _FakeCatalogService implements CatalogService {
       client: MockClient((_) async => http.Response(_catalogJson, 200)),
     );
     return service.loadCatalog();
+  }
+}
+
+class _EmptyCourseCatalogService implements CatalogService {
+  @override
+  Future<CatalogSnapshot> loadCatalog() async {
+    final snapshot = await _FakeCatalogService().loadCatalog();
+    return CatalogSnapshot(
+      courses: const [],
+      documents: const [],
+      problemCategories: snapshot.problemCategories,
+      communityPosts: snapshot.communityPosts,
+      plans: snapshot.plans,
+    );
   }
 }
 
@@ -80,11 +119,22 @@ const _catalogJson = '''
       "outcomes": ["Chagua mbegu bora"],
       "lessons": [
         {
-          "title": "Mwongozo",
-          "type": "pdf",
-          "meta": "1 MB",
-          "description": "Pakua mwongozo.",
-          "isPremium": true
+          "id": "video-1",
+          "title": "Video ya utangulizi",
+          "type": "video",
+          "meta": "Dakika 5",
+          "description": "Tazama video.",
+          "sourceTitle": "Video ya AJE",
+          "resourceUrl": "/api/lessons/video-1/video",
+          "isPremium": false
+        },
+        {
+          "title": "Somo la kusoma",
+          "type": "reading",
+          "meta": "Dakika 5",
+          "description": "Soma maelezo.",
+          "sourceTitle": "Kitabu cha Pilipili, ukurasa 12",
+          "isPremium": false
         }
       ]
     }

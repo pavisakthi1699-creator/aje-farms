@@ -10,7 +10,6 @@ abstract final class AppRoutes {
   static const settings = '/settings';
   static const savedDocuments = '/profile/saved-documents';
   static const assessments = '/assessments';
-  static const quiz = '/assessments/quiz';
   static const fieldAssignment = '/assessments/field';
   static const whatsapp = '/support/whatsapp';
   static const createCommunityPost = '/community/new';

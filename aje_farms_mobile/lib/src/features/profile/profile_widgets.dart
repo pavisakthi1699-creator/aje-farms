@@ -36,11 +36,10 @@ class ProfileRow extends StatelessWidget {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration:
-                      AppDecorations.pastelPanel(
-                        context,
-                        color.withValues(alpha: 0.12),
-                      ),
+                  decoration: AppDecorations.pastelPanel(
+                    context,
+                    color.withValues(alpha: 0.12),
+                  ),
                   child: Icon(icon, color: color, size: 22),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -58,9 +57,10 @@ class ProfileRow extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           subtitle!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.colors.muted,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
                         ),
                       ],
                     ],

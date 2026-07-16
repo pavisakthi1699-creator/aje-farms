@@ -229,8 +229,9 @@ class PaywallScreenState extends State<PaywallScreen> {
         header: Padding(
           padding: const EdgeInsets.only(top: AppSpacing.xl),
           child: _PaywallHeroBanner(
-            imageUrl:
-                context.dependencies.learningRepository.featuredCourse.imageUrl,
+            imageUrl: context
+                    .dependencies.learningRepository.featuredCourse?.imageUrl ??
+                'assets/images/farm-field.jpg',
           ),
         ),
         bodyPadding: const EdgeInsets.all(AppSpacing.xl),
@@ -329,7 +330,7 @@ class PaywallScreenState extends State<PaywallScreen> {
                         const SizedBox(width: AppSpacing.sm),
                         Flexible(
                           child: Text(
-                            'Malipo yako ni salama. Tunalinda taarifa zako zote.',
+                            'Thibitisha jina la mpokeaji na kiasi kwenye simu yako kabla ya kukubali malipo.',
                             style: Theme.of(context).textTheme.bodySmall,
                             textAlign: TextAlign.center,
                           ),

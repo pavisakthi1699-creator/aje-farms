@@ -2,14 +2,14 @@ export const catalog = {
   courses: [
     {
       id: 'pasheni',
+      contentVersion: 2,
       title: 'Kilimo cha Pasheni',
       description:
         'Jifunze maandalizi ya shamba, upandaji, matunzo, magonjwa na masoko.',
       badge: 'Maarufu',
       icon: 'local_florist',
-      progress: 0.65,
-      imageUrl:
-        'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?auto=format&fit=crop&w=900&q=80',
+      progress: 0,
+      imageUrl: 'assets/images/courses/pasheni.jpg',
       outcomes: [
         'Kuchagua eneo sahihi',
         'Kuandaa shamba kabla ya kupanda',
@@ -18,40 +18,37 @@ export const catalog = {
       ],
       lessons: [
         {
-          title: 'Maandalizi ya shamba',
-          type: 'video',
-          meta: 'DKK 5',
+          title: 'Kuchagua eneo la shamba',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Tambua eneo lenye mwanga, maji yanayopita vizuri na nafasi ya mistari kabla ya kupanda pasheni.',
-          isCompleted: true,
+            'Chunguza mwanga, njia ya maji na nafasi ya kupanga mistari. Rekodi hali ya eneo kabla ya kuandaa shamba.',
         },
         {
-          title: 'Mwongozo mfupi wa pasheni',
-          type: 'pdf',
-          meta: '2 MB',
+          title: 'Kuandaa shamba na nguzo',
+          type: 'reading',
+          meta: 'Dakika 6',
           description:
-            'Pakua muhtasari wa hatua za kupanda, kuweka nguzo, kumwagilia na kutambua dalili za mwanzo.',
-          isCompleted: true,
+            'Panga eneo la kupanda na mfumo wa kuusaidia mmea kukua. Rekebisha mpango kulingana na hali ya shamba lako.',
         },
         {
-          title: 'Jaribio la maarifa',
-          type: 'quiz',
-          meta: 'Maswali 10',
+          title: 'Kufuatilia afya ya mmea',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Pima kama uko tayari kuendelea kwenye hatua za magonjwa, mavuno na masoko.',
-          isPremium: true,
+            'Kagua majani, shina na unyevu mara kwa mara. Piga picha na wasiliana na mtaalamu kabla ya kutumia tiba usiyoifahamu.',
         },
       ],
     },
     {
       id: 'kuku',
+      contentVersion: 2,
       title: 'Ufugaji wa Kuku',
       description: 'Nyumba bora, chakula, chanjo, usafi na biashara ya kuku.',
       badge: 'Inafaa kwa wanaoanza',
       icon: 'egg_alt',
       progress: 0,
-      imageUrl:
-        'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/images/courses/kuku.jpg',
       outcomes: [
         'Kujenga banda lenye hewa na usalama',
         'Kupanga ratiba ya chanjo',
@@ -60,39 +57,38 @@ export const catalog = {
       ],
       lessons: [
         {
-          title: 'Misingi ya ufugaji wa kuku',
-          type: 'video',
-          meta: 'DKK 6',
+          title: 'Kuandaa banda',
+          type: 'reading',
+          meta: 'Dakika 6',
           description:
-            'Jifunze mahitaji ya banda, maji, chakula na usafi kabla ya kuleta vifaranga.',
+            'Kagua nafasi, hewa, usalama na urahisi wa kusafisha banda kabla ya kuleta kuku.',
         },
         {
-          title: 'Ratiba ya chanjo',
-          type: 'pdf',
-          meta: '1 MB',
+          title: 'Maji, chakula na usafi',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Orodha ya chanjo muhimu na muda wa kuzitoa kwa kuku wa nyama au mayai.',
+            'Weka utaratibu wa maji safi, chakula na usafi, kisha andika mabadiliko unayoona kila siku.',
         },
         {
-          title: 'Biashara ya kuku',
-          type: 'quiz',
-          meta: 'Premium',
+          title: 'Kuweka kumbukumbu za afya',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Kadiria gharama, mapato na masoko kabla ya kuongeza idadi ya kuku.',
-          isPremium: true,
+            'Rekodi dalili, umri na historia ya kundi. Kwa chanjo, dawa au dalili kali, tumia ratiba iliyoidhinishwa na daktari wa mifugo wa eneo lako.',
         },
       ],
     },
     {
       id: 'nyanya',
+      contentVersion: 2,
       title: 'Kilimo cha Nyanya',
       description:
         'Kitalu, upandaji, mbolea, udhibiti wa wadudu na maandalizi ya soko.',
       badge: 'Kozi mpya',
       icon: 'grass',
       progress: 0,
-      imageUrl:
-        'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/images/courses/nyanya.jpg',
       outcomes: [
         'Kuandaa kitalu bora',
         'Kuhamisha miche yenye afya',
@@ -102,25 +98,24 @@ export const catalog = {
       lessons: [
         {
           title: 'Kuandaa kitalu',
-          type: 'video',
-          meta: 'DKK 4',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Chagua mbegu, andaa kivuli na linda miche dhidi ya maji mengi na wadudu.',
+            'Panga sehemu ya kitalu, ulinzi wa miche na utaratibu wa kukagua unyevu bila kuzidisha maji.',
         },
         {
-          title: 'Udhibiti wa wadudu',
-          type: 'pdf',
-          meta: '2 MB',
+          title: 'Kufuatilia miche na mimea',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Tambua viwavi, vidukari na ukungu mapema kabla ya kuchagua dawa au hatua ya shamba.',
+            'Kagua majani na ukuaji, rekodi dalili na piga picha. Tambua tatizo kwa msaada wa mtaalamu kabla ya kutumia dawa.',
         },
         {
-          title: 'Maandalizi ya soko',
-          type: 'quiz',
-          meta: 'Premium',
+          title: 'Kujiandaa kwa mavuno',
+          type: 'reading',
+          meta: 'Dakika 5',
           description:
-            'Panga kuvuna, kupanga madaraja na kuzungumza na wanunuzi kabla ya msimu.',
-          isPremium: true,
+            'Panga uvunaji, upangaji wa ubora, hifadhi ya muda mfupi na mawasiliano na wanunuzi bila kutegemea bei isiyothibitishwa.',
         },
       ],
     },
@@ -164,7 +159,7 @@ export const catalog = {
       icon: 'trending_up',
       color: '#D5961B',
       summary: 'Bei, wanunuzi, muda wa kuuza na maandalizi ya mavuno.',
-      examples: ['Bei ya leo', 'Wanunuzi'],
+      examples: ['Kulinganisha bei', 'Wanunuzi'],
     },
     {
       title: 'Ufugaji',
@@ -198,76 +193,16 @@ export const catalog = {
   ],
   communityPosts: [
     {
-      id: 'seed-pasheni-disease',
-      author: 'Joseph M.',
-      location: 'Morogoro',
-      time: 'Saa 2 zilizopita',
-      content: 'Naomba ushauri, majani ya pasheni yangu yanabadilika rangi.',
-      likes: 12,
-      comments: 4,
-      tags: ['Pasheni', 'Magonjwa'],
-      replies: [
-        {
-          author: 'Mtaalamu AJE',
-          body:
-            'Angalia kama kuna madoa chini ya jani na kama maji yanasimama karibu na shina. Ukiona ukungu, tenga sehemu iliyoathirika kwanza.',
-          time: 'Dakika 45 zilizopita',
-          isExpert: true,
-        },
-        {
-          author: 'Mama Asha',
-          body:
-            'Nilipunguza kumwagilia na kuondoa majani yaliyoathirika, hali ikaanza kuwa nzuri.',
-          time: 'Dakika 20 zilizopita',
-        },
-      ],
-      hasImage: true,
-      isUrgent: true,
-    },
-    {
-      id: 'seed-kuku-start',
-      author: 'Mama Asha',
-      location: 'Mbeya',
-      time: 'Saa 5 zilizopita',
-      content: 'Natafuta mwongozo wa kuanza ufugaji wa kuku wa nyama.',
-      relatedTopic: 'Ufugaji wa Kuku',
-      likes: 34,
-      comments: 8,
-      tags: ['Mifugo', 'Kuku'],
-      replies: [
-        {
-          author: 'Daudi K.',
-          body:
-            'Anza na idadi ndogo, andaa banda lenye hewa na hakikisha ratiba ya chanjo iko tayari kabla ya vifaranga.',
-          time: 'Saa 3 zilizopita',
-        },
-        {
-          author: 'Mtaalamu AJE',
-          body:
-            'Kozi ya ufugaji wa kuku ina checklist ya banda na ratiba ya chanjo. Itakusaidia kupanga gharama za mwanzo.',
-          time: 'Saa 1 iliyopita',
-          isExpert: true,
-        },
-      ],
-    },
-    {
-      id: 'seed-nyanya-market',
-      author: 'Mtaalamu AJE',
-      location: 'Arusha',
-      time: 'Leo',
+      id: 'seed-community-guidelines',
+      author: 'Timu ya AJE Farms',
+      location: 'Tanzania',
+      time: 'Mwongozo wa jamii',
       content:
-        'Bei ya nyanya imepanda kwenye baadhi ya masoko. Wakulima waangalie ubora na kupanga kuvuna asubuhi ili kupunguza kuharibika.',
-      relatedTopic: 'Kilimo cha Nyanya',
-      likes: 57,
-      comments: 11,
-      tags: ['Masoko', 'Nyanya'],
-      replies: [
-        {
-          author: 'Joseph M.',
-          body: 'Je, kuna bei elekezi kwa Morogoro wiki hii?',
-          time: 'Saa 1 iliyopita',
-        },
-      ],
+        'Karibu kwenye jamii ya AJE Farms. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.',
+      likes: 0,
+      comments: 0,
+      tags: ['Jamii', 'Mwongozo'],
+      replies: [],
       isExpert: true,
     },
   ],

@@ -9,6 +9,8 @@ Core rule: PDF source documents are evidence. NotebookLM exports are editorial d
 - `migrations/20260707000100_content_ingestion_foundation.sql`: storage bucket, enums, tables, RLS, validation/publish SQL, and seed catalogue data.
 - `migrations/20260708000100_curriculum_staging_promotion.sql`: staging rows table and policies for import-then-promote flow.
 - `migrations/20260708000200_video_source_resources.sql`: video/transcript source kinds, `content_source_assets`, and `lesson_resources`.
+- `migrations/20260716000100_video_text_grounding_model.sql`: text/video-only delivery, PDF-page or video-timecode segments, reviewed grounding facts, private source storage, and reversible catalogue revisions.
+- `maintenance/20260716_customer_content_safety_cleanup.sql`: one-time reversible quarantine of unverified learner content and quizzes.
 - `functions/import-notebooklm-curriculum`: CSV/JSON NotebookLM draft importer.
 - `functions/promote-staged-curriculum`: promotes validated staging rows into the live catalogue tables.
 - `functions/queue-document-ingestion`: retry-safe source document ingestion queue endpoint.
@@ -86,7 +88,13 @@ For video courses, classify source documents with `source_kind`:
 - `audio`
 - `image`
 
-Video/transcript lesson attachments are stored in `lesson_resources`, and evidence links can be tracked in `content_source_assets` while files/segments are still being reviewed.
+Video/transcript lesson attachments are stored in `lesson_resources`.
+Page/timecode evidence is stored in `source_segments` and linked through
+`content_source_links`. `grounding_facts` contains the reviewed statements
+available to Mwalimu AI.
+
+Only `reading` and `video` lessons are learner-facing. PDFs are private source
+evidence, not course downloads.
 
 ## NotebookLM Imports
 
@@ -116,6 +124,28 @@ curl -X POST "$SUPABASE_URL/functions/v1/promote-staged-curriculum" \
 ```
 
 Repeated imports are idempotent at batch level (`batch_hash`) and promotion is idempotent at row level (`import_source + external_id` or natural keys).
+
+Legacy quiz rows remain importable but are explicitly ignored. Checklist and
+FAQ rows can become grounding facts only when they include a valid
+`source_segment_id`; they do not become learner lesson types.
+
+### Extract PDF Evidence
+
+Generate reviewed-draft segments and NotebookLM fact links from a PDF whose
+curriculum rows contain printed page references such as `Uk. 14-16`:
+
+```sh
+PYTHONPYCACHEPREFIX=/tmp/aje-pycache python3 \
+  server/scripts/extract-pdf-grounding.py \
+  --pdf "/absolute/path/book.pdf" \
+  --curriculum "/absolute/path/curriculum.json" \
+  --source-document-id "<uuid>" \
+  --course-code "<course-code>" \
+  --printed-page-offset 1 > /tmp/course-grounding.sql
+```
+
+Review the generated SQL and overlap diagnostics before applying it. Extracted
+segments and facts remain `needs_review`; this command never publishes them.
 
 ### Swahili Video Course Import (RICE-SEED-001)
 
@@ -190,9 +220,10 @@ curl -X POST "$SUPABASE_URL/functions/v1/publish-course" \
 
 Publishing is blocked when:
 
-- any lesson/checklist/quiz/FAQ lacks a linked, approved/published source segment
+- any text/video lesson lacks a linked, approved/published source segment
 - any source link is `source_missing` or `pending_review`
 - high-risk content remains `needs_review`
+- grounding facts or their cited source pages/timecodes are not reviewed
 - a required prerequisite course is not published
 
 Successful publishes write to `content_change_log`.

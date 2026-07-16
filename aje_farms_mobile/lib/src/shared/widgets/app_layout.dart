@@ -40,7 +40,8 @@ class AppLayoutFullBleed extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportWidth = MediaQuery.sizeOf(context).width;
-        final targetWidth = viewportWidth.clamp(constraints.maxWidth, viewportWidth);
+        final targetWidth =
+            viewportWidth.clamp(constraints.maxWidth, viewportWidth);
         if (targetWidth <= constraints.maxWidth) {
           return child;
         }

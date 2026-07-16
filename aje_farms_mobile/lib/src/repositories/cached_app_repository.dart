@@ -51,10 +51,10 @@ class CachedAppRepository extends ChangeNotifier
   List<PlanOption> get plans => _plans;
 
   @override
-  Course get featuredCourse => _courses.first;
+  Course? get featuredCourse => _courses.isEmpty ? null : _courses.first;
 
   @override
-  Course get suggestedCourse => _courses.last;
+  Course? get suggestedCourse => _courses.isEmpty ? null : _courses.last;
 
   Future<void> refresh(CatalogService service) async {
     if (_isRefreshing) return;
@@ -62,9 +62,7 @@ class CachedAppRepository extends ChangeNotifier
     notifyListeners();
     try {
       final snapshot = await service.loadCatalog();
-      if (snapshot.courses.isEmpty ||
-          snapshot.problemCategories.isEmpty ||
-          snapshot.plans.isEmpty) {
+      if (snapshot.problemCategories.isEmpty || snapshot.plans.isEmpty) {
         throw const CatalogException('Catalog response is missing core data.');
       }
       _courses = snapshot.courses;

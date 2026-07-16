@@ -29,7 +29,8 @@ class ProblemCategoryTile extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(category.title,
-                  style: Theme.of(context).textTheme.titleSmall ?? const TextStyle()),
+                  style: Theme.of(context).textTheme.titleSmall ??
+                      const TextStyle()),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -104,7 +105,7 @@ class UnknownProblemTile extends StatelessWidget {
                           ),
                     ),
                     Text(
-                      'Mwalimu AI itakusaidia kutambua',
+                      'Mwalimu AI itakusaidia kuandaa maelezo',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: context.colors.muted,
                           ),
@@ -112,9 +113,9 @@ class UnknownProblemTile extends StatelessWidget {
                   ],
                 ),
               ),
-                ExcludeSemantics(
-                  child: Icon(Icons.chevron_right, color: context.colors.muted),
-                ),
+              ExcludeSemantics(
+                child: Icon(Icons.chevron_right, color: context.colors.muted),
+              ),
             ],
           ),
         ),
@@ -127,9 +128,21 @@ class TrendingTopics extends StatelessWidget {
   const TrendingTopics();
 
   static const _items = [
-    (Icons.water_drop, 'Maji', 'Nahitaji ushauri kuhusu maji kwenye shamba langu.'),
-    (Icons.bug_report, 'Wadudu', 'Nahitaji ushauri kuhusu wadudu kwenye shamba langu.'),
-    (Icons.eco, 'Mbolea', 'Nitumie mbolea gani kwenye shamba langu?'),
+    (
+      Icons.water_drop,
+      'Maji',
+      'Nahitaji ushauri kuhusu maji kwenye shamba langu.'
+    ),
+    (
+      Icons.bug_report,
+      'Wadudu',
+      'Nahitaji ushauri kuhusu wadudu kwenye shamba langu.'
+    ),
+    (
+      Icons.eco,
+      'Mbolea',
+      'Nisaidie kuandaa taarifa za udongo kabla ya kuchagua mbolea.'
+    ),
     (Icons.trending_up, 'Soko', 'Nahitaji ushauri kuhusu soko la mazao yangu.'),
   ];
 

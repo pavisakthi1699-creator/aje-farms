@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
 enum LessonType {
-  video('Video', Icons.play_circle_outline),
-  pdf('PDF', Icons.picture_as_pdf_outlined),
-  quiz('Tathmini', Icons.quiz_outlined);
+  reading('Somo', Icons.article_outlined),
+  video('Video', Icons.play_circle_outline);
 
   const LessonType(this.label, this.icon);
 
@@ -18,6 +17,8 @@ class Lesson {
     required this.meta,
     required this.description,
     this.id,
+    this.sourceTitle,
+    this.resourceUrl,
     this.isPremium = false,
     this.isCompleted = false,
   });
@@ -27,6 +28,8 @@ class Lesson {
   final LessonType type;
   final String meta;
   final String description;
+  final String? sourceTitle;
+  final String? resourceUrl;
   final bool isPremium;
   final bool isCompleted;
 }

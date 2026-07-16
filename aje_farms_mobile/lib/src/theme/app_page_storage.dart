@@ -8,7 +8,8 @@ abstract final class AppPageStorage {
   static const community = PageStorageKey<String>('scroll-community');
   static const profile = PageStorageKey<String>('scroll-profile');
   static const notifications = PageStorageKey<String>('scroll-notifications');
-  static const savedDocuments = PageStorageKey<String>('scroll-saved-documents');
+  static const savedDocuments =
+      PageStorageKey<String>('scroll-saved-documents');
 
   static PageStorageKey<String> courseDetail(String courseId) =>
       PageStorageKey('scroll-course-$courseId');

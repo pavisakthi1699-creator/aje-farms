@@ -76,7 +76,8 @@ class _BrandMarkPainter extends CustomPainter {
 
     final cx = size.width * 0.5;
     final baseY = size.height * 0.72;
-    canvas.drawLine(Offset(cx, baseY), Offset(cx, size.height * 0.28), stemPaint);
+    canvas.drawLine(
+        Offset(cx, baseY), Offset(cx, size.height * 0.28), stemPaint);
 
     final leafPaint = Paint()
       ..color = color

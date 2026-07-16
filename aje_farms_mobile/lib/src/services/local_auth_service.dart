@@ -47,9 +47,11 @@ class LocalAuthService implements AuthService {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     return AuthSession(
       phoneNumber: phoneNumber,
-      displayName: displayName?.trim().isEmpty ?? true ? null : displayName?.trim(),
-      preferredLocation:
-          preferredLocation?.trim().isEmpty ?? true ? null : preferredLocation?.trim(),
+      displayName:
+          displayName?.trim().isEmpty ?? true ? null : displayName?.trim(),
+      preferredLocation: preferredLocation?.trim().isEmpty ?? true
+          ? null
+          : preferredLocation?.trim(),
     );
   }
 }
