@@ -196,3 +196,78 @@ test('grounding retrieval does not use a treatment book title as evidence', asyn
     }
   }
 });
+
+test('grounding retrieval refuses an unsupported poultry vaccination schedule', async () => {
+  const previousStoreMode = process.env.AJE_STORE;
+  process.env.AJE_STORE = 'supabase';
+  let queryCount = 0;
+  const store = new PostgresStore({
+    pool: {
+      query: async () => {
+        queryCount += 1;
+        return { rows: [] };
+      },
+    },
+    catalog: {},
+    schema: 'public',
+  });
+
+  try {
+    assert.deepEqual(
+      await store.groundingSources('Nipe ratiba ya chanjo ya kuku'),
+      [],
+    );
+    assert.equal(queryCount, 0);
+  } finally {
+    if (previousStoreMode == null) {
+      delete process.env.AJE_STORE;
+    } else {
+      process.env.AJE_STORE = previousStoreMode;
+    }
+  }
+});
+
+test('grounding retrieval can answer why vaccination records matter', async () => {
+  const previousStoreMode = process.env.AJE_STORE;
+  process.env.AJE_STORE = 'supabase';
+  const store = new PostgresStore({
+    pool: {
+      query: async () => ({
+        rows: [
+          {
+            id: 'monitoring-fact',
+            course_id: 'CRS-KUK-02',
+            course_title: 'Usalama wa Banda na Ufuatiliaji wa Afya ya Kuku',
+            lesson_id: 'lesson-3',
+            title: 'Fuatilia Afya na Weka Kumbukumbu',
+            excerpt:
+              'Kumbukumbu za afya na chanjo humpa mtaalamu historia ya kundi.',
+            question_sw:
+              'Kwa nini nifuatilie kuku na kuweka kumbukumbu za chanjo?',
+            source_title: 'MAGONJWA YA KUKU TIBA ZAKE ZA ASILI',
+            page_start: 27,
+            page_end: 27,
+            time_start_seconds: null,
+            time_end_seconds: null,
+          },
+        ],
+      }),
+    },
+    catalog: {},
+    schema: 'public',
+  });
+
+  try {
+    const sources = await store.groundingSources(
+      'Kwa nini niweke kumbukumbu za chanjo?',
+    );
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].id, 'monitoring-fact');
+  } finally {
+    if (previousStoreMode == null) {
+      delete process.env.AJE_STORE;
+    } else {
+      process.env.AJE_STORE = previousStoreMode;
+    }
+  }
+});

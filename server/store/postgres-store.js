@@ -47,6 +47,18 @@ const groundingStopWords = new Set([
   'yako',
 ]);
 
+function requestsVeterinaryDecision(message) {
+  const normalized = String(message ?? '').toLowerCase();
+  const asksForTreatment =
+    /\b(dawa|dozi|kipimo|kutibu|matibabu|tiba|utambuzi)\b/u.test(normalized);
+  const asksForVaccinationSchedule =
+    /\bchanjo\b/u.test(normalized) &&
+    /\b(chanja|lini|muda|nipe|ratiba|siku|umri|wiki|mwezi)\b/u.test(
+      normalized,
+    );
+  return asksForTreatment || asksForVaccinationSchedule;
+}
+
 export class PostgresStore {
   constructor({ pool, catalog, schema }) {
     this.pool = pool;
@@ -322,6 +334,7 @@ export class PostgresStore {
 
   async groundingSources(message) {
     if (process.env.AJE_STORE !== 'supabase') return null;
+    if (requestsVeterinaryDecision(message)) return [];
     const result = await this.pool.query(
       `SELECT
          gf.id::text,
