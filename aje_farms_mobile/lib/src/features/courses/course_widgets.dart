@@ -288,9 +288,7 @@ class CourseProgressSummary extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              completed == 0
-                  ? 'Anza na somo la kwanza kisha fuata mpangilio wa masomo.'
-                  : 'Masomo ya msingi yamekamilika. Endelea na jaribio au uliza AI swali la kozi.',
+              courseProgressMessage(completed: completed, total: total),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -298,6 +296,19 @@ class CourseProgressSummary extends StatelessWidget {
       ),
     );
   }
+}
+
+String courseProgressMessage({
+  required int completed,
+  required int total,
+}) {
+  if (completed == 0) {
+    return 'Anza na somo la kwanza kisha fuata mpangilio wa masomo.';
+  }
+  if (completed < total) {
+    return 'Umekamilisha somo $completed kati ya $total. Endelea na somo linalofuata.';
+  }
+  return 'Umemaliza masomo yote. Unaweza kurudia masomo au kumuuliza Mwalimu AI swali la kozi.';
 }
 
 class LessonTile extends StatelessWidget {
