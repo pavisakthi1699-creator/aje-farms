@@ -330,6 +330,7 @@ export class PostgresStore {
          gf.lesson_id::text,
          COALESCE(l.title_sw, c.title_sw) AS title,
          gf.fact_sw AS excerpt,
+         gf.question_sw,
          sd.title AS source_title,
          ss.page_start,
          ss.page_end,
@@ -357,7 +358,8 @@ export class PostgresStore {
     if (terms.length === 0) return [];
     const rankedSources = result.rows
       .map((row) => {
-        const haystack = `${row.title} ${row.excerpt} ${row.source_title}`.toLowerCase();
+        const haystack =
+          `${row.title} ${row.excerpt} ${row.question_sw ?? ''}`.toLowerCase();
         const score = terms.reduce(
           (total, term) => total + (haystack.includes(term) ? 1 : 0),
           0,
@@ -374,7 +376,7 @@ export class PostgresStore {
           score,
         };
       })
-      .filter((source) => source.score > 0)
+      .filter((source) => source.score >= 2)
       .sort((left, right) => right.score - left.score);
     const bestScore = rankedSources[0]?.score;
     return rankedSources
