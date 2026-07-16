@@ -27,6 +27,26 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const groundingStopWords = new Set([
+  'gani',
+  'hii',
+  'hilo',
+  'hizi',
+  'huko',
+  'je',
+  'kwa',
+  'kwamba',
+  'kwenye',
+  'mimi',
+  'nini',
+  'nitumie',
+  'sana',
+  'wangu',
+  'yangu',
+  'yake',
+  'yako',
+]);
+
 export class PostgresStore {
   constructor({ pool, catalog, schema }) {
     this.pool = pool;
@@ -333,7 +353,7 @@ export class PostgresStore {
     const terms = String(message ?? '')
       .toLowerCase()
       .split(/[^\p{L}\p{N}]+/u)
-      .filter((term) => term.length >= 3);
+      .filter((term) => term.length >= 4 && !groundingStopWords.has(term));
     if (terms.length === 0) return [];
     return result.rows
       .map((row) => {
