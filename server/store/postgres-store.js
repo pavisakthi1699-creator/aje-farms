@@ -355,7 +355,7 @@ export class PostgresStore {
       .split(/[^\p{L}\p{N}]+/u)
       .filter((term) => term.length >= 4 && !groundingStopWords.has(term));
     if (terms.length === 0) return [];
-    return result.rows
+    const rankedSources = result.rows
       .map((row) => {
         const haystack = `${row.title} ${row.excerpt} ${row.source_title}`.toLowerCase();
         const score = terms.reduce(
@@ -375,7 +375,10 @@ export class PostgresStore {
         };
       })
       .filter((source) => source.score > 0)
-      .sort((left, right) => right.score - left.score)
+      .sort((left, right) => right.score - left.score);
+    const bestScore = rankedSources[0]?.score;
+    return rankedSources
+      .filter((source) => source.score === bestScore)
       .slice(0, 5)
       .map(({ score: _score, ...source }) => source);
   }

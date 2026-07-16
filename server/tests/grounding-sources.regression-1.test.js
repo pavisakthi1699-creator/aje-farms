@@ -91,3 +91,61 @@ test('grounding retrieval still returns a fact for distinctive matching terms', 
     }
   }
 });
+
+test('grounding retrieval excludes lower-relevance facts', async () => {
+  const previousStoreMode = process.env.AJE_STORE;
+  process.env.AJE_STORE = 'supabase';
+  const store = new PostgresStore({
+    pool: {
+      query: async () => ({
+        rows: [
+          {
+            id: 'fact-best',
+            course_id: 'CRS-USH-01',
+            course_title: 'Misingi ya Ujasiriamali wa Kilimo',
+            lesson_id: 'lesson-3',
+            title: 'Nguzo Tatu: Mfumo, Watu na Bidhaa',
+            excerpt:
+              'Nguzo tatu ni Process, People na Product katika biashara.',
+            source_title: 'Ushuhuda Wangu',
+            page_start: 151,
+            page_end: 155,
+            time_start_seconds: null,
+            time_end_seconds: null,
+          },
+          {
+            id: 'fact-weaker',
+            course_id: 'CRS-USH-01',
+            course_title: 'Misingi ya Ujasiriamali wa Kilimo',
+            lesson_id: 'lesson-1',
+            title: 'Anza Kidogo na Ujifunze Biashara',
+            excerpt: 'Anza biashara kwa kiwango kidogo.',
+            source_title: 'Ushuhuda Wangu',
+            page_start: 80,
+            page_end: 81,
+            time_start_seconds: null,
+            time_end_seconds: null,
+          },
+        ],
+      }),
+    },
+    catalog: {},
+    schema: 'public',
+  });
+
+  try {
+    const sources = await store.groundingSources(
+      'Nguzo tatu za biashara ni zipi?',
+    );
+    assert.deepEqual(
+      sources.map((source) => source.id),
+      ['fact-best'],
+    );
+  } finally {
+    if (previousStoreMode == null) {
+      delete process.env.AJE_STORE;
+    } else {
+      process.env.AJE_STORE = previousStoreMode;
+    }
+  }
+});
