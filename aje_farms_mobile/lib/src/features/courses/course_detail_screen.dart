@@ -82,9 +82,11 @@ class CourseDetailScreen extends StatelessWidget {
                                   boxShadow: AppElevation.float(context),
                                 ),
                                 child: Icon(
-                                  Icons.play_arrow_rounded,
+                                  lessonHeroIcon(heroLesson),
                                   color: context.colors.onPrimary,
-                                  size: 46,
+                                  size: heroLesson.type == LessonType.video
+                                      ? 46
+                                      : 38,
                                 ),
                               ),
                             ),
@@ -211,6 +213,12 @@ class CourseDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData lessonHeroIcon(Lesson lesson) {
+  return lesson.type == LessonType.video
+      ? Icons.play_arrow_rounded
+      : Icons.menu_book_rounded;
 }
 
 Lesson? _heroLesson(BuildContext context, Course course) {
