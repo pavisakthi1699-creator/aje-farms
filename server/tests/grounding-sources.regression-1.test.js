@@ -227,6 +227,66 @@ test('grounding retrieval refuses an unsupported poultry vaccination schedule', 
   }
 });
 
+test('grounding retrieval refuses an unsupported fertilizer recommendation', async () => {
+  const previousStoreMode = process.env.AJE_STORE;
+  process.env.AJE_STORE = 'supabase';
+  let queryCount = 0;
+  const store = new PostgresStore({
+    pool: {
+      query: async () => {
+        queryCount += 1;
+        return { rows: [] };
+      },
+    },
+    catalog: {},
+    schema: 'public',
+  });
+
+  try {
+    assert.deepEqual(
+      await store.groundingSources('Nitumie mbolea gani kwenye nanasi?'),
+      [],
+    );
+    assert.equal(queryCount, 0);
+  } finally {
+    if (previousStoreMode == null) {
+      delete process.env.AJE_STORE;
+    } else {
+      process.env.AJE_STORE = previousStoreMode;
+    }
+  }
+});
+
+test('grounding retrieval refuses an unsupported pesticide rate', async () => {
+  const previousStoreMode = process.env.AJE_STORE;
+  process.env.AJE_STORE = 'supabase';
+  let queryCount = 0;
+  const store = new PostgresStore({
+    pool: {
+      query: async () => {
+        queryCount += 1;
+        return { rows: [] };
+      },
+    },
+    catalog: {},
+    schema: 'public',
+  });
+
+  try {
+    assert.deepEqual(
+      await store.groundingSources('Nitumie kiuatilifu kiasi gani kwa muhogo?'),
+      [],
+    );
+    assert.equal(queryCount, 0);
+  } finally {
+    if (previousStoreMode == null) {
+      delete process.env.AJE_STORE;
+    } else {
+      process.env.AJE_STORE = previousStoreMode;
+    }
+  }
+});
+
 test('grounding retrieval can answer why vaccination records matter', async () => {
   const previousStoreMode = process.env.AJE_STORE;
   process.env.AJE_STORE = 'supabase';

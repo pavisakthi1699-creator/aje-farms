@@ -47,7 +47,7 @@ const groundingStopWords = new Set([
   'yako',
 ]);
 
-function requestsVeterinaryDecision(message) {
+function requestsHighRiskDecision(message) {
   const normalized = String(message ?? '').toLowerCase();
   const asksForTreatment =
     /\b(dawa|dozi|kipimo|kutibu|matibabu|tiba|utambuzi)\b/u.test(normalized);
@@ -56,7 +56,12 @@ function requestsVeterinaryDecision(message) {
     /\b(chanja|lini|muda|nipe|ratiba|siku|umri|wiki|mwezi)\b/u.test(
       normalized,
     );
-  return asksForTreatment || asksForVaccinationSchedule;
+  const asksForInputRecommendation =
+    /\b(mbolea|kiuatilifu|viuatilifu)\b/u.test(normalized) &&
+    /\b(gani|kiasi|kipimo|dozi|lini|muda|nipe|nitumie|ratiba|tumia|weka)\b/u.test(
+      normalized,
+    );
+  return asksForTreatment || asksForVaccinationSchedule || asksForInputRecommendation;
 }
 
 export class PostgresStore {
@@ -334,7 +339,7 @@ export class PostgresStore {
 
   async groundingSources(message) {
     if (process.env.AJE_STORE !== 'supabase') return null;
-    if (requestsVeterinaryDecision(message)) return [];
+    if (requestsHighRiskDecision(message)) return [];
     const result = await this.pool.query(
       `SELECT
          gf.id::text,
@@ -1452,11 +1457,10 @@ export function courseImageForCode(code) {
   if (normalized.includes('kuku') || normalized.includes('kuk')) {
     return 'assets/images/courses/kuku.jpg';
   }
-  if (normalized.includes('rice') || normalized.includes('mpunga')) {
-    return 'assets/images/courses/mpunga.jpg';
-  }
   if (
     normalized.includes('ush') ||
+    normalized.includes('psh') ||
+    normalized.includes('pasheni') ||
     normalized.includes('business') ||
     normalized.includes('biashara')
   ) {

@@ -21,6 +21,7 @@
     "import:notebooklm": "node server/scripts/import-notebooklm.js",
     "ingest:remaining-curriculum": "node server/scripts/ingest-remaining-curriculum.js",
     "validate:remaining-curriculum": "node server/scripts/validate-remaining-curriculum.js",
+    "publish:reviewed-curriculum": "node server/scripts/publish-reviewed-curriculum-pilots.js",
     "validate:course": "node server/scripts/validate-course.js",
     "smoke:postgres": "node server/scripts/smoke-postgres.js",
     "smoke:supabase": "AJE_STORE=supabase node server/scripts/smoke-postgres.js",
