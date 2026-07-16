@@ -8,6 +8,7 @@ export const REMAINING_CURRICULUM = [
   { code: "CRS-MHG-01", markdownFile: "KILIMO CHA MUHOGO.md", sourceFile: "KITABU CHA KILIMO CHA MUHOGO.pdf", contentCourseId: "kilimo-cha-muhogo" },
   { code: "CRS-MGB-01", markdownFile: "KILIMO CHA Migomba.md", sourceFile: "Kitabu cha KILIMO CHA  Migomba.pdf", contentCourseId: "kilimo-cha-migomba" },
   { code: "CRS-KUK-01", markdownFile: "LISHE BORA YA KUKU.md", sourceFile: "LISHE BORA YA KUKU.pdf", contentCourseId: "lishe-bora-ya-kuku" },
+  { code: "CRS-NYN-01", markdownFile: "KILIMO CHA NYANYA KWA MTAJI KIDOGO.md", sourceFile: "KILIMO CHA NYANYA KWA MTAJI KIDOGO.pdf", contentCourseId: "kilimo-cha-nyanya" },
 ];
 
 export function curriculumSourceDirectory(args = process.argv.slice(2)) {

@@ -449,6 +449,56 @@ export const REVIEWED_CURRICULUM_PILOTS = [
       },
     ],
   },
+  {
+    code: "CRS-NYN-01",
+    contentCourseId: "kilimo-cha-nyanya",
+    sourceFile: "KILIMO CHA NYANYA KWA MTAJI KIDOGO.pdf",
+    pageCount: 49,
+    title: "Misingi Salama ya Kuanzisha Kilimo cha Nyanya",
+    summary: "Chagua eneo lenye mifereji, hamisha miche kwa uangalifu, na panga uvunaji na soko mapema.",
+    description:
+      "Kozi hii inafundisha uchaguzi wa eneo, upandikizaji na utunzaji wa mavuno. Haitoi dozi za dawa au mbolea, utambuzi wa magonjwa, wala ahadi za faida; thibitisha pembejeo na hatua za udhibiti na afisa ugani pamoja na lebo za sasa.",
+    moduleTitle: "Eneo, Upandikizaji na Utunzaji wa Mavuno",
+    moduleSummary: "Hatua salama za kupanga shamba, kuhamisha miche na kulinda ubora wa nyanya.",
+    lessons: [
+      {
+        title: "Chagua Udongo Unaopitisha Maji",
+        body:
+          "Kagua kama udongo unapisha maji na kama kuna sehemu zinazotuamisha maji kabla ya kuandaa shamba. Angalia mteremko, tengeneza njia za kutoa maji inapohitajika, na pima udongo kabla ya kuongeza pembejeo. Tumia ushauri wa afisa ugani kuthibitisha marekebisho yanayofaa eneo lako.",
+        pageStart: 9,
+        pageEnd: 9,
+        sectionTitle: "Udongo na maandalizi ya shamba",
+        evidence:
+          "Kitabu kinaeleza kuwa nyanya zinaweza kustawi kwenye aina mbalimbali za udongo ikiwa udongo una mboji ya kutosha na hautuamishi maji, kisha kinaanza hatua za maandalizi ya shamba.",
+        fact: "Eneo la nyanya linahitaji udongo unaopitisha maji na ukaguzi wa sehemu zinazoweza kutuamisha maji kabla ya kupanda.",
+        question: "Nikague nini kwenye udongo kabla ya kuanzisha shamba la nyanya?",
+      },
+      {
+        title: "Hamisha Miche kwa Uangalifu",
+        body:
+          "Mwagilia miche kabla ya kuihamisha, andaa mashimo mapema na chagua miche yenye afya. Hamisha miche wakati wa jioni ili kupunguza msongo wa jua, linda mizizi na udongo unaoizunguka, kisha mwagilia baada ya kupanda. Tenga miche yenye dalili zisizo za kawaida kwa ushauri wa afisa ugani.",
+        pageStart: 13,
+        pageEnd: 14,
+        sectionTitle: "Upandikizaji wa miche ya nyanya shambani",
+        evidence:
+          "Kitabu kinashauri kumwagilia miche kabla ya kuhamisha, kuandaa mashimo, kuchagua miche yenye afya, kulinda mizizi, kuhamisha jioni na kumwagilia baada ya kupanda.",
+        fact: "Kumwagilia miche, kulinda mizizi na kuhamisha wakati wa jioni husaidia kupunguza msongo wakati wa upandikizaji wa nyanya.",
+        question: "Nihamisheje miche ya nyanya bila kuiweka kwenye msongo mkubwa?",
+      },
+      {
+        title: "Panga Soko na Usafiri Kabla ya Kuvuna",
+        body:
+          "Thibitisha kiwango cha ukomavu kinachotakiwa na mnunuzi kabla ya kuvuna. Panga kreti safi, vifaa visivyoharibu matunda, usafiri na sehemu ya kupokea mazao mapema kwa sababu nyanya huharibika haraka. Weka kumbukumbu za uvunaji na tenga matunda yaliyoharibika.",
+        pageStart: 35,
+        pageEnd: 35,
+        sectionTitle: "Wakati wa kuvuna na zana bora",
+        evidence:
+          "Kitabu kinasisitiza kuvuna kwa wakati, kuandaa masoko na usafirishaji kabla ya mavuno, na kutumia vifaa kama kreti ili kupunguza uharibifu wa matunda.",
+        fact: "Kupanga mnunuzi, usafiri na kreti kabla ya kuvuna husaidia kulinda nyanya ambazo zinaweza kuharibika haraka.",
+        question: "Kwa nini nipange soko na usafiri kabla ya kuvuna nyanya?",
+      },
+    ],
+  },
 ];
 
 export const REVIEWED_CURRICULUM_CODES = REVIEWED_CURRICULUM_PILOTS.map(

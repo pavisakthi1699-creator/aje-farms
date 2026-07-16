@@ -7,9 +7,9 @@ import {
   REVIEWED_CURRICULUM_PILOTS,
 } from "../scripts/reviewed-curriculum-pilots.js";
 
-test("reviewed curriculum pilots cover all nine staged books", () => {
-  assert.equal(REVIEWED_CURRICULUM_PILOTS.length, 9);
-  assert.equal(new Set(REVIEWED_CURRICULUM_CODES).size, 9);
+test("reviewed curriculum pilots cover all ten staged books", () => {
+  assert.equal(REVIEWED_CURRICULUM_PILOTS.length, 10);
+  assert.equal(new Set(REVIEWED_CURRICULUM_CODES).size, 10);
 });
 
 test("every pilot has exactly three manually cited learner lessons", () => {
