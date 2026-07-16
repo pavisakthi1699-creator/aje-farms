@@ -1429,11 +1429,20 @@ function contentDocumentFromRow(row) {
   };
 }
 
-function courseImageForCode(code) {
+export function courseImageForCode(code) {
   const normalized = String(code ?? '').toLowerCase();
-  if (normalized.includes('kuku')) return 'assets/images/courses/kuku.jpg';
+  if (normalized.includes('kuku') || normalized.includes('kuk')) {
+    return 'assets/images/courses/kuku.jpg';
+  }
   if (normalized.includes('rice') || normalized.includes('mpunga')) {
-    return 'assets/images/courses/mpunga.jpg';
+    return 'assets/images/courses/pasheni.jpg';
+  }
+  if (
+    normalized.includes('ush') ||
+    normalized.includes('business') ||
+    normalized.includes('biashara')
+  ) {
+    return 'assets/images/courses/pasheni.jpg';
   }
   return 'assets/images/courses/nyanya.jpg';
 }
