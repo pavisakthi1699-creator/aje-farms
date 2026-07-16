@@ -334,7 +334,7 @@ export class PostgresStore {
     if (!response.ok) return null;
     const payload = await response.json();
     const signedPath = payload.signedURL ?? payload.signedUrl;
-    return signedPath ? new URL(signedPath, supabaseUrl).toString() : null;
+    return signedPath ? resolveSupabaseSignedUrl(supabaseUrl, signedPath) : null;
   }
 
   async groundingSources(message) {
@@ -1501,6 +1501,23 @@ function safePublicHttpUrl(value) {
     return url.protocol === 'https:' || url.protocol === 'http:'
       ? url.toString()
       : null;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveSupabaseSignedUrl(supabaseUrl, signedPath) {
+  const absolute = safePublicHttpUrl(signedPath);
+  if (absolute) return absolute;
+
+  try {
+    const base = new URL(String(supabaseUrl));
+    const path = String(signedPath).startsWith('/storage/v1/')
+      ? String(signedPath)
+      : String(signedPath).startsWith('/object/')
+        ? `/storage/v1${signedPath}`
+        : `/storage/v1/${String(signedPath).replace(/^\/+/, '')}`;
+    return new URL(path, base).toString();
   } catch {
     return null;
   }
