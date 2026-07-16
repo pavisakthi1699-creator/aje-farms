@@ -1438,7 +1438,7 @@ export function courseImageForCode(code) {
     return 'assets/images/courses/kuku.jpg';
   }
   if (normalized.includes('rice') || normalized.includes('mpunga')) {
-    return 'assets/images/courses/pasheni.jpg';
+    return 'assets/images/courses/mpunga.jpg';
   }
   if (
     normalized.includes('ush') ||

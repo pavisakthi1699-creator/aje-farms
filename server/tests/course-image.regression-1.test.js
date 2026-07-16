@@ -16,7 +16,7 @@ test('Ushuhuda course codes use the neutral farm-field image', () => {
 test('crop and livestock course image mappings remain unchanged', () => {
   assert.equal(
     courseImageForCode('RICE-SEED-001'),
-    'assets/images/courses/pasheni.jpg',
+    'assets/images/courses/mpunga.jpg',
   );
   assert.equal(
     courseImageForCode('CRS-KUK-02'),

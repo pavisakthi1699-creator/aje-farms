@@ -93,7 +93,12 @@ where course_id = (select id from public.courses where code = 'CRS-USH-01')
   and code <> 'mod-ush-02';
 
 update public.lessons
-set module_id = (select id from public.course_modules where code = 'mod-ush-02'),
+set module_id = (
+      select id
+      from public.course_modules
+      where course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and code = 'mod-ush-02'
+    ),
     title_sw = 'Anza Kidogo na Ujifunze Biashara',
     body_sw =
       'Mwandishi anaeleza kuwa kusubiri mtaji kamili kunaweza kuchelewesha kuanza. Katika uzoefu wake, alianza kwa kiwango kidogo na kurekebisha mapungufu kadiri alivyoendelea. Anashauri mtu asiweke mtaji wote mara moja kwenye biashara ambayo bado haijui; aanze kwa sehemu ndogo, ajifunze namna biashara inavyofanya kazi, kisha aamue kama apanue. Somo hili ni tafakari ya uzoefu wa mwandishi, si ushauri binafsi wa uwekezaji au mkopo.',
@@ -105,10 +110,21 @@ set module_id = (select id from public.course_modules where code = 'mod-ush-02')
     sort_order = 10,
     published_at = now(),
     updated_at = now()
-where code = 'lsn-ush-001';
+where id in (
+  select l.id
+  from public.lessons l
+  join public.course_modules m on m.id = l.module_id
+  where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+    and l.code = 'lsn-ush-001'
+);
 
 update public.lessons
-set module_id = (select id from public.course_modules where code = 'mod-ush-02'),
+set module_id = (
+      select id
+      from public.course_modules
+      where course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and code = 'mod-ush-02'
+    ),
     title_sw = 'Kilimo Mseto na Mapato ya Nyakati Tofauti',
     body_sw =
       'Kwa mujibu wa uzoefu wa mwandishi, kuwa na mazao au shughuli tofauti kunaweza kuleta mapato katika nyakati tofauti badala ya kusubiri msimu mmoja. Anaeleza pia tukio la mwaka 2018 ambapo bei ya nyanya ilikuwa chini ya matarajio, lakini zao jingine lilisaidia kupunguza athari ya hasara. Kilimo mseto hakiondoi hatari zote; uchaguzi wa mazao unahitaji kuzingatia eneo, soko, uwezo wa usimamizi na ushauri wa kitaalamu.',
@@ -120,10 +136,21 @@ set module_id = (select id from public.course_modules where code = 'mod-ush-02')
     sort_order = 20,
     published_at = now(),
     updated_at = now()
-where code = 'lsn-ush-002';
+where id in (
+  select l.id
+  from public.lessons l
+  join public.course_modules m on m.id = l.module_id
+  where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+    and l.code = 'lsn-ush-002'
+);
 
 update public.lessons
-set module_id = (select id from public.course_modules where code = 'mod-ush-02'),
+set module_id = (
+      select id
+      from public.course_modules
+      where course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and code = 'mod-ush-02'
+    ),
     title_sw = 'Nguzo Tatu: Mfumo, Watu na Bidhaa',
     body_sw =
       'Mwandishi anatumia mfano wa biashara ya chakula kueleza nguzo tatu: Process, People na Product. Process ni mchakato mzima wa kazi, kuanzia maandalizi hadi kumfikia mteja. People ni watu sahihi wenye majukumu, maarifa na uongozi. Product ni bidhaa au huduma inayotolewa. Katika mfano wake, bidhaa na timu vilikuwepo, lakini udhaifu wa mchakato wa usambazaji uliifanya biashara ishindwe kuwafikia wateja kwa wakati.',
@@ -135,7 +162,13 @@ set module_id = (select id from public.course_modules where code = 'mod-ush-02')
     sort_order = 30,
     published_at = now(),
     updated_at = now()
-where code = 'mod-ush-03-reading-01';
+where id in (
+  select l.id
+  from public.lessons l
+  join public.course_modules m on m.id = l.module_id
+  where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+    and l.code = 'mod-ush-03-reading-01'
+);
 
 update public.lessons
 set status = 'archived',
@@ -199,7 +232,9 @@ from (
     )
 ) as mapping(lesson_code, source_segment_id, evidence_note)
 join public.lessons l on l.code = mapping.lesson_code
+join public.course_modules m on m.id = l.module_id
 join public.source_segments ss on ss.id = mapping.source_segment_id
+where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
 on conflict (content_type, content_id, source_segment_id) do update
 set link_status = excluded.link_status,
     evidence_note = excluded.evidence_note,
@@ -212,7 +247,12 @@ where (
   )
   or (
     content_type = 'module'
-    and content_id = (select id from public.course_modules where code = 'mod-ush-02')
+    and content_id = (
+      select id
+      from public.course_modules
+      where course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and code = 'mod-ush-02'
+    )
   );
 
 insert into public.content_source_links (
@@ -239,7 +279,8 @@ from (
   union all
   select 'module'::text, m.id
   from public.course_modules m
-  where m.code = 'mod-ush-02'
+  where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+    and m.code = 'mod-ush-02'
 ) target
 cross join public.source_segments ss
 where ss.id in (
@@ -253,7 +294,13 @@ set link_status = excluded.link_status,
     updated_at = now();
 
 update public.grounding_facts
-set lesson_id = (select id from public.lessons where code = 'lsn-ush-001'),
+set lesson_id = (
+      select l.id
+      from public.lessons l
+      join public.course_modules m on m.id = l.module_id
+      where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and l.code = 'lsn-ush-001'
+    ),
     code = 'ush-start-small',
     question_sw = 'Mwandishi anashauri mtu aanzaje biashara mpya?',
     fact_sw =
@@ -262,10 +309,17 @@ set lesson_id = (select id from public.lessons where code = 'lsn-ush-001'),
     risk_level = 'medium',
     reviewed_at = now(),
     updated_at = now()
-where external_id = 'FAQ-USH-001';
+where course_id = (select id from public.courses where code = 'CRS-USH-01')
+  and external_id = 'FAQ-USH-001';
 
 update public.grounding_facts
-set lesson_id = (select id from public.lessons where code = 'lsn-ush-002'),
+set lesson_id = (
+      select l.id
+      from public.lessons l
+      join public.course_modules m on m.id = l.module_id
+      where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and l.code = 'lsn-ush-002'
+    ),
     code = 'ush-mixed-farming',
     question_sw = 'Mwandishi anaeleza faida gani ya kilimo mseto?',
     fact_sw =
@@ -274,11 +328,16 @@ set lesson_id = (select id from public.lessons where code = 'lsn-ush-002'),
     risk_level = 'medium',
     reviewed_at = now(),
     updated_at = now()
-where external_id = 'FAQ-USH-003';
+where course_id = (select id from public.courses where code = 'CRS-USH-01')
+  and external_id = 'FAQ-USH-003';
 
 update public.grounding_facts
 set lesson_id = (
-      select id from public.lessons where code = 'mod-ush-03-reading-01'
+      select l.id
+      from public.lessons l
+      join public.course_modules m on m.id = l.module_id
+      where m.course_id = (select id from public.courses where code = 'CRS-USH-01')
+        and l.code = 'mod-ush-03-reading-01'
     ),
     code = 'ush-three-business-pillars',
     question_sw = 'Nguzo tatu za biashara katika mfano wa mwandishi ni zipi?',
@@ -288,7 +347,8 @@ set lesson_id = (
     risk_level = 'medium',
     reviewed_at = now(),
     updated_at = now()
-where external_id = 'FAQ-USH-008';
+where course_id = (select id from public.courses where code = 'CRS-USH-01')
+  and external_id = 'FAQ-USH-008';
 
 update public.grounding_facts
 set status = 'archived',
