@@ -24,6 +24,7 @@ class AppSessionState {
     this.notificationsEnabled = true,
     this.preferredLocation,
     this.displayName,
+    this.role,
     this.themePreference = AppThemePreference.system,
   });
 
@@ -41,9 +42,11 @@ class AppSessionState {
   final bool notificationsEnabled;
   final String? preferredLocation;
   final String? displayName;
+  final String? role;
   final AppThemePreference themePreference;
 
   bool get hasActiveSubscription => subscriptionPlan != null;
+  bool get isAdmin => role == 'admin';
 
   AppSessionState copyWith({
     bool? hasStarted,
@@ -60,11 +63,13 @@ class AppSessionState {
     bool? notificationsEnabled,
     String? preferredLocation,
     String? displayName,
+    String? role,
     AppThemePreference? themePreference,
     bool clearPhoneNumber = false,
     bool clearSubscription = false,
     bool clearPreferredLocation = false,
     bool clearDisplayName = false,
+    bool clearRole = false,
   }) {
     return AppSessionState(
       hasStarted: hasStarted ?? this.hasStarted,
@@ -86,6 +91,7 @@ class AppSessionState {
           ? null
           : preferredLocation ?? this.preferredLocation,
       displayName: clearDisplayName ? null : displayName ?? this.displayName,
+      role: clearRole ? null : role ?? this.role,
       themePreference: themePreference ?? this.themePreference,
     );
   }
@@ -110,6 +116,7 @@ class AppSessionController extends ChangeNotifier {
   static const _notificationsEnabledKey = 'app_session.notifications_enabled';
   static const _preferredLocationKey = 'app_session.preferred_location';
   static const _displayNameKey = 'app_session.display_name';
+  static const _roleKey = 'app_session.role';
   static const _themePreferenceKey = 'app_session.theme_preference';
 
   SharedPreferences? _preferences;
@@ -121,6 +128,7 @@ class AppSessionController extends ChangeNotifier {
   bool get isSignedIn => !_state.isGuest && _state.phoneNumber != null;
   String? get phoneNumber => _state.phoneNumber;
   bool get hasActiveSubscription => _state.hasActiveSubscription;
+  bool get isAdmin => _state.isAdmin;
 
   Future<void> restore() async {
     final preferences = _preferences ??= await SharedPreferences.getInstance();
@@ -147,6 +155,7 @@ class AppSessionController extends ChangeNotifier {
           preferences.getBool(_notificationsEnabledKey) ?? true,
       preferredLocation: preferences.getString(_preferredLocationKey),
       displayName: preferences.getString(_displayNameKey),
+      role: preferences.getString(_roleKey),
       themePreference: AppThemePreference.fromStorage(
         preferences.getString(_themePreferenceKey),
       ),
@@ -159,6 +168,7 @@ class AppSessionController extends ChangeNotifier {
       hasStarted: true,
       isGuest: true,
       clearPhoneNumber: true,
+      clearRole: true,
     );
     notifyListeners();
     await _save();
@@ -167,11 +177,13 @@ class AppSessionController extends ChangeNotifier {
   Future<void> signInWithPhone(
     String phoneNumber, {
     String? sessionToken,
+    String? role,
   }) async {
     _state = _state.copyWith(
       hasStarted: true,
       isGuest: false,
       phoneNumber: phoneNumber,
+      role: role,
     );
     notifyListeners();
     if (sessionToken != null) {
@@ -258,6 +270,12 @@ class AppSessionController extends ChangeNotifier {
       subscriptionPlan,
       startedAt: session.subscriptionStartedAt,
     );
+  }
+
+  Future<void> syncRoleFromAuthSession(AuthSession session) async {
+    _state = _state.copyWith(role: session.role);
+    notifyListeners();
+    await _save();
   }
 
   Future<void> setNotificationsEnabled(bool enabled) async {
@@ -446,6 +464,12 @@ class AppSessionController extends ChangeNotifier {
       await preferences.remove(_displayNameKey);
     } else {
       await preferences.setString(_displayNameKey, displayName);
+    }
+    final role = _state.role;
+    if (role == null) {
+      await preferences.remove(_roleKey);
+    } else {
+      await preferences.setString(_roleKey, role);
     }
     await preferences.setString(
       _themePreferenceKey,

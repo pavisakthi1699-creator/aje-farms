@@ -166,6 +166,76 @@ export class JsonStore {
     return user;
   }
 
+  async adminUsersForAdmin({ search = '', limit = 50, offset = 0 } = {}) {
+    const query = String(search).trim().toLowerCase();
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const activityByPhone = new Map();
+    const track = (phoneNumber, key) => {
+      const current = activityByPhone.get(phoneNumber) ?? {
+        learningProgressCount: 0,
+        paymentTransactionsCount: 0,
+        notificationCount: 0,
+        communityPostsCount: 0,
+      };
+      current[key] += 1;
+      activityByPhone.set(phoneNumber, current);
+    };
+    for (const item of this.state.learningProgress) {
+      track(item.phoneNumber, 'learningProgressCount');
+    }
+    for (const item of this.state.paymentTransactions) {
+      track(item.phoneNumber, 'paymentTransactionsCount');
+    }
+    for (const item of this.state.notifications) {
+      track(item.phoneNumber, 'notificationCount');
+    }
+    for (const post of this.community.state.communityPosts) {
+      if (typeof post.author === 'string' && post.author.startsWith('+')) {
+        track(post.author, 'communityPostsCount');
+      }
+    }
+
+    const sorted = [...this.state.users]
+      .filter((user) => {
+        if (!query) return true;
+        return (
+          String(user.phoneNumber).toLowerCase().includes(query) ||
+          String(user.displayName ?? '')
+            .toLowerCase()
+            .includes(query)
+        );
+      })
+      .sort((left, right) => {
+        const leftTs = Date.parse(left.updatedAt ?? left.createdAt ?? '');
+        const rightTs = Date.parse(right.updatedAt ?? right.createdAt ?? '');
+        return rightTs - leftTs;
+      });
+
+    const paged = sorted.slice(safeOffset, safeOffset + safeLimit).map((user) => {
+      const activity = activityByPhone.get(user.phoneNumber) ?? {
+        learningProgressCount: 0,
+        paymentTransactionsCount: 0,
+        notificationCount: 0,
+        communityPostsCount: 0,
+      };
+      return {
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        displayName: user.displayName ?? null,
+        preferredLocation: user.preferredLocation ?? null,
+        role: user.role ?? 'learner',
+        subscriptionPlan: user.subscriptionPlan ?? null,
+        subscriptionStartedAt: user.subscriptionStartedAt ?? null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        ...activity,
+      };
+    });
+
+    return { users: paged, total: sorted.length };
+  }
+
   async notificationSettings(phoneNumber) {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     return (

@@ -11,6 +11,8 @@ import '../repositories/demo_app_repository.dart';
 import '../repositories/learning_repository.dart';
 import '../repositories/subscription_repository.dart';
 import '../services/auth_service.dart';
+import '../services/admin_service.dart';
+import '../services/backend_admin_service.dart';
 import '../services/backend_auth_service.dart';
 import '../services/backend_catalog_service.dart';
 import '../services/backend_community_service.dart';
@@ -21,6 +23,7 @@ import '../services/backend_payment_service.dart';
 import '../services/community_service.dart';
 import '../services/demo_mwalimu_ai_service.dart';
 import '../services/local_auth_service.dart';
+import '../services/local_admin_service.dart';
 import '../services/local_community_service.dart';
 import '../services/local_learning_progress_service.dart';
 import '../services/local_notification_service.dart';
@@ -37,6 +40,7 @@ class AppDependencies {
     required this.subscriptionRepository,
     required this.mwalimuAiService,
     required this.authService,
+    required this.adminService,
     required this.communityService,
     required this.learningProgressService,
     required this.notificationService,
@@ -53,6 +57,7 @@ class AppDependencies {
       subscriptionRepository: repository,
       mwalimuAiService: DemoMwalimuAiService(),
       authService: LocalAuthService(),
+      adminService: LocalAdminService(),
       communityService: LocalCommunityService(),
       learningProgressService: LocalLearningProgressService(),
       notificationService: LocalNotificationService(),
@@ -98,6 +103,7 @@ class AppDependencies {
       subscriptionRepository: subscriptionRepository,
       mwalimuAiService: BackendMwalimuAiService(baseUrl: apiBaseUrl),
       authService: BackendAuthService(baseUrl: apiBaseUrl),
+      adminService: BackendAdminService(baseUrl: apiBaseUrl),
       communityService: BackendCommunityService(baseUrl: apiBaseUrl),
       learningProgressService: BackendLearningProgressService(
         baseUrl: apiBaseUrl,
@@ -114,6 +120,7 @@ class AppDependencies {
   final SubscriptionRepository subscriptionRepository;
   final MwalimuAiService mwalimuAiService;
   final AuthService authService;
+  final AdminService adminService;
   final CommunityService communityService;
   final LearningProgressService learningProgressService;
   final NotificationService notificationService;

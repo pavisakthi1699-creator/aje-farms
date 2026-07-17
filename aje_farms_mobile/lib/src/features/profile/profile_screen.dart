@@ -10,10 +10,13 @@ class ProfileScreen extends StatelessWidget {
     final session = context.session;
     final displayName = session.state.displayName;
     final phoneLabel = displayName ?? session.phoneNumber ?? 'Mgeni';
-    final memberLabel = displayName == null
-        ? (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni')
-        : (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni');
+    final memberLabel = session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni';
     final subscriptionPlan = session.state.subscriptionPlan;
+    final avatarLabel = _profileInitials(
+      displayName: displayName,
+      phoneNumber: session.phoneNumber,
+      signedIn: session.isSignedIn,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Akaunti Yangu')),
@@ -22,45 +25,66 @@ class ProfileScreen extends StatelessWidget {
           key: AppPageStorage.profile,
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
-            Card(
-              color: context.colors.surfaceMuted,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: context.colors.primaryContainer,
-                      child: Text(
-                        session.isSignedIn ? '+255' : 'AJE',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: context.colors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+            Semantics(
+              header: true,
+              label: '$phoneLabel, $memberLabel',
+              child: Card(
+                color: context.colors.surfaceMuted,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 48,
+                        backgroundColor: context.colors.primaryContainer,
+                        child: Text(
+                          avatarLabel,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: context.colors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      phoneLabel,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    if (displayName != null && session.phoneNumber != null)
+                      const SizedBox(height: AppSpacing.md),
                       Text(
-                        session.phoneNumber!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: context.colors.muted,
-                            ),
+                        phoneLabel,
+                        style: Theme.of(context).textTheme.titleLarge,
                         textAlign: TextAlign.center,
                       ),
-                    Text(
-                      memberLabel,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: context.colors.muted,
+                      if (displayName != null && session.phoneNumber != null)
+                        Text(
+                          session.phoneNumber!,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
+                          textAlign: TextAlign.center,
+                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          Pill(
+                            label: memberLabel,
+                            color: context.colors.surface,
                           ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                          if (session.isAdmin)
+                            Pill(
+                              label: 'Admin',
+                              color: context.colors.surfaceLavender,
+                            ),
+                          if (subscriptionPlan != null)
+                            Pill(
+                              label: 'Premium',
+                              color: context.colors.surfacePeach,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -96,7 +120,9 @@ class ProfileScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: AppDecorations.pastelPanel(
-                          context, context.colors.peach),
+                        context,
+                        context.colors.peach,
+                      ),
                       child: Text(
                         subscriptionPlan == null
                             ? 'Unaweza kusoma mafunzo ya msingi na kuhifadhi maendeleo yako.'
@@ -106,42 +132,50 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     if (subscriptionPlan == null)
-                      FilledButton.icon(
-                        onPressed: () {
-                          AppFeedback.tap();
-                          AppNavigator.pushPaywall(context);
-                        },
-                        icon: const Icon(Icons.workspace_premium),
-                        label: const Text('Lipia Kifurushi Sasa'),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            AppFeedback.tap();
+                            AppNavigator.pushPaywall(context);
+                          },
+                          icon: const Icon(Icons.workspace_premium),
+                          label: const Text('Lipia Kifurushi Sasa'),
+                        ),
                       )
                     else
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final phoneNumber = session.phoneNumber;
-                          if (phoneNumber != null) {
-                            try {
-                              await context.dependencies.authService
-                                  .cancelSubscription(phoneNumber);
-                            } on AuthException catch (error) {
-                              if (!context.mounted) return;
-                              showSnack(context, error.message);
-                              return;
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final phoneNumber = session.phoneNumber;
+                            if (phoneNumber != null) {
+                              try {
+                                await context.dependencies.authService
+                                    .cancelSubscription(phoneNumber);
+                              } on AuthException catch (error) {
+                                if (!context.mounted) return;
+                                showSnack(context, error.message);
+                                return;
+                              }
                             }
-                          }
-                          await session.cancelSubscription();
-                          if (!context.mounted) return;
-                          showSnack(context, 'Kifurushi kimezimwa.');
-                        },
-                        icon: const Icon(Icons.cancel_outlined),
-                        label: const Text('Sitisha Kifurushi'),
+                            await session.cancelSubscription();
+                            if (!context.mounted) return;
+                            showSnack(context, 'Kifurushi kimezimwa.');
+                          },
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('Sitisha Kifurushi'),
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Shughuli Zangu',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Shughuli Zangu',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Card(
               child: Column(
@@ -169,6 +203,13 @@ class ProfileScreen extends StatelessWidget {
                     title: 'Mipangilio',
                     onTap: () => AppNavigator.pushSettings(context),
                   ),
+                  if (session.isAdmin)
+                    ProfileRow(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'Dashibodi ya Admin',
+                      subtitle: 'Simamia maandishi, usimamizi, na watumiaji',
+                      onTap: () => AppNavigator.pushAdminDashboard(context),
+                    ),
                   ProfileRow(
                     icon: Icons.help_outline,
                     title: 'Msaada / WhatsApp',
@@ -207,6 +248,27 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+String _profileInitials({
+  required String? displayName,
+  required String? phoneNumber,
+  required bool signedIn,
+}) {
+  final name = displayName?.trim();
+  if (name != null && name.isNotEmpty) {
+    final parts =
+        name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return ('${parts.first[0]}${parts.last[0]}').toUpperCase();
+    }
+    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
+  }
+  final phone = phoneNumber?.trim();
+  if (phone != null && phone.length >= 2) {
+    return phone.substring(phone.length - 2);
+  }
+  return signedIn ? 'MF' : 'AJE';
 }
 
 class SavedDocumentsScreen extends StatelessWidget {
@@ -483,8 +545,9 @@ class SettingsScreenState extends State<SettingsScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child: TextField(
+                child:                     TextField(
                   controller: _displayNameController,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Jina lako',
                     hintText: 'Mfano: Asha',
@@ -500,6 +563,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: TextField(
                   controller: _locationController,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                   decoration: const InputDecoration(
                     labelText: 'Eneo la kawaida',
                     hintText: 'Mfano: Morogoro',
@@ -510,13 +575,16 @@ class SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            FilledButton.icon(
-              onPressed: () {
-                AppFeedback.tap();
-                _save();
-              },
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Hifadhi Mipangilio'),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  AppFeedback.tap();
+                  _save();
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Hifadhi Mipangilio'),
+              ),
             ),
           ],
         ),

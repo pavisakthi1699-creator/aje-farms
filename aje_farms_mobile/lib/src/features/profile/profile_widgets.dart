@@ -21,55 +21,67 @@ class ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semanticLabel =
+        subtitle == null ? title : '$title. $subtitle';
     return Column(
       children: [
-        InteractiveInk(
-          borderRadius: AppRadius.lg,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: AppDecorations.pastelPanel(
-                    context,
-                    color.withValues(alpha: 0.12),
-                  ),
-                  child: Icon(icon, color: color, size: 22),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+        Semantics(
+          button: true,
+          label: semanticLabel,
+          child: InteractiveInk(
+            borderRadius: AppRadius.lg,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  ExcludeSemantics(
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: AppDecorations.pastelPanel(
+                        context,
+                        color.withValues(alpha: 0.12),
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: AppSpacing.xs),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitle!,
+                          title,
                           style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: context.colors.muted,
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
                         ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            subtitle!,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: context.colors.muted,
+                                ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                ExcludeSemantics(
-                  child: Icon(Icons.chevron_right, color: context.colors.muted),
-                ),
-              ],
+                  ExcludeSemantics(
+                    child:
+                        Icon(Icons.chevron_right, color: context.colors.muted),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -159,6 +159,30 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  app.get(
+    '/api/admin/users',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const search =
+        typeof req.query.search === 'string' ? req.query.search : '';
+      const limit =
+        typeof req.query.limit === 'string'
+          ? Number.parseInt(req.query.limit, 10)
+          : undefined;
+      const offset =
+        typeof req.query.offset === 'string'
+          ? Number.parseInt(req.query.offset, 10)
+          : undefined;
+      const result = await store.adminUsersForAdmin({
+        search,
+        limit,
+        offset,
+      });
+      res.json(result);
+    },
+  );
+
   app.get('/api/community/posts', async (_req, res) => {
     res.json({ posts: await store.communityPosts() });
   });

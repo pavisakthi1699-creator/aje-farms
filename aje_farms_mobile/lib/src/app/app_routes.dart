@@ -8,6 +8,7 @@ abstract final class AppRoutes {
   static const onboarding = '/onboarding';
   static const problem = '/problem';
   static const settings = '/settings';
+  static const adminDashboard = '/admin/dashboard';
   static const savedDocuments = '/profile/saved-documents';
   static const assessments = '/assessments';
   static const fieldAssignment = '/assessments/field';

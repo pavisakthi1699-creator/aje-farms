@@ -79,8 +79,10 @@ class AuthScreenState extends State<AuthScreen> {
         await appSession.signInWithPhone(
           session.phoneNumber,
           sessionToken: session.sessionToken,
+          role: session.role,
         );
         await appSession.syncSubscriptionFromAuthSession(session);
+        await appSession.syncRoleFromAuthSession(session);
         await appSession.syncProfileFromAuthSession(session);
         try {
           final completedLessons =

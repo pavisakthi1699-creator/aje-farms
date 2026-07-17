@@ -528,6 +528,108 @@ test('admin content documents can be drafted and published into catalog', async 
   });
 });
 
+test('admin users endpoint is role-gated', async () => {
+  await withTestServer(async (baseUrl) => {
+    const learnerPhone = '+255700333444';
+    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: learnerPhone,
+    });
+    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: learnerPhone,
+      otp: learnerOtp.payload.debugOtp,
+      challengeId: learnerOtp.payload.challengeId,
+    });
+    const learnerToken = learnerVerify.payload.sessionToken;
+
+    const forbidden = await getJson(
+      baseUrl,
+      '/api/admin/users',
+      await authHeaders(learnerToken),
+    );
+    assert.equal(forbidden.response.status, 403);
+  });
+});
+
+test('admin users endpoint returns monitoring summaries with search', async () => {
+  await withTestServer(async (baseUrl) => {
+    const learnerPhone = '+255700111222';
+    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: learnerPhone,
+    });
+    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: learnerPhone,
+      otp: learnerOtp.payload.debugOtp,
+      challengeId: learnerOtp.payload.challengeId,
+    });
+    const learnerToken = learnerVerify.payload.sessionToken;
+
+    const checkout = await postJson(
+      baseUrl,
+      '/api/payments/checkout',
+      {
+        planTitle: 'Wiki 1',
+        price: 'TSh 2,000',
+        method: 'M-Pesa',
+        phoneNumber: learnerPhone,
+      },
+      await authHeaders(learnerToken),
+    );
+    assert.equal(checkout.response.status, 200);
+
+    const completed = await postJson(
+      baseUrl,
+      `/api/users/by-phone/${encodeURIComponent(learnerPhone)}/progress/lessons`,
+      {
+        courseId: 'pasheni',
+        lessonId: 'kuchagua-eneo-la-shamba',
+      },
+      await authHeaders(learnerToken),
+    );
+    assert.equal(completed.response.status, 200);
+
+    const community = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        author: learnerPhone,
+        content: 'Ninaomba ushauri kuhusu afya ya pasheni wiki hii.',
+        location: 'Morogoro',
+        tags: ['Pasheni'],
+      },
+      await authHeaders(learnerToken),
+    );
+    assert.equal(community.response.status, 200);
+
+    const adminPhone = '+255799000111';
+    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: adminPhone,
+    });
+    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: adminPhone,
+      otp: adminOtp.payload.debugOtp,
+      challengeId: adminOtp.payload.challengeId,
+    });
+    const adminToken = adminVerify.payload.sessionToken;
+
+    const list = await getJson(
+      baseUrl,
+      `/api/admin/users?search=${encodeURIComponent('255700111222')}&limit=10&offset=0`,
+      await authHeaders(adminToken),
+    );
+    assert.equal(list.response.status, 200);
+    assert.ok(typeof list.payload.total === 'number');
+    assert.ok(Array.isArray(list.payload.users));
+    assert.ok(list.payload.users.length >= 1);
+    const user = list.payload.users.find(
+      (entry) => entry.phoneNumber === learnerPhone,
+    );
+    assert.ok(user);
+    assert.equal(user.learningProgressCount, 1);
+    assert.equal(user.paymentTransactionsCount, 1);
+    assert.equal(user.communityPostsCount, 1);
+  });
+});
+
 test('notification settings, devices, inbox, and read state are backend backed', async () => {
   await withTestServer(async (baseUrl) => {
     const ownerPhone = '+255700555666';

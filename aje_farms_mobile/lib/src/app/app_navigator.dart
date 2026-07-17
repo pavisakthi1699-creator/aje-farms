@@ -59,6 +59,8 @@ class AppNavigator {
         return _page(settings, const ProblemScreen());
       case AppRoutes.settings:
         return _page(settings, const SettingsScreen());
+      case AppRoutes.adminDashboard:
+        return _page(settings, const AdminDashboardScreen());
       case AppRoutes.savedDocuments:
         return _page(settings, const SavedDocumentsScreen());
       case AppRoutes.assessments:
@@ -140,6 +142,10 @@ class AppNavigator {
 
   static Future<void> pushSettings(BuildContext context) {
     return Navigator.of(context).pushNamed(AppRoutes.settings);
+  }
+
+  static Future<void> pushAdminDashboard(BuildContext context) {
+    return Navigator.of(context).pushNamed(AppRoutes.adminDashboard);
   }
 
   static Future<void> pushSavedDocuments(BuildContext context) {

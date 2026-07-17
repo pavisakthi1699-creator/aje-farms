@@ -592,6 +592,77 @@ export class PostgresStore {
     return userFromRow(result.rows[0]);
   }
 
+  async adminUsersForAdmin({ search = '', limit = 50, offset = 0 } = {}) {
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const query = String(search).trim();
+    const queryLike = query.length > 0 ? `%${query}%` : null;
+    const result = await this.pool.query(
+      `WITH filtered_users AS (
+         SELECT id, phone_number, role, subscription_plan, subscription_started_at,
+                display_name, preferred_location, created_at, updated_at
+         FROM users
+         WHERE ($1::text IS NULL)
+            OR phone_number ILIKE $1
+            OR COALESCE(display_name, '') ILIKE $1
+       )
+       SELECT fu.id, fu.phone_number, fu.role, fu.subscription_plan,
+              fu.subscription_started_at, fu.display_name, fu.preferred_location,
+              fu.created_at, fu.updated_at,
+              COALESCE(lp.learning_progress_count, 0) AS learning_progress_count,
+              COALESCE(pt.payment_transactions_count, 0) AS payment_transactions_count,
+              COALESCE(n.notification_count, 0) AS notification_count,
+              COALESCE(cp.community_posts_count, 0) AS community_posts_count,
+              COUNT(*) OVER() AS total_count
+       FROM filtered_users fu
+       LEFT JOIN (
+         SELECT phone_number, COUNT(*)::int AS learning_progress_count
+         FROM learning_progress
+         GROUP BY phone_number
+       ) lp ON lp.phone_number = fu.phone_number
+       LEFT JOIN (
+         SELECT phone_number, COUNT(*)::int AS payment_transactions_count
+         FROM payment_transactions
+         GROUP BY phone_number
+       ) pt ON pt.phone_number = fu.phone_number
+       LEFT JOIN (
+         SELECT phone_number, COUNT(*)::int AS notification_count
+         FROM notifications
+         GROUP BY phone_number
+       ) n ON n.phone_number = fu.phone_number
+       LEFT JOIN (
+         SELECT author AS phone_number, COUNT(*)::int AS community_posts_count
+         FROM community_posts
+         WHERE author LIKE '+%'
+         GROUP BY author
+       ) cp ON cp.phone_number = fu.phone_number
+       ORDER BY fu.updated_at DESC
+       LIMIT $2
+       OFFSET $3`,
+      [queryLike, safeLimit, safeOffset],
+    );
+
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    const users = result.rows.map((row) => ({
+      id: row.id,
+      phoneNumber: row.phone_number,
+      displayName: row.display_name ?? null,
+      preferredLocation: row.preferred_location ?? null,
+      role: row.role ?? 'learner',
+      subscriptionPlan: row.subscription_plan ?? null,
+      subscriptionStartedAt: row.subscription_started_at
+        ? new Date(row.subscription_started_at).toISOString()
+        : null,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+      learningProgressCount: Number(row.learning_progress_count ?? 0),
+      paymentTransactionsCount: Number(row.payment_transactions_count ?? 0),
+      notificationCount: Number(row.notification_count ?? 0),
+      communityPostsCount: Number(row.community_posts_count ?? 0),
+    }));
+    return { users, total };
+  }
+
   async notificationSettings(phoneNumber) {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const result = await this.pool.query(

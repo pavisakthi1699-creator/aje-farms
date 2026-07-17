@@ -108,8 +108,10 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
       await _sessionController.signInWithPhone(
         session.phoneNumber,
         sessionToken: session.sessionToken,
+        role: session.role,
       );
       await _sessionController.syncSubscriptionFromAuthSession(session);
+      await _sessionController.syncRoleFromAuthSession(session);
       await _sessionController.syncProfileFromAuthSession(session);
       final completedLessons =
           await _dependencies.learningProgressService.completedLessons(
