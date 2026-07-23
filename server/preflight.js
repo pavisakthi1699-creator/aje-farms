@@ -26,6 +26,16 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   }
   const databaseUrlName = storeMode === 'supabase' ? 'SUPABASE_DATABASE_URL' : 'DATABASE_URL';
   requireValue(blockers, databaseUrlName, env[databaseUrlName] ?? env.DATABASE_URL);
+  if (storeMode === 'supabase') {
+    requireValue(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    validateHttpsUrl(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    validateProductionHostname(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    requireValue(
+      blockers,
+      'SUPABASE_SERVICE_ROLE_KEY',
+      env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+  }
   requireValue(blockers, 'AJE_OTP_PEPPER', env.AJE_OTP_PEPPER, (value) => {
     return value.length < 32
       ? 'must be at least 32 characters for release.'

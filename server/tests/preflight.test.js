@@ -27,6 +27,8 @@ test('release preflight accepts dedicated Supabase config', () => {
       APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'supabase',
       SUPABASE_DATABASE_URL: 'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      SUPABASE_URL: 'https://project.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
       AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
@@ -38,6 +40,35 @@ test('release preflight accepts dedicated Supabase config', () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.blockers.length, 0);
+});
+
+test('release preflight blocks Supabase video signing without storage credentials', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL:
+        'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes('SUPABASE_URL is required for release.'),
+  );
+  assert.ok(
+    result.blockers.includes(
+      'SUPABASE_SERVICE_ROLE_KEY is required for release.',
+    ),
+  );
 });
 
 test('release preflight passes core config and keeps deferred provider warnings', () => {
