@@ -55,12 +55,12 @@ Payment provider integration is intentionally deferred to the final slice.
 
 ```sh
 NODE_ENV=production \
-APP_URL=https://api.example.com \
+APP_URL=https://api.your-domain.example \
 AJE_STORE=supabase \
 SUPABASE_DATABASE_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres \
 AJE_OTP_PEPPER=<32-plus-character-secret> \
 AJE_ENABLE_DEBUG_OTP=false \
-AJE_ANDROID_API_BASE_URL=https://api.example.com \
+AJE_ANDROID_API_BASE_URL=https://api.your-domain.example \
 AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
 AJE_ADMIN_PHONE_NUMBERS=255700000000 \
 TWILIO_ACCOUNT_SID=<twilio-sid> \
@@ -74,11 +74,25 @@ FCM_PRIVATE_KEY=<firebase-private-key> \
 npm run preflight:release
 ```
 
-6. Build the signed Android App Bundle.
+Replace `api.your-domain.example` with the deployed API hostname; preflight
+rejects reserved example domains.
+
+6. Build and validate the signed native Android artifacts.
 
 ```sh
 npm run release:android
 ```
+
+This command must produce the native Flutter package
+`com.ajefarms.mobile`. It builds an installable release APK, validates its
+package, activity, Flutter runtime, and Flutter assets, and then builds the
+Play Store app bundle. Website-to-APK converters are not part of the release
+process.
+
+Generated artifacts:
+
+- `aje_farms_mobile/build/app/outputs/flutter-apk/app-release.apk`
+- `aje_farms_mobile/build/app/outputs/bundle/release/app-release.aab`
 
 ## Deferred Final Payment Slice
 

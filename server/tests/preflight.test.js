@@ -24,12 +24,12 @@ test('release preflight accepts dedicated Supabase config', () => {
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'https://api.ajefarms.example',
+      APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'supabase',
       SUPABASE_DATABASE_URL: 'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
       AJE_PUSH_PROVIDER: 'development',
     },
@@ -44,12 +44,12 @@ test('release preflight passes core config and keeps deferred provider warnings'
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'https://api.ajefarms.example',
+      APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'postgres',
       DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
       AJE_PUSH_PROVIDER: 'development',
     },
@@ -67,12 +67,12 @@ test('release preflight accepts configured FCM push provider', () => {
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'https://api.ajefarms.example',
+      APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'postgres',
       DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
       AJE_PUSH_PROVIDER: 'fcm',
       FCM_PROJECT_ID: 'aje-farms',
@@ -91,12 +91,12 @@ test('release preflight blocks incomplete FCM push provider config', () => {
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'https://api.ajefarms.example',
+      APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'postgres',
       DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
       AJE_PUSH_PROVIDER: 'fcm',
       FCM_PROJECT_ID: 'aje-farms',
@@ -116,12 +116,12 @@ test('release preflight blocks malformed FCM service account json', () => {
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'https://api.ajefarms.example',
+      APP_URL: 'https://api.ajefarms.co.tz',
       AJE_STORE: 'postgres',
       DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
       AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
       AJE_PUSH_PROVIDER: 'fcm',
       FCM_SERVICE_ACCOUNT_JSON: 'not-json',
@@ -141,12 +141,12 @@ test('release preflight blocks weak release secrets and insecure urls', () => {
   const result = releasePreflight(
     {
       NODE_ENV: 'production',
-      APP_URL: 'http://api.ajefarms.example',
+      APP_URL: 'http://api.ajefarms.co.tz',
       AJE_STORE: 'postgres',
       DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
       AJE_OTP_PEPPER: 'short',
       AJE_ENABLE_DEBUG_OTP: 'false',
-      AJE_ANDROID_API_BASE_URL: 'http://api.ajefarms.example',
+      AJE_ANDROID_API_BASE_URL: 'http://api.ajefarms.co.tz',
       AJE_WHATSAPP_EXPERT_PHONE: '+255700000000',
     },
     (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
@@ -167,6 +167,37 @@ test('release preflight blocks weak release secrets and insecure urls', () => {
   assert.ok(
     result.blockers.includes(
       'AJE_WHATSAPP_EXPERT_PHONE must be digits only.',
+    ),
+  );
+});
+
+test('release preflight rejects placeholder production hosts', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.example.com',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL:
+        'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.example.com',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      'APP_URL must not use a placeholder or reserved hostname.',
+    ),
+  );
+  assert.ok(
+    result.blockers.includes(
+      'AJE_ANDROID_API_BASE_URL must not use a placeholder or reserved hostname.',
     ),
   );
 });

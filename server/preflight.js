@@ -18,6 +18,7 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
       : null;
   });
   validateHttpsUrl(blockers, 'APP_URL', env.APP_URL);
+  validateProductionHostname(blockers, 'APP_URL', env.APP_URL);
 
   const storeMode = (env.AJE_STORE ?? 'json').toLowerCase();
   if (storeMode !== 'postgres' && storeMode !== 'supabase') {
@@ -43,6 +44,11 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     }
     return null;
   });
+  validateProductionHostname(
+    blockers,
+    'AJE_ANDROID_API_BASE_URL',
+    env.AJE_ANDROID_API_BASE_URL,
+  );
   requireValue(
     blockers,
     'AJE_WHATSAPP_EXPERT_PHONE',
@@ -107,6 +113,29 @@ function validateHttpsUrl(blockers, name, value) {
     }
   } catch {
     blockers.push(`${name} must be a valid URL.`);
+  }
+}
+
+function validateProductionHostname(blockers, name, value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized || placeholderValues.has(normalized)) return;
+  try {
+    const { hostname } = new URL(normalized);
+    const reserved =
+      hostname === 'localhost' ||
+      hostname === 'example.com' ||
+      hostname.endsWith('.example.com') ||
+      hostname.endsWith('.example') ||
+      hostname.endsWith('.invalid') ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.test');
+    if (reserved) {
+      blockers.push(
+        `${name} must not use a placeholder or reserved hostname.`,
+      );
+    }
+  } catch {
+    // URL syntax is reported by validateHttpsUrl or the field validator.
   }
 }
 
