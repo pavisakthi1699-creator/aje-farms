@@ -49,6 +49,43 @@ void main() {
     expect(find.text('Umeanza kujifunza'), findsOneWidget);
   });
 
+  testWidgets('opens a course by tapping its catalog card',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final course = AppDependencies.demo().learningRepository.courses.first;
+    await tester.pumpWidget(buildDemoApp());
+    await startDemoShell(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.menu_book_outlined),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final courseTitle = find.text(course.title);
+    await tester.ensureVisible(courseTitle);
+    await tester.tap(courseTitle);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mwendelezo wa kozi'), findsOneWidget);
+    expect(find.text('Masomo'), findsOneWidget);
+
+    final firstLesson = find.text(course.lessons.first.title);
+    await tester.ensureVisible(firstLesson);
+    await tester.pumpAndSettle();
+    await tester.tap(firstLesson);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kamilisha Somo'), findsOneWidget);
+  });
+
   testWidgets('guides farmer from home problem intake into AI chat',
       (WidgetTester tester) async {
     useTallViewport(tester);

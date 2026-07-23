@@ -76,160 +76,174 @@ class CourseCard extends StatelessWidget {
     final hasPremium = course.lessons.any((lesson) => lesson.isPremium);
     final progress = total == 0 ? 0.0 : completed / total;
 
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xl),
-            ),
-            child: SizedBox(
-              height: 190,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  NetworkPhoto(url: course.imageUrl),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          context.colors.charcoal.withValues(alpha: 0.28),
-                        ],
+    return Semantics(
+      button: true,
+      label: 'Fungua kozi ya ${course.title}',
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            AppFeedback.tap();
+            AppNavigator.pushCourse(context, course);
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xl),
+                ),
+                child: SizedBox(
+                  height: 190,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      NetworkPhoto(url: course.imageUrl),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              context.colors.charcoal.withValues(alpha: 0.28),
+                            ],
+                          ),
+                        ),
                       ),
+                      Positioned(
+                        left: AppSpacing.lg,
+                        top: AppSpacing.lg,
+                        child: Pill(label: course.badge),
+                      ),
+                      Positioned(
+                        right: AppSpacing.lg,
+                        bottom: AppSpacing.lg,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                context.colors.charcoal.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: Text(
+                            '$completed/$total masomo',
+                            style: accessibleCaption(
+                              context,
+                              color: context.colors.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(course.title,
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      course.description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                            height: 1.4,
+                          ),
                     ),
-                  ),
-                  Positioned(
-                    left: AppSpacing.lg,
-                    top: AppSpacing.lg,
-                    child: Pill(label: course.badge),
-                  ),
-                  Positioned(
-                    right: AppSpacing.lg,
-                    bottom: AppSpacing.lg,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.colors.charcoal.withValues(alpha: 0.72),
+                    const SizedBox(height: AppSpacing.md),
+                    Semantics(
+                      label:
+                          '${(progress * 100).round()}% ya ${course.title} imekamilika',
+                      child: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Text(
-                        '$completed/$total masomo',
-                        style: accessibleCaption(
-                          context,
-                          color: context.colors.onPrimary,
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: context.colors.surfaceMuted,
+                          color: context.colors.primary,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(course.title,
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  course.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.colors.muted,
-                        height: 1.4,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Semantics(
-                  label:
-                      '${(progress * 100).round()}% ya ${course.title} imekamilika',
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: context.colors.surfaceMuted,
-                      color: context.colors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Text(
-                      progress > 0
-                          ? '${(progress * 100).round()}% imekamilika'
-                          : 'Tayari kuanza',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: context.colors.primary,
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      children: [
+                        Text(
+                          progress > 0
+                              ? '${(progress * 100).round()}% imekamilika'
+                              : 'Tayari kuanza',
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: context.colors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        const Spacer(),
+                        if (hasPremium)
+                          Row(
+                            children: [
+                              Icon(Icons.lock_outline,
+                                  size: 16, color: context.colors.muted),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text('Premium',
+                                  style: accessibleCaption(context)),
+                            ],
                           ),
+                      ],
                     ),
-                    const Spacer(),
-                    if (hasPremium)
-                      Row(
-                        children: [
-                          Icon(Icons.lock_outline,
-                              size: 16, color: context.colors.muted),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text('Premium', style: accessibleCaption(context)),
-                        ],
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton.icon(
-                  onPressed: () {
-                    AppFeedback.tap();
-                    AppNavigator.pushCourse(context, course);
-                  },
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Anza Kujifunza'),
-                  style: FilledButton.styleFrom(
-                      backgroundColor: context.colors.charcoal),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          AppFeedback.tap();
-                          AppNavigator.pushAiChat(
-                            context,
-                            initialPromptTopic: course.title,
-                          );
-                        },
-                        icon: const Icon(Icons.smart_toy_outlined),
-                        label: const Text('Uliza AI'),
-                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    FilledButton.icon(
+                      onPressed: () {
+                        AppFeedback.tap();
+                        AppNavigator.pushCourse(context, course);
+                      },
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: const Text('Anza Kujifunza'),
+                      style: FilledButton.styleFrom(
+                          backgroundColor: context.colors.charcoal),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          AppFeedback.tap();
-                          AppNavigator.pushWhatsApp(context);
-                        },
-                        icon: const Icon(Icons.support_agent),
-                        label: const Text('Mtaalamu'),
-                      ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              AppFeedback.tap();
+                              AppNavigator.pushAiChat(
+                                context,
+                                initialPromptTopic: course.title,
+                              );
+                            },
+                            icon: const Icon(Icons.smart_toy_outlined),
+                            label: const Text('Uliza AI'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              AppFeedback.tap();
+                              AppNavigator.pushWhatsApp(context);
+                            },
+                            icon: const Icon(Icons.support_agent),
+                            label: const Text('Mtaalamu'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
