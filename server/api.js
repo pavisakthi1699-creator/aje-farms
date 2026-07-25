@@ -1,5 +1,8 @@
 import { catalog } from './catalog.js';
 import {
+  isAllowlistedAdminPhone,
+  userHasAdminAccess,
+  userWithEffectiveRole,
   requireAdminSession,
   requireAuthPhoneMatch,
   requireAuthSession,
@@ -36,14 +39,8 @@ export async function registerApiRoutes(app) {
           Boolean(storeConfig.databaseUrl),
       },
       sms: {
-        provider: process.env.TWILIO_ACCOUNT_SID ? 'twilio' : 'development',
-        ready:
-          !isProduction ||
-          Boolean(
-            process.env.TWILIO_ACCOUNT_SID &&
-              process.env.TWILIO_AUTH_TOKEN &&
-              process.env.TWILIO_FROM_NUMBER,
-          ),
+        provider: otpSender.name,
+        ready: !isProduction || otpSender.isProductionReady,
       },
       payments: {
         provider: paymentProvider.name,
@@ -258,12 +255,36 @@ export async function registerApiRoutes(app) {
       return;
     }
 
-    const user = await store.ensureUser(normalizedPhone);
+    const user = userWithEffectiveRole(
+      await store.ensureUser(normalizedPhone),
+      normalizedPhone,
+    );
     const authSession = await store.createAuthSession(normalizedPhone);
     res.json({
       phoneNumber: user.phoneNumber,
       user,
       sessionToken: authSession.token,
+    });
+  });
+
+  app.get('/api/auth/whoami', requireAuthSession(store), async (req, res) => {
+    const user = await store.getUser(req.authPhoneNumber);
+    if (!user) {
+      res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+      return;
+    }
+    const allowlistedAdmin = isAllowlistedAdminPhone(req.authPhoneNumber);
+    const effectiveUser = userWithEffectiveRole(user, req.authPhoneNumber);
+    res.json({
+      phoneNumber: effectiveUser.phoneNumber,
+      role: effectiveUser.role,
+      hasAdminAccess: userHasAdminAccess(user, req.authPhoneNumber),
+      allowlistedAdmin,
+      source: allowlistedAdmin
+        ? 'phone_allowlist'
+        : user.role === 'admin'
+          ? 'stored_role'
+          : 'learner',
     });
   });
 
@@ -277,7 +298,9 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
-      res.json({ user });
+      res.json({
+        user: userWithEffectiveRole(user, req.authPhoneNumber),
+      });
     },
   );
 
@@ -290,7 +313,9 @@ export async function registerApiRoutes(app) {
         displayName: req.body?.displayName,
         preferredLocation: req.body?.preferredLocation,
       });
-      res.json({ user });
+    res.json({
+      user: userWithEffectiveRole(user, req.authPhoneNumber),
+    });
     },
   );
 
@@ -304,7 +329,9 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
-      res.json({ user });
+    res.json({
+      user: userWithEffectiveRole(user, req.authPhoneNumber),
+    });
     },
   );
 

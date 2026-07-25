@@ -362,6 +362,7 @@ test('admin moderation can review reports and hide a community post', async () =
       challengeId: adminOtp.payload.challengeId,
     });
     const adminToken = adminVerify.payload.sessionToken;
+    assert.equal(adminVerify.payload.user.role, 'admin');
 
     const reports = await getJson(
       baseUrl,
@@ -550,6 +551,71 @@ test('admin users endpoint is role-gated', async () => {
   });
 });
 
+test('whoami exposes safe admin access diagnostics', async () => {
+  await withTestServer(async (baseUrl) => {
+    const learnerPhone = '+255700123456';
+    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: learnerPhone,
+    });
+    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: learnerPhone,
+      otp: learnerOtp.payload.debugOtp,
+      challengeId: learnerOtp.payload.challengeId,
+    });
+    const learnerWhoAmI = await getJson(
+      baseUrl,
+      '/api/auth/whoami',
+      await authHeaders(learnerVerify.payload.sessionToken),
+    );
+    assert.equal(learnerWhoAmI.response.status, 200);
+    assert.equal(learnerWhoAmI.payload.phoneNumber, learnerPhone);
+    assert.equal(learnerWhoAmI.payload.role, 'learner');
+    assert.equal(learnerWhoAmI.payload.hasAdminAccess, false);
+    assert.equal(learnerWhoAmI.payload.allowlistedAdmin, false);
+    assert.equal(learnerWhoAmI.payload.source, 'learner');
+
+    const adminPhone = '+255799000111';
+    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: adminPhone,
+    });
+    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: adminPhone,
+      otp: adminOtp.payload.debugOtp,
+      challengeId: adminOtp.payload.challengeId,
+    });
+    const adminWhoAmI = await getJson(
+      baseUrl,
+      '/api/auth/whoami',
+      await authHeaders(adminVerify.payload.sessionToken),
+    );
+    assert.equal(adminWhoAmI.response.status, 200);
+    assert.equal(adminWhoAmI.payload.phoneNumber, adminPhone);
+    assert.equal(adminWhoAmI.payload.role, 'admin');
+    assert.equal(adminWhoAmI.payload.hasAdminAccess, true);
+    assert.equal(adminWhoAmI.payload.allowlistedAdmin, true);
+    assert.equal(adminWhoAmI.payload.source, 'phone_allowlist');
+
+    process.env.AJE_ADMIN_PHONE_NUMBERS = '';
+    const revokedWhoAmI = await getJson(
+      baseUrl,
+      '/api/auth/whoami',
+      await authHeaders(adminVerify.payload.sessionToken),
+    );
+    assert.equal(revokedWhoAmI.response.status, 200);
+    assert.equal(revokedWhoAmI.payload.role, 'learner');
+    assert.equal(revokedWhoAmI.payload.hasAdminAccess, false);
+    assert.equal(revokedWhoAmI.payload.allowlistedAdmin, false);
+    assert.equal(revokedWhoAmI.payload.source, 'learner');
+
+    const revokedAdminRequest = await getJson(
+      baseUrl,
+      '/api/admin/users',
+      await authHeaders(adminVerify.payload.sessionToken),
+    );
+    assert.equal(revokedAdminRequest.response.status, 403);
+  });
+});
+
 test('admin users endpoint returns monitoring summaries with search', async () => {
   await withTestServer(async (baseUrl) => {
     const learnerPhone = '+255700111222';
@@ -610,6 +676,7 @@ test('admin users endpoint returns monitoring summaries with search', async () =
       challengeId: adminOtp.payload.challengeId,
     });
     const adminToken = adminVerify.payload.sessionToken;
+    assert.equal(adminVerify.payload.user.role, 'admin');
 
     const list = await getJson(
       baseUrl,

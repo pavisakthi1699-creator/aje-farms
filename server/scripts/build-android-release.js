@@ -4,7 +4,10 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { validateAndroidApk } from '../android-release.js';
+import {
+  releaseDartDefines,
+  validateAndroidApk,
+} from '../android-release.js';
 import { releasePreflight } from '../preflight.js';
 
 const rootDir = process.cwd();
@@ -33,10 +36,7 @@ if (!preflight.ok) {
 
 const flutterBin =
   process.env.FLUTTER_BIN ?? '/Users/frankmchaina/development/flutter/bin/flutter';
-const dartDefines = [
-  `--dart-define=AJE_API_BASE_URL=${process.env.AJE_ANDROID_API_BASE_URL}`,
-  `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${process.env.AJE_WHATSAPP_EXPERT_PHONE}`,
-];
+const dartDefines = releaseDartDefines(process.env);
 const mobileDir = path.join(rootDir, 'aje_farms_mobile');
 
 const apkResult = spawnSync(flutterBin, [

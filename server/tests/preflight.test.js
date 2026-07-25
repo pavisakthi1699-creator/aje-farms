@@ -94,6 +94,111 @@ test('release preflight passes core config and keeps deferred provider warnings'
   assert.ok(result.warnings.some((warning) => warning.includes('Push notifications')));
 });
 
+test('release preflight blocks internal Android release builds', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_INTERNAL_BUILD: 'true',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      'AJE_INTERNAL_BUILD must not be true for release.',
+    ),
+  );
+});
+
+test('release preflight blocks debug OTP disclosure', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'true',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      'AJE_ENABLE_DEBUG_OTP must not be true for release.',
+    ),
+  );
+});
+
+test("release preflight accepts Africa's Talking SMS credentials", () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_SMS_PROVIDER: 'africas_talking',
+      AFRICASTALKING_USERNAME: 'aje-farms',
+      AFRICASTALKING_API_KEY: 'secret-api-key',
+      AFRICASTALKING_ENVIRONMENT: 'production',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, true);
+  assert.ok(
+    !result.warnings.some((warning) => warning.includes('SMS OTP provider')),
+  );
+});
+
+test("release preflight blocks incomplete Africa's Talking config", () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'postgres',
+      DATABASE_URL: 'postgresql://user:pass@example.com:5432/aje',
+      AJE_OTP_PEPPER: 'release-pepper-with-at-least-32-chars',
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_SMS_PROVIDER: 'africas_talking',
+      AFRICASTALKING_USERNAME: 'aje-farms',
+      AJE_PUSH_PROVIDER: 'development',
+    },
+    (relativePath) =>
+      relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.includes(
+      "Africa's Talking SMS provider requires AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY.",
+    ),
+  );
+});
+
 test('release preflight accepts configured FCM push provider', () => {
   const result = releasePreflight(
     {

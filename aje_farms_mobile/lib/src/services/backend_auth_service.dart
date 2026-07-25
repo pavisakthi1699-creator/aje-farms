@@ -82,6 +82,18 @@ class BackendAuthService implements AuthService {
     return _sessionFromResponse(response);
   }
 
+  @override
+  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() async {
+    final response = await _get('/api/auth/whoami', authenticated: true);
+    return AdminAccessDiagnostics(
+      phoneNumber: response['phoneNumber'] as String,
+      role: response['role'] as String? ?? 'learner',
+      hasAdminAccess: response['hasAdminAccess'] as bool? ?? false,
+      allowlistedAdmin: response['allowlistedAdmin'] as bool? ?? false,
+      source: response['source'] as String? ?? 'unknown',
+    );
+  }
+
   Future<Map<String, dynamic>> _post(
     String path,
     Map<String, dynamic> body, {

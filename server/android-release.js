@@ -7,6 +7,13 @@ export const ANDROID_APPLICATION_ID = 'com.ajefarms.mobile';
 export const ANDROID_LAUNCH_ACTIVITY =
   'com.ajefarms.mobile.MainActivity';
 
+export function releaseDartDefines(env) {
+  return [
+    `--dart-define=AJE_API_BASE_URL=${env.AJE_ANDROID_API_BASE_URL}`,
+    `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${env.AJE_WHATSAPP_EXPERT_PHONE}`,
+  ];
+}
+
 export function validateAndroidArtifactMetadata({ entries, badging }) {
   const errors = [];
   const entrySet = new Set(entries);

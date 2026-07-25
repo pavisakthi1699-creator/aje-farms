@@ -1,6 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
 import "../../ui.dart";
+import '../../app/build_flags.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -89,6 +90,10 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
+            if (kInternalBuild && session.isSignedIn) ...[
+              const _AdminAccessDiagnosticsCard(),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -243,6 +248,149 @@ class ProfileScreen extends StatelessWidget {
                     ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminAccessDiagnosticsCard extends StatefulWidget {
+  const _AdminAccessDiagnosticsCard();
+
+  @override
+  State<_AdminAccessDiagnosticsCard> createState() =>
+      _AdminAccessDiagnosticsCardState();
+}
+
+class _AdminAccessDiagnosticsCardState
+    extends State<_AdminAccessDiagnosticsCard> {
+  AdminAccessDiagnostics? _diagnostics;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final diagnostics =
+          await context.dependencies.authService.getAdminAccessDiagnostics();
+      if (!mounted) return;
+      setState(() {
+        _diagnostics = diagnostics;
+        _loading = false;
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Imeshindikana kusoma hali ya admin.';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diagnostics = _diagnostics;
+    final sessionIsAdmin = context.session.isAdmin;
+    final hasMismatch =
+        diagnostics != null && sessionIsAdmin != diagnostics.hasAdminAccess;
+
+    return Card(
+      color: context.colors.surfaceMuted,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bug_report_outlined, color: context.colors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Debug: Hali ya Admin',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Onyesha upya',
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (_loading)
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else if (_error != null)
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.error,
+                    ),
+              )
+            else if (diagnostics != null) ...[
+              Text(
+                'Namba: ${diagnostics.phoneNumber}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Role: ${diagnostics.role}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Admin access (server): ${diagnostics.hasAdminAccess ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Allowlist: ${diagnostics.allowlistedAdmin ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Chanzo: ${diagnostics.source}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Admin access (app): ${sessionIsAdmin ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (hasMismatch) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Tahadhari: app na server hazilingani. Toka kisha ingia tena.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ],
           ],
         ),
       ),

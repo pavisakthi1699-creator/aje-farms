@@ -1,5 +1,28 @@
 import { normalizePhoneNumber } from './store.js';
 
+export function configuredAdminPhones() {
+  return String(process.env.AJE_ADMIN_PHONE_NUMBERS ?? '')
+    .split(',')
+    .map((phoneNumber) => normalizePhoneNumber(phoneNumber))
+    .filter((phoneNumber) => phoneNumber.length > 1);
+}
+
+export function isAllowlistedAdminPhone(phoneNumber) {
+  return configuredAdminPhones().includes(normalizePhoneNumber(phoneNumber));
+}
+
+export function userHasAdminAccess(user, phoneNumber) {
+  return user?.role === 'admin' || isAllowlistedAdminPhone(phoneNumber);
+}
+
+export function userWithEffectiveRole(user, phoneNumber = user?.phoneNumber) {
+  if (!user) return user;
+  return {
+    ...user,
+    role: userHasAdminAccess(user, phoneNumber) ? 'admin' : 'learner',
+  };
+}
+
 export function requireAuthSession(store) {
   return async (req, res, next) => {
     const header = req.headers.authorization;
@@ -33,12 +56,7 @@ export function requireAuthPhoneMatch(paramName = 'phoneNumber') {
 export function requireAdminSession(store) {
   return async (req, res, next) => {
     const user = await store.getUser(req.authPhoneNumber);
-    const adminPhones = String(process.env.AJE_ADMIN_PHONE_NUMBERS ?? '')
-      .split(',')
-      .map((phoneNumber) => normalizePhoneNumber(phoneNumber))
-      .filter((phoneNumber) => phoneNumber.length > 1);
-    const isAdmin =
-      user?.role === 'admin' || adminPhones.includes(req.authPhoneNumber);
+    const isAdmin = userHasAdminAccess(user, req.authPhoneNumber);
     if (!isAdmin) {
       res.status(403).json({ error: 'Admin access is required.' });
       return;

@@ -44,6 +44,9 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   if (env.AJE_ENABLE_DEBUG_OTP === 'true') {
     blockers.push('AJE_ENABLE_DEBUG_OTP must not be true for release.');
   }
+  if (String(env.AJE_INTERNAL_BUILD ?? '').toLowerCase() === 'true') {
+    blockers.push('AJE_INTERNAL_BUILD must not be true for release.');
+  }
 
   requireValue(blockers, 'AJE_ANDROID_API_BASE_URL', env.AJE_ANDROID_API_BASE_URL, (value) => {
     if (!value.startsWith('https://')) {
@@ -71,8 +74,34 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     );
   }
 
-  if (!hasAll(env, ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER'])) {
-    warnings.push('SMS OTP provider is not fully configured; development OTP sender cannot be used in production.');
+  const smsProvider = String(env.AJE_SMS_PROVIDER ?? '').trim().toLowerCase();
+  if (smsProvider === 'africas_talking') {
+    if (
+      !hasAll(env, [
+        'AFRICASTALKING_USERNAME',
+        'AFRICASTALKING_API_KEY',
+      ])
+    ) {
+      blockers.push(
+        "Africa's Talking SMS provider requires AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY.",
+      );
+    }
+    const smsEnvironment = String(
+      env.AFRICASTALKING_ENVIRONMENT ?? 'production',
+    ).toLowerCase();
+    if (!['production', 'sandbox'].includes(smsEnvironment)) {
+      blockers.push(
+        'AFRICASTALKING_ENVIRONMENT must be "production" or "sandbox".',
+      );
+    }
+  } else if (smsProvider && smsProvider !== 'development') {
+    blockers.push(
+      'AJE_SMS_PROVIDER must be "africas_talking" or "development".',
+    );
+  } else {
+    warnings.push(
+      "SMS OTP provider is not configured; set AJE_SMS_PROVIDER=africas_talking and Africa's Talking credentials for production login.",
+    );
   }
   if (!String(env.AJE_ADMIN_PHONE_NUMBERS ?? '').trim()) {
     warnings.push('AJE_ADMIN_PHONE_NUMBERS is not set; moderation admin access must be managed through stored user roles.');

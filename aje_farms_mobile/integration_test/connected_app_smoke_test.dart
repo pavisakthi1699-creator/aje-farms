@@ -169,4 +169,9 @@ class _RecordingAuthService implements AuthService {
       preferredLocation: preferredLocation,
     );
   }
+
+  @override
+  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() {
+    return _delegate.getAdminAccessDiagnostics();
+  }
 }
