@@ -26,7 +26,6 @@ void main() {
     );
 
     final post = await service.createPost(
-      author: 'Wewe',
       content: 'Majani ya nyanya yana madoa ya njano.',
       location: 'Morogoro',
       tags: const ['Magonjwa', 'Nyanya'],
@@ -62,7 +61,6 @@ void main() {
 
     final reply = await service.addReply(
       postId: 'post-1',
-      author: 'Wewe',
       body: 'Angalia chini ya majani.',
     );
 
@@ -96,7 +94,6 @@ void main() {
 
     expect(
       () => service.createPost(
-        author: 'Wewe',
         content: 'Too short',
         location: 'Morogoro',
         tags: const ['Magonjwa'],

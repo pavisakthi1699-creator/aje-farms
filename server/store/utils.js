@@ -133,6 +133,20 @@ function otpPepper() {
   return process.env.AJE_OTP_PEPPER ?? 'aje-farms-dev-otp-pepper';
 }
 
+// Community posts are served by an unauthenticated endpoint, so the stored
+// author label must never be a phone number. Falls back to a stable
+// pseudonymous handle when the user has not set a display name.
+export function communityDisplayName(user, phoneNumber) {
+  const displayName = String(user?.displayName ?? '').trim();
+  if (displayName) return displayName;
+  const suffix = crypto
+    .createHash('sha256')
+    .update(`${normalizePhoneNumber(phoneNumber)}:${otpPepper()}`)
+    .digest('hex')
+    .slice(0, 4);
+  return `Mkulima ${suffix}`;
+}
+
 export function hashOtp(otp) {
   return crypto
     .createHash('sha256')

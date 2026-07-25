@@ -387,6 +387,111 @@ test('admin moderation can review reports and hide a community post', async () =
       community.payload.posts.some((item) => item.id === post.payload.id),
       false,
     );
+
+    // `moderatedBy` holds a moderator phone number. Hidden posts are filtered
+    // out of this feed today, so the field is not currently reachable here, but
+    // the endpoint is unauthenticated and must never serialize it regardless.
+    for (const item of community.payload.posts) {
+      assert.equal(
+        Object.hasOwn(item, 'moderatedBy'),
+        false,
+        'public community feed must not expose moderatedBy',
+      );
+      assert.equal(
+        Object.hasOwn(item, 'moderatedAt'),
+        false,
+        'public community feed must not expose moderatedAt',
+      );
+    }
+
+    // Admin moderation routes still need the fields the dashboard renders.
+    assert.equal(hidden.payload.post.moderatedBy, adminPhone);
+  });
+});
+
+test('lesson video endpoints require a session', async () => {
+  await withTestServer(async (baseUrl) => {
+    const anonymousUrl = await getJson(baseUrl, '/api/lessons/any-id/video-url');
+    assert.equal(anonymousUrl.response.status, 401);
+
+    const anonymousRedirect = await getJson(baseUrl, '/api/lessons/any-id/video');
+    assert.equal(anonymousRedirect.response.status, 401);
+
+    const phone = '+255700222333';
+    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: phone,
+    });
+    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: phone,
+      otp: otp.payload.debugOtp,
+      challengeId: otp.payload.challengeId,
+    });
+
+    // Authenticated but unknown lesson: past the auth gate, so not a 401.
+    const authorized = await getJson(
+      baseUrl,
+      '/api/lessons/any-id/video-url',
+      await authHeaders(verify.payload.sessionToken),
+    );
+    assert.notEqual(authorized.response.status, 401);
+  });
+});
+
+test('community authorship is session-derived and never exposes phone numbers', async () => {
+  await withTestServer(async (baseUrl) => {
+    const farmerPhone = '+255700888999';
+    const victimPhone = '+255799999999';
+    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: farmerPhone,
+    });
+    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: farmerPhone,
+      otp: otp.payload.debugOtp,
+      challengeId: otp.payload.challengeId,
+    });
+    const headers = await authHeaders(verify.payload.sessionToken);
+
+    // A client-supplied author must be ignored, not trusted.
+    const post = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        author: victimPhone,
+        content: 'Nina swali kuhusu kilimo cha mpunga katika msimu huu wa mvua.',
+        location: 'Morogoro',
+        tags: ['Mpunga'],
+      },
+      headers,
+    );
+    assert.equal(post.response.status, 200);
+    assert.notEqual(post.payload.author, victimPhone);
+    assert.notEqual(post.payload.author, farmerPhone);
+
+    await postJson(
+      baseUrl,
+      `/api/community/posts/${post.payload.id}/replies`,
+      { author: victimPhone, body: 'Jibu la majaribio.' },
+      headers,
+    );
+
+    const community = await getJson(baseUrl, '/api/community/posts');
+    assert.equal(community.response.status, 200);
+    const serialized = JSON.stringify(community.payload);
+    assert.equal(
+      serialized.includes(farmerPhone),
+      false,
+      'public community feed must not expose the author phone number',
+    );
+    assert.equal(
+      serialized.includes(victimPhone),
+      false,
+      'a spoofed author must never be persisted or served',
+    );
+    assert.equal(
+      serialized.includes('authorPhone'),
+      false,
+      'the private authorship key must not be serialized',
+    );
   });
 });
 

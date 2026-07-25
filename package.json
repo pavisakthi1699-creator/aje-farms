@@ -18,6 +18,7 @@
     "db:down": "docker compose down",
     "db:migrate": "node server/scripts/migrate.js",
     "db:import": "node server/scripts/import-json-store.js",
+    "db:backfill:community-authors": "node server/scripts/backfill-community-authors.js",
     "import:notebooklm": "node server/scripts/import-notebooklm.js",
     "ingest:remaining-curriculum": "node server/scripts/ingest-remaining-curriculum.js",
     "validate:remaining-curriculum": "node server/scripts/validate-remaining-curriculum.js",

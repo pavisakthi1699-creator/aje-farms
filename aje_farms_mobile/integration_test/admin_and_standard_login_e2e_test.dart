@@ -104,6 +104,7 @@ AppDependencies _replaceAuthService(
     subscriptionRepository: dependencies.subscriptionRepository,
     mwalimuAiService: dependencies.mwalimuAiService,
     authService: authService,
+    catalogService: dependencies.catalogService,
     adminService: dependencies.adminService,
     communityService: dependencies.communityService,
     learningProgressService: dependencies.learningProgressService,

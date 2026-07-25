@@ -6,14 +6,13 @@ class LocalCommunityService implements CommunityService {
 
   @override
   Future<CommunityPost> createPost({
-    required String author,
     required String content,
     required String location,
     required List<String> tags,
   }) async {
     return CommunityPost(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
-      author: author,
+      author: 'Mkulima',
       location: location,
       time: 'Sasa hivi',
       content: content,
@@ -28,11 +27,10 @@ class LocalCommunityService implements CommunityService {
   @override
   Future<CommunityReply> addReply({
     required String postId,
-    required String author,
     required String body,
   }) async {
     return CommunityReply(
-      author: author,
+      author: 'Mkulima',
       body: body,
       time: 'Sasa hivi',
     );

@@ -82,6 +82,9 @@ void main() {
 
 class _FakeCatalogService implements CatalogService {
   @override
+  Future<String> lessonVideoUrl(String lessonId) async => 'https://example.test/v';
+
+  @override
   Future<CatalogSnapshot> loadCatalog() async {
     final service = BackendCatalogService(
       baseUrl: Uri.parse('http://localhost:3000'),
@@ -92,6 +95,9 @@ class _FakeCatalogService implements CatalogService {
 }
 
 class _EmptyCourseCatalogService implements CatalogService {
+  @override
+  Future<String> lessonVideoUrl(String lessonId) async => 'https://example.test/v';
+
   @override
   Future<CatalogSnapshot> loadCatalog() async {
     final snapshot = await _FakeCatalogService().loadCatalog();

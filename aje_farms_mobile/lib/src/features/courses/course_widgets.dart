@@ -515,7 +515,7 @@ class LessonPreviewSheet extends StatelessWidget {
               FilledButton.icon(
                 onPressed: lesson.resourceUrl == null
                     ? null
-                    : () => _openVideo(context, lesson.resourceUrl!),
+                    : () => _openVideo(context, lesson),
                 icon: const Icon(Icons.play_circle_outline),
                 label: Text(
                   lesson.resourceUrl == null
@@ -560,8 +560,25 @@ class LessonPreviewSheet extends StatelessWidget {
   }
 }
 
-Future<void> _openVideo(BuildContext context, String resourceUrl) async {
-  final uri = Uri.tryParse(resourceUrl);
+Future<void> _openVideo(BuildContext context, Lesson lesson) async {
+  final resourceUrl = lesson.resourceUrl;
+  if (resourceUrl == null) return;
+  final lessonId = lesson.id;
+  final catalogService = context.dependencies.catalogService;
+
+  // Backend-hosted videos are behind a session, so resolve them to a signed URL
+  // first. Externally hosted videos are already playable as-is.
+  var playableUrl = resourceUrl;
+  if (lessonId != null && resourceUrl.contains('/api/lessons/')) {
+    try {
+      playableUrl = await catalogService.lessonVideoUrl(lessonId);
+    } on CatalogException catch (error) {
+      if (context.mounted) showSnack(context, error.message);
+      return;
+    }
+  }
+
+  final uri = Uri.tryParse(playableUrl);
   if (uri == null ||
       !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     if (context.mounted) {

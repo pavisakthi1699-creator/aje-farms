@@ -22,6 +22,10 @@ class CatalogSnapshot {
 
 abstract interface class CatalogService {
   Future<CatalogSnapshot> loadCatalog();
+
+  /// Resolves a backend-hosted lesson video to a short-lived playable URL.
+  /// Requires a signed-in session; external URLs need no resolution.
+  Future<String> lessonVideoUrl(String lessonId);
 }
 
 class CatalogException implements Exception {

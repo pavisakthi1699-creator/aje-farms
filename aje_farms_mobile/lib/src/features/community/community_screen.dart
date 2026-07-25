@@ -179,11 +179,9 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     if (text.isEmpty) return;
     setState(() => _isSendingReply = true);
     final session = context.session;
-    final author = session.isSignedIn ? session.phoneNumber! : 'Wewe';
     try {
       final reply = await context.dependencies.communityService.addReply(
         postId: _postId,
-        author: author,
         body: text,
       );
       await session.addCommunityReplyRecord(_postId, reply);
@@ -342,11 +340,9 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     }
     setState(() => _isSubmitting = true);
     final session = context.session;
-    final author = session.isSignedIn ? session.phoneNumber! : 'Wewe';
     try {
       final tags = _tags.toList()..sort();
       final post = await context.dependencies.communityService.createPost(
-        author: author,
         content: content,
         location: location,
         tags: tags,

@@ -23,18 +23,19 @@ export class CommunityJsonStore {
   }
 
   communityPosts() {
-    return this.state.communityPosts.filter(
-      (post) => post.moderationStatus !== 'hidden',
-    );
+    return this.state.communityPosts
+      .filter((post) => post.moderationStatus !== 'hidden')
+      .map((post) => toPublicPost(post));
   }
 
-  createCommunityPost({ author, content, location, tags }) {
+  createCommunityPost({ author, authorPhone, content, location, tags }) {
     const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
       Boolean,
     );
     const post = {
       id: createId('post'),
       author: author.trim(),
+      authorPhone: authorPhone ?? null,
       location: location.trim(),
       time: 'Sasa hivi',
       content: content.trim(),
@@ -52,12 +53,18 @@ export class CommunityJsonStore {
     };
     this.state.communityPosts.unshift(post);
     this.#save();
-    return post;
+    return toPublicPost(post);
   }
 
-  addCommunityReply({ postId, author, body }) {
+  communityPostAuthorPhone(postId) {
+    const post = this.state.communityPosts.find((item) => item.id === postId);
+    return post?.authorPhone ?? null;
+  }
+
+  addCommunityReply({ postId, author, authorPhone, body }) {
     const reply = {
       author: author.trim(),
+      authorPhone: authorPhone ?? null,
       body: body.trim(),
       time: 'Sasa hivi',
       isExpert: false,
@@ -68,7 +75,7 @@ export class CommunityJsonStore {
       post.comments = post.replies.length;
       this.#save();
     }
-    return reply;
+    return toPublicReply(reply);
   }
 
   reportCommunityPost(postId) {
@@ -136,6 +143,26 @@ export class CommunityJsonStore {
     fs.writeFileSync(tmpPath, JSON.stringify(this.state, null, 2));
     fs.renameSync(tmpPath, this.filePath);
   }
+}
+
+// `authorPhone` and `moderatedBy` hold phone numbers and must not reach the
+// unauthenticated `/api/community/posts` response.
+function toPublicReply(reply) {
+  const { authorPhone: _authorPhone, ...rest } = reply;
+  return rest;
+}
+
+function toPublicPost(post) {
+  const {
+    authorPhone: _authorPhone,
+    moderatedAt: _moderatedAt,
+    moderatedBy: _moderatedBy,
+    ...rest
+  } = post;
+  return {
+    ...rest,
+    replies: (post.replies ?? []).map((reply) => toPublicReply(reply)),
+  };
 }
 
 function initialCommunityState(catalog) {

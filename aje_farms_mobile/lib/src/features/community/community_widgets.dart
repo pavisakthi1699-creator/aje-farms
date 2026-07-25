@@ -37,7 +37,7 @@ class CommunityPostCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       backgroundColor: context.colors.primaryContainer,
-                      child: Text(post.author.substring(0, 1),
+                      child: Text(_authorInitial(post.author),
                           style: TextStyle(
                               color: context.colors.primary,
                               fontWeight: FontWeight.w600)),
@@ -464,4 +464,12 @@ class CommunityReplyTile extends StatelessWidget {
       ),
     );
   }
+}
+
+// Authors are server-derived display names, but guard against an empty label
+// so the avatar never throws on substring.
+String _authorInitial(String author) {
+  final trimmed = author.trim();
+  if (trimmed.isEmpty) return 'M';
+  return trimmed.characters.first.toUpperCase();
 }

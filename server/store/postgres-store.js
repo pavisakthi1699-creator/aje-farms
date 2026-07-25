@@ -631,10 +631,11 @@ export class PostgresStore {
          GROUP BY phone_number
        ) n ON n.phone_number = fu.phone_number
        LEFT JOIN (
-         SELECT author AS phone_number, COUNT(*)::int AS community_posts_count
+         SELECT author_phone AS phone_number,
+                COUNT(*)::int AS community_posts_count
          FROM community_posts
-         WHERE author LIKE '+%'
-         GROUP BY author
+         WHERE author_phone IS NOT NULL
+         GROUP BY author_phone
        ) cp ON cp.phone_number = fu.phone_number
        ORDER BY fu.updated_at DESC
        LIMIT $2
@@ -1070,7 +1071,7 @@ export class PostgresStore {
     return result.rows[0] ? paymentFromRow(result.rows[0]) : null;
   }
 
-  async createCommunityPost({ author, content, location, tags }) {
+  async createCommunityPost({ author, authorPhone, content, location, tags }) {
     const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
       Boolean,
     );
@@ -1092,11 +1093,19 @@ export class PostgresStore {
         normalizedTags.includes('Wadudu'),
       moderationStatus: 'visible',
     };
-    await this.#insertCommunityPost(post, new Date());
+    await this.#insertCommunityPost(post, new Date(), authorPhone);
     return post;
   }
 
-  async addCommunityReply({ postId, author, body }) {
+  async communityPostAuthorPhone(postId) {
+    const result = await this.pool.query(
+      `SELECT author_phone FROM community_posts WHERE id = $1`,
+      [postId],
+    );
+    return result.rows[0]?.author_phone ?? null;
+  }
+
+  async addCommunityReply({ postId, author, authorPhone, body }) {
     const reply = {
       author: author.trim(),
       body: body.trim(),
@@ -1105,12 +1114,14 @@ export class PostgresStore {
     };
     await this.pool.query(
       `INSERT INTO community_replies (
-         id, post_id, author, body, time_label, is_expert, created_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         id, post_id, author, author_phone, body, time_label, is_expert,
+         created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         createId('reply'),
         postId,
         reply.author,
+        authorPhone ?? null,
         reply.body,
         reply.time,
         reply.isExpert,
@@ -1147,7 +1158,7 @@ export class PostgresStore {
        ORDER BY r.reported_at DESC`,
     );
     return reports.rows.map((row) => ({
-      post: communityPostFromRow(row),
+      post: communityPostFromRow(row, { includeModeration: true }),
       report: {
         postId: row.post_id,
         reportedAt: new Date(row.reported_at).toISOString(),
@@ -1173,7 +1184,9 @@ export class PostgresStore {
         `DELETE FROM reported_community_posts WHERE post_id = $1`,
         [postId],
       );
-      return result.rows[0] ? communityPostFromRow(result.rows[0]) : null;
+      return result.rows[0]
+        ? communityPostFromRow(result.rows[0], { includeModeration: true })
+        : null;
     }
 
     const result = await this.pool.query(
@@ -1188,7 +1201,9 @@ export class PostgresStore {
       `DELETE FROM reported_community_posts WHERE post_id = $1`,
       [postId],
     );
-    return result.rows[0] ? communityPostFromRow(result.rows[0]) : null;
+    return result.rows[0]
+      ? communityPostFromRow(result.rows[0], { includeModeration: true })
+      : null;
   }
 
   async createAuthSession(phoneNumber) {
@@ -1395,20 +1410,21 @@ export class PostgresStore {
     }
   }
 
-  async #insertCommunityPost(post, createdAt) {
+  async #insertCommunityPost(post, createdAt, authorPhone = null) {
     await this.pool.query(
       `INSERT INTO community_posts (
-         id, author, location, time_label, content, likes, comments, tags,
-         related_topic, has_image, is_expert, is_urgent, moderation_status,
-         moderated_at, moderated_by, created_at
+         id, author, author_phone, location, time_label, content, likes,
+         comments, tags, related_topic, has_image, is_expert, is_urgent,
+         moderation_status, moderated_at, moderated_by, created_at
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-         $13, $14, $15, $16
+         $13, $14, $15, $16, $17
        )
        ON CONFLICT (id) DO NOTHING`,
       [
         post.id,
         post.author,
+        authorPhone,
         post.location,
         post.time,
         post.content,
@@ -1438,8 +1454,10 @@ function normalizeSchemaIdentifier(schema) {
   return normalized;
 }
 
-function communityPostFromRow(row) {
-  return {
+// `moderatedBy` holds a moderator phone number, so it is omitted unless an
+// admin-only caller opts in. `/api/community/posts` is unauthenticated.
+function communityPostFromRow(row, { includeModeration = false } = {}) {
+  const post = {
     id: row.id,
     author: row.author,
     location: row.location,
@@ -1454,6 +1472,10 @@ function communityPostFromRow(row) {
     isExpert: row.is_expert,
     isUrgent: row.is_urgent,
     moderationStatus: row.moderation_status ?? 'visible',
+  };
+  if (!includeModeration) return post;
+  return {
+    ...post,
     moderatedAt: row.moderated_at
       ? new Date(row.moderated_at).toISOString()
       : null,
