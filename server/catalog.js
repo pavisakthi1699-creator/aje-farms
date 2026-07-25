@@ -185,10 +185,10 @@ export const catalog = {
       recommended: true,
     },
     {
-      title: 'Kozi Maalum',
-      subtitle: 'Utaalamu wa kina',
-      price: 'TZS 50,000',
-      icon: 'menu_book',
+      title: 'Mwaka 1',
+      subtitle: 'Okoa TZS 20,000',
+      price: 'TZS 100,000',
+      icon: 'trending_up',
     },
   ],
   communityPosts: [
