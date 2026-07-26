@@ -491,6 +491,338 @@ test(
 );
 
 test(
+  'admin create-only course save rejects a duplicate course code',
+  withSupabaseStore(async () => {
+    const calls = [];
+    const client = {
+      query: async (sql) => {
+        calls.push(sql);
+        if (/SELECT id, status::text AS status, updated_at/.test(sql)) {
+          return {
+            rows: [
+              {
+                id: '00000000-0000-0000-0000-000000000901',
+                status: 'published',
+                updated_at: '2026-07-26T12:00:00.000Z',
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: { connect: async () => client },
+      catalog: {},
+      schema: 'public',
+    });
+
+    await assert.rejects(
+      () =>
+        store.upsertContentCourse({
+          status: 'draft',
+          createOnly: true,
+          course: {
+            id: 'CRS-MAH-01',
+            title: 'Kozi nyingine',
+            description: 'Haipaswi kubadilisha kozi iliyopo.',
+            badge: 'Kozi ya maandishi',
+            icon: 'menu_book',
+            imageUrl: 'assets/images/courses/nyanya.jpg',
+            outcomes: ['Sehemu'],
+            lessons: [
+              {
+                moduleKey: 'sehemu',
+                moduleTitle: 'Sehemu',
+                title: 'Somo',
+                type: 'reading',
+                meta: 'Dakika 5',
+                description: 'Maandishi ya somo.',
+              },
+            ],
+          },
+        }),
+      (error) => error.code === 'COURSE_ALREADY_EXISTS',
+    );
+    assert.ok(calls.includes('ROLLBACK'));
+    assert.equal(calls.includes('COMMIT'), false);
+  }),
+);
+
+test(
+  'admin upsert creates an unknown structured course as a source-review draft',
+  withSupabaseStore(async () => {
+    const calls = [];
+    const courseId = '00000000-0000-0000-0000-000000000901';
+    const moduleId = '00000000-0000-0000-0000-000000000902';
+    const lessonId = '00000000-0000-0000-0000-000000000903';
+    const client = {
+      query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (/SELECT id, status::text AS status, updated_at/.test(sql)) {
+          return { rows: [] };
+        }
+        if (/INSERT INTO courses/.test(sql)) {
+          return {
+            rows: [
+              {
+                id: courseId,
+                status: 'draft',
+                updated_at: '2026-07-26T12:00:00.000Z',
+              },
+            ],
+          };
+        }
+        if (/SELECT id::text, code, title_sw, status::text AS status/.test(sql)) {
+          return { rows: [] };
+        }
+        if (/l\.id::text,[\s\S]*l\.module_id::text/.test(sql)) {
+          return { rows: [] };
+        }
+        if (/INSERT INTO course_modules/.test(sql)) {
+          return { rows: [{ id: moduleId }] };
+        }
+        if (/SELECT id::text FROM lessons/.test(sql)) {
+          return { rows: [] };
+        }
+        if (/INSERT INTO lessons/.test(sql)) {
+          return { rows: [{ id: lessonId }] };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: {
+        connect: async () => client,
+        query: async (sql) => {
+          calls.push({ sql, params: [] });
+          if (/UPDATE courses/.test(sql)) return { rows: [] };
+          assert.match(sql, /FROM courses c/);
+          return {
+            rows: [
+              {
+                course_id: courseId,
+                course_code: 'CRS-MAH-01',
+                course_title: 'Kilimo cha Maharage',
+                course_description: 'Mtaala mpya wa maharage.',
+                delivery_type: 'text',
+                course_status: 'draft',
+                course_updated_at: '2026-07-26T12:00:00.000Z',
+                module_id: moduleId,
+                module_title: 'Maandalizi',
+                module_status: 'draft',
+                lesson_id: lessonId,
+                lesson_title: 'Chagua shamba',
+                lesson_body: 'Kagua eneo na udongo kabla ya kupanda.',
+                lesson_type: 'reading',
+                duration_minutes: 5,
+                lesson_status: 'draft',
+                lesson_link_status: 'pending_review',
+                has_source_link: false,
+                has_grounding: false,
+              },
+            ],
+          };
+        },
+      },
+      catalog: {},
+      schema: 'public',
+    });
+
+    const saved = await store.upsertContentCourse({
+      status: 'approved',
+      createOnly: true,
+      course: {
+        id: 'CRS-MAH-01',
+        title: 'Kilimo cha Maharage',
+        description: 'Mtaala mpya wa maharage.',
+        badge: 'Kozi ya maandishi',
+        icon: 'menu_book',
+        imageUrl: 'assets/images/courses/nyanya.jpg',
+        outcomes: ['Maandalizi'],
+        lessons: [
+          {
+            moduleKey: 'maandalizi',
+            moduleTitle: 'Maandalizi',
+            title: 'Chagua shamba',
+            type: 'reading',
+            meta: 'Dakika 5',
+            description: 'Kagua eneo na udongo kabla ya kupanda.',
+            durationMinutes: 5,
+          },
+        ],
+      },
+    });
+
+    assert.equal(saved.status, 'draft');
+    assert.equal(saved.course.lessons[0].readiness.visible, false);
+    assert.ok(calls.some(({ sql }) => /INSERT INTO courses/.test(sql)));
+    assert.ok(calls.some(({ sql }) => /INSERT INTO course_modules/.test(sql)));
+    assert.ok(calls.some(({ sql }) => /INSERT INTO lessons/.test(sql)));
+    assert.ok(calls.some(({ sql }) => sql === 'COMMIT'));
+  }),
+);
+
+test(
+  'admin source review lists approved segments and approves a lesson atomically',
+  withSupabaseStore(async () => {
+    const calls = [];
+    const client = {
+      query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (/FROM lessons l[\s\S]*CROSS JOIN source_segments/.test(sql)) {
+          return {
+            rows: [
+              {
+                lesson_id: '00000000-0000-0000-0000-000000000903',
+                module_id: '00000000-0000-0000-0000-000000000902',
+                course_id: '00000000-0000-0000-0000-000000000901',
+                course_code: 'CRS-MAH-01',
+                lesson_type: 'reading',
+                body_sw: 'Kagua eneo na udongo kabla ya kupanda.',
+                has_video: false,
+                source_segment_id:
+                  '00000000-0000-0000-0000-000000000904',
+                source_document_id:
+                  '00000000-0000-0000-0000-000000000905',
+              },
+            ],
+          };
+        }
+        if (/UPDATE courses[\s\S]*RETURNING updated_at/.test(sql)) {
+          return {
+            rows: [{ updated_at: '2026-07-26T12:30:00.000Z' }],
+          };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: {
+        connect: async () => client,
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          return {
+            rows: [
+              {
+                id: '00000000-0000-0000-0000-000000000904',
+                document_id: '00000000-0000-0000-0000-000000000905',
+                document_title: 'Mwongozo wa Maharage',
+                section_title: 'Maandalizi',
+                page_start: 10,
+                page_end: 12,
+                time_start_seconds: null,
+                time_end_seconds: null,
+                content_preview: 'Chagua eneo na udongo unaofaa.',
+              },
+            ],
+          };
+        },
+      },
+      catalog: {},
+      schema: 'public',
+    });
+
+    const segments = await store.sourceSegmentsForAdmin({
+      search: 'maharage',
+      limit: 20,
+    });
+    assert.equal(segments.length, 1);
+    assert.equal(segments[0].documentTitle, 'Mwongozo wa Maharage');
+    assert.equal(segments[0].locationLabel, 'Kurasa 10-12');
+
+    const approved = await store.approveLessonSource({
+      lessonId: '00000000-0000-0000-0000-000000000903',
+      sourceSegmentId: '00000000-0000-0000-0000-000000000904',
+      evidenceNote: 'Sehemu hii inaunga mkono somo.',
+      groundingFact: 'Udongo unaopitisha maji hupunguza kutuama.',
+      reviewerActorId: 'user-20260726-admin',
+    });
+
+    assert.equal(approved.status, 'approved');
+    assert.equal(approved.contentReady, true);
+    assert.equal(approved.courseUpdatedAt, '2026-07-26T12:30:00.000Z');
+    assert.ok(
+      calls.some(({ sql }) => /INSERT INTO content_source_links/.test(sql)),
+    );
+    assert.ok(calls.some(({ sql }) => /INSERT INTO grounding_facts/.test(sql)));
+    assert.ok(calls.some(({ sql }) => /INSERT INTO content_change_log/.test(sql)));
+    assert.ok(
+      calls.some(
+        ({ sql }) =>
+          /UPDATE lessons/.test(sql) &&
+          /source_link_status = 'linked'/.test(sql),
+      ),
+    );
+    assert.ok(calls.some(({ sql }) => sql === 'COMMIT'));
+    assert.equal(calls.some(({ sql }) => sql === 'ROLLBACK'), false);
+  }),
+);
+
+test(
+  'admin source review publishes an attached video resource atomically',
+  withSupabaseStore(async () => {
+    const calls = [];
+    const client = {
+      query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (/FROM lessons l[\s\S]*CROSS JOIN source_segments/.test(sql)) {
+          return {
+            rows: [
+              {
+                lesson_id: '00000000-0000-0000-0000-000000000913',
+                module_id: '00000000-0000-0000-0000-000000000912',
+                course_id: '00000000-0000-0000-0000-000000000911',
+                course_code: 'RICE-VIDEO-01',
+                lesson_type: 'video',
+                body_sw: '',
+                has_video: true,
+                source_segment_id:
+                  '00000000-0000-0000-0000-000000000914',
+                source_document_id:
+                  '00000000-0000-0000-0000-000000000915',
+              },
+            ],
+          };
+        }
+        if (/UPDATE courses[\s\S]*RETURNING updated_at/.test(sql)) {
+          return {
+            rows: [{ updated_at: '2026-07-26T12:40:00.000Z' }],
+          };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: { connect: async () => client },
+      catalog: {},
+      schema: 'public',
+    });
+
+    const approved = await store.approveLessonSource({
+      lessonId: '00000000-0000-0000-0000-000000000913',
+      sourceSegmentId: '00000000-0000-0000-0000-000000000914',
+      evidenceNote: 'Video hii inaonyesha aina ya mbegu.',
+      groundingFact: 'Mbegu iliyothibitishwa husaidia kuanza zao salama.',
+    });
+
+    assert.equal(approved.contentReady, true);
+    assert.ok(
+      calls.some(
+        ({ sql }) =>
+          /UPDATE lesson_resources/.test(sql) &&
+          /status = 'published'/.test(sql),
+      ),
+    );
+    assert.ok(calls.some(({ sql }) => sql === 'COMMIT'));
+  }),
+);
+
+test(
   'structured curriculum save rejects a stale editor revision and rolls back',
   withSupabaseStore(async () => {
     const calls = [];

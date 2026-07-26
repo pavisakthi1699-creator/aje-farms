@@ -87,6 +87,73 @@ void main() {
     expect(sentLesson['durationMinutes'], 7);
     expect(sentLesson['resourceUrl'], 'https://video.example/rice.mp4');
   });
+
+  test('searches approved source segments with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    late http.Request captured;
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          '{"segments":[{"id":"segment-1","documentId":"document-1",'
+          '"documentTitle":"Mwongozo wa Maharage",'
+          '"sectionTitle":"Maandalizi","locationLabel":"Kurasa 10-12",'
+          '"contentPreview":"Chagua eneo lenye mifereji."}]}',
+          200,
+        );
+      }),
+    );
+
+    final segments = await service.searchSourceSegments(search: 'maharage');
+
+    expect(segments.single.id, 'segment-1');
+    expect(segments.single.documentTitle, 'Mwongozo wa Maharage');
+    expect(captured.method, 'GET');
+    expect(captured.headers['Authorization'], 'Bearer token-admin');
+    expect(captured.url.queryParameters['search'], 'maharage');
+  });
+
+  test('submits lesson source review evidence', () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    late http.Request captured;
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          '{"status":"approved","contentReady":true,'
+          '"courseUpdatedAt":"2026-07-26T12:30:00.000Z"}',
+          200,
+        );
+      }),
+    );
+
+    final review = await service.approveLessonSource(
+      lessonId: 'lesson/1',
+      sourceSegmentId: 'segment-1',
+      evidenceNote: 'Sehemu hii inaunga mkono somo.',
+      groundingFact: 'Udongo unaopitisha maji hupunguza kutuama.',
+    );
+
+    expect(captured.method, 'POST');
+    expect(
+      captured.url.path,
+      '/api/admin/content/lessons/lesson%2F1/source-review',
+    );
+    final body = jsonDecode(captured.body) as Map<String, dynamic>;
+    expect(body['sourceSegmentId'], 'segment-1');
+    expect(body['evidenceNote'], 'Sehemu hii inaunga mkono somo.');
+    expect(
+      body['groundingFact'],
+      'Udongo unaopitisha maji hupunguza kutuama.',
+    );
+    expect(review.contentReady, isTrue);
+    expect(
+      review.courseUpdatedAt,
+      DateTime.parse('2026-07-26T12:30:00.000Z'),
+    );
+  });
 }
 
 const _courseResponse = '''

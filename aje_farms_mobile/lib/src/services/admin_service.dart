@@ -9,6 +9,16 @@ abstract interface class AdminService {
     required Course course,
     required String status,
     DateTime? baseUpdatedAt,
+    bool createOnly = false,
+  });
+  Future<List<AdminSourceSegment>> searchSourceSegments({
+    String search = '',
+  });
+  Future<AdminLessonSourceReviewResult> approveLessonSource({
+    required String lessonId,
+    required String sourceSegmentId,
+    required String evidenceNote,
+    required String groundingFact,
   });
   Future<List<AdminContentDocumentRecord>> listContentDocuments();
   Future<AdminContentDocumentRecord> upsertContentDocument({

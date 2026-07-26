@@ -490,9 +490,41 @@ export class PostgresStore {
     status = 'approved',
     replaceCurriculum = false,
     baseUpdatedAt = null,
+    createOnly = false,
   }) {
     const normalizedCourse = normalizeApprovedCourse(course);
     if (process.env.AJE_STORE === 'supabase') {
+      if (createOnly) {
+        const curriculum = await this.saveCourseCurriculum(
+          normalizedCourse.id,
+          {
+            createIfMissing: true,
+            failIfExists: true,
+            status: 'draft',
+            title: normalizedCourse.title,
+            description: normalizedCourse.description,
+            deliveryType: normalizedCourse.lessons.some(
+              (lesson) => lesson.type === 'video',
+            )
+              ? 'video'
+              : 'text',
+            lessons: normalizedCourse.lessons.map((lesson) => ({
+              id: lesson.id,
+              moduleId: lesson.moduleId ?? null,
+              moduleKey: lesson.moduleKey ?? null,
+              moduleTitle: lesson.moduleTitle ?? 'Somo',
+              title: lesson.title,
+              type: lesson.type,
+              meta: lesson.meta,
+              body: lesson.description,
+              durationMinutes:
+                lesson.durationMinutes ?? durationFromMeta(lesson.meta),
+              videoUrl: lesson.resourceUrl ?? null,
+            })),
+          },
+        );
+        return contentCourseRecordFromCurriculum(curriculum);
+      }
       if (!replaceCurriculum) {
         const structuredStatus =
           status === 'approved' ? 'published' : 'draft';
@@ -516,7 +548,34 @@ export class PostgresStore {
           ],
         );
         if (result.rows.length === 0) {
-          throw new Error('Course was not found in the live content catalog.');
+          const curriculum = await this.saveCourseCurriculum(
+            normalizedCourse.id,
+            {
+              createIfMissing: true,
+              status: 'draft',
+              title: normalizedCourse.title,
+              description: normalizedCourse.description,
+              deliveryType: normalizedCourse.lessons.some(
+                (lesson) => lesson.type === 'video',
+              )
+                ? 'video'
+                : 'text',
+              lessons: normalizedCourse.lessons.map((lesson) => ({
+                id: lesson.id,
+                moduleId: lesson.moduleId ?? null,
+                moduleKey: lesson.moduleKey ?? null,
+                moduleTitle: lesson.moduleTitle ?? 'Somo',
+                title: lesson.title,
+                type: lesson.type,
+                meta: lesson.meta,
+                body: lesson.description,
+                durationMinutes:
+                  lesson.durationMinutes ?? durationFromMeta(lesson.meta),
+                videoUrl: lesson.resourceUrl ?? null,
+              })),
+            },
+          );
+          return contentCourseRecordFromCurriculum(curriculum);
         }
         return this.contentCoursesForAdmin().then((records) => {
           const record = records.find(
@@ -563,10 +622,12 @@ export class PostgresStore {
     const result = await this.pool.query(
       `INSERT INTO content_courses (id, status, payload, updated_at)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (id) DO UPDATE
+       ON CONFLICT (id) ${createOnly
+    ? 'DO NOTHING'
+    : `DO UPDATE
        SET status = EXCLUDED.status,
            payload = EXCLUDED.payload,
-           updated_at = EXCLUDED.updated_at
+           updated_at = EXCLUDED.updated_at`}
        RETURNING id, status, payload, updated_at`,
       [
         normalizedCourse.id,
@@ -575,6 +636,11 @@ export class PostgresStore {
         new Date().toISOString(),
       ],
     );
+    if (createOnly && result.rows.length === 0) {
+      const conflict = new Error('A course with this code already exists.');
+      conflict.code = 'COURSE_ALREADY_EXISTS';
+      throw conflict;
+    }
     return contentCourseFromRow(result.rows[0]);
   }
 
@@ -730,9 +796,35 @@ export class PostgresStore {
          FOR UPDATE`,
         [courseCode],
       );
-      const courseRow = courseResult.rows[0];
+      let courseRow = courseResult.rows[0];
+      let createdCourse = false;
+      if (courseRow && curriculum.failIfExists) {
+        const conflict = new Error('A course with this code already exists.');
+        conflict.code = 'COURSE_ALREADY_EXISTS';
+        throw conflict;
+      }
       if (!courseRow) {
-        throw new Error('Course was not found in the live content catalog.');
+        if (!curriculum.createIfMissing) {
+          throw new Error('Course was not found in the live content catalog.');
+        }
+        const insertedCourse = await client.query(
+          `INSERT INTO courses
+             (code, title_sw, description_sw, delivery_type, status,
+              import_source, source_link_status, sort_order)
+           VALUES ($1, $2, $3, $4, 'draft'::content_status,
+                   'manual'::import_source,
+                   'pending_review'::source_link_status,
+                   COALESCE((SELECT MAX(sort_order) + 1 FROM courses), 0))
+           RETURNING id, status::text AS status, updated_at`,
+          [
+            courseCode,
+            curriculum.title,
+            curriculum.description,
+            curriculum.deliveryType === 'video' ? 'video' : 'text',
+          ],
+        );
+        courseRow = insertedCourse.rows[0];
+        createdCourse = true;
       }
       const courseId = courseRow.id;
       if (
@@ -747,7 +839,9 @@ export class PostgresStore {
         throw conflict;
       }
       const structuredStatus =
-        curriculum.status === 'approved' ? 'published' : 'draft';
+        !createdCourse && curriculum.status === 'approved'
+          ? 'published'
+          : 'draft';
 
       await client.query(
         `UPDATE courses
@@ -1028,6 +1122,220 @@ export class PostgresStore {
       client.release();
     }
     return this.courseCurriculum(courseCode);
+  }
+
+  async sourceSegmentsForAdmin({ search = '', limit = 50 } = {}) {
+    if (process.env.AJE_STORE !== 'supabase') return [];
+    const normalizedSearch = String(search).trim();
+    const result = await this.pool.query(
+      `SELECT
+         ss.id::text,
+         sd.id::text AS document_id,
+         sd.title AS document_title,
+         ss.section_title,
+         ss.page_start,
+         ss.page_end,
+         ss.time_start_seconds,
+         ss.time_end_seconds,
+         LEFT(ss.content_sw, 500) AS content_preview
+       FROM source_segments ss
+       JOIN source_documents sd ON sd.id = ss.source_document_id
+       WHERE ss.review_status IN ('approved', 'published')
+         AND sd.processing_status IN ('approved', 'published')
+         AND (
+           $1 = ''
+           OR sd.title ILIKE '%' || $1 || '%'
+           OR COALESCE(ss.section_title, '') ILIKE '%' || $1 || '%'
+           OR ss.content_sw ILIKE '%' || $1 || '%'
+         )
+       ORDER BY sd.title, ss.segment_order
+       LIMIT $2`,
+      [normalizedSearch, Math.min(Math.max(Number(limit) || 50, 1), 100)],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      documentId: row.document_id,
+      documentTitle: row.document_title,
+      sectionTitle: row.section_title ?? null,
+      locationLabel:
+        row.page_start != null
+          ? `Kurasa ${row.page_start}-${row.page_end}`
+          : row.time_start_seconds != null
+            ? `Sekunde ${row.time_start_seconds}-${row.time_end_seconds}`
+            : '',
+      contentPreview: row.content_preview ?? '',
+    }));
+  }
+
+  async approveLessonSource({
+    lessonId,
+    sourceSegmentId,
+    evidenceNote,
+    groundingFact,
+    reviewerActorId = null,
+  }) {
+    if (process.env.AJE_STORE !== 'supabase') {
+      throw new Error('Source review is only available in Supabase mode.');
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const target = await client.query(
+        `SELECT
+           l.id AS lesson_id,
+           m.id AS module_id,
+           c.id AS course_id,
+           c.code AS course_code,
+           l.lesson_type::text,
+           l.body_sw,
+           EXISTS (
+             SELECT 1
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+               AND (lr.external_url IS NOT NULL OR lr.storage_path IS NOT NULL)
+           ) AS has_video,
+           ss.id AS source_segment_id,
+           sd.id AS source_document_id
+         FROM lessons l
+         JOIN course_modules m ON m.id = l.module_id
+         JOIN courses c ON c.id = m.course_id
+         CROSS JOIN source_segments ss
+         JOIN source_documents sd ON sd.id = ss.source_document_id
+         WHERE l.id = $1
+           AND ss.id = $2
+           AND ss.review_status IN ('approved', 'published')
+           AND sd.processing_status IN ('approved', 'published')
+         FOR UPDATE OF l, m, c`,
+        [lessonId, sourceSegmentId],
+      );
+      const row = target.rows[0];
+      if (!row) {
+        throw new Error(
+          'Lesson or approved source segment could not be found.',
+        );
+      }
+      const contentReady =
+        (row.lesson_type === 'reading' && Boolean(row.body_sw?.trim())) ||
+        (row.lesson_type === 'video' && row.has_video === true);
+
+      await client.query(
+        `INSERT INTO content_source_links
+           (content_type, content_id, source_segment_id, source_document_id,
+            link_status, evidence_note)
+         VALUES ('lesson', $1, $2, $3, 'linked'::source_link_status, $4)
+         ON CONFLICT (content_type, content_id, source_segment_id)
+         DO UPDATE SET
+           source_document_id = EXCLUDED.source_document_id,
+           link_status = 'linked'::source_link_status,
+           evidence_note = EXCLUDED.evidence_note,
+           updated_at = NOW()`,
+        [
+          row.lesson_id,
+          row.source_segment_id,
+          row.source_document_id,
+          evidenceNote,
+        ],
+      );
+      await client.query(
+        `INSERT INTO grounding_facts
+           (course_id, module_id, lesson_id, source_segment_id, code, fact_sw,
+            status, risk_level, import_source, reviewed_at)
+         VALUES ($1, $2, $3, $4, $5, $6,
+                 'published'::content_status, 'normal'::content_risk_level,
+                 'manual', NOW())
+         ON CONFLICT (source_segment_id, code)
+         DO UPDATE SET
+           fact_sw = EXCLUDED.fact_sw,
+           status = 'published'::content_status,
+           risk_level = 'normal'::content_risk_level,
+           reviewed_at = NOW(),
+           updated_at = NOW()`,
+        [
+          row.course_id,
+          row.module_id,
+          row.lesson_id,
+          row.source_segment_id,
+          `ADMIN-${row.lesson_id}`,
+          groundingFact,
+        ],
+      );
+      if (row.lesson_type === 'video' && row.has_video === true) {
+        await client.query(
+          `UPDATE lesson_resources
+           SET status = 'published'::content_status,
+               updated_at = NOW()
+           WHERE lesson_id = $1
+             AND resource_type = 'video'
+             AND (external_url IS NOT NULL OR storage_path IS NOT NULL)`,
+          [row.lesson_id],
+        );
+      }
+      await client.query(
+        `UPDATE lessons
+         SET status = CASE
+               WHEN $2 THEN 'published'::content_status
+               ELSE status
+             END,
+             source_link_status = 'linked'::source_link_status,
+             published_at = CASE
+               WHEN $2 THEN COALESCE(published_at, NOW())
+               ELSE published_at
+             END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [row.lesson_id, contentReady],
+      );
+      await client.query(
+        `UPDATE course_modules
+         SET status = 'published'::content_status,
+             source_link_status = 'linked'::source_link_status,
+             published_at = COALESCE(published_at, NOW()),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [row.module_id],
+      );
+      const updatedCourse = await client.query(
+        `UPDATE courses
+         SET source_link_status = 'linked'::source_link_status,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING updated_at`,
+        [row.course_id],
+      );
+      await client.query(
+        `INSERT INTO content_reviews
+           (content_type, content_id, status, risk_level, notes, reviewed_at)
+         VALUES ('lesson', $1, 'published'::content_status,
+                 'normal'::content_risk_level, $2, NOW())`,
+        [row.lesson_id, evidenceNote],
+      );
+      await client.query(
+        `INSERT INTO content_change_log
+           (content_type, content_id, action, metadata)
+         VALUES ('lesson', $1, 'source_review_approved',
+                 jsonb_build_object(
+                   'appUserId', $2::text,
+                   'sourceSegmentId', $3::text
+                 ))`,
+        [row.lesson_id, reviewerActorId, row.source_segment_id],
+      );
+      await client.query('COMMIT');
+      return {
+        courseId: row.course_code,
+        lessonId: String(row.lesson_id),
+        status: 'approved',
+        contentReady,
+        courseUpdatedAt: new Date(
+          updatedCourse.rows[0].updated_at,
+        ).toISOString(),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async approvedContentDocuments() {

@@ -30,6 +30,34 @@ class AdminContentDocumentRecord {
   final DateTime updatedAt;
 }
 
+class AdminSourceSegment {
+  const AdminSourceSegment({
+    required this.id,
+    required this.documentId,
+    required this.documentTitle,
+    required this.sectionTitle,
+    required this.locationLabel,
+    required this.contentPreview,
+  });
+
+  final String id;
+  final String documentId;
+  final String documentTitle;
+  final String? sectionTitle;
+  final String locationLabel;
+  final String contentPreview;
+}
+
+class AdminLessonSourceReviewResult {
+  const AdminLessonSourceReviewResult({
+    required this.courseUpdatedAt,
+    required this.contentReady,
+  });
+
+  final DateTime courseUpdatedAt;
+  final bool contentReady;
+}
+
 class AdminModerationReportStatus {
   const AdminModerationReportStatus({
     required this.postId,

@@ -36,12 +36,14 @@ class BackendAdminService implements AdminService {
     required Course course,
     required String status,
     DateTime? baseUpdatedAt,
+    bool createOnly = false,
   }) async {
     final payload = await _put(
       '/api/admin/content/courses/${Uri.encodeComponent(course.id)}',
       {
         'status': status,
         'course': _courseToJson(course),
+        if (createOnly) 'createOnly': true,
         if (baseUpdatedAt != null) ...{
           'curriculumSchemaVersion': 2,
           'baseUpdatedAt': baseUpdatedAt.toUtc().toIso8601String(),
@@ -53,6 +55,60 @@ class BackendAdminService implements AdminService {
       throw const AdminException('Invalid course response from admin service.');
     }
     return _contentCourseFromJson(row);
+  }
+
+  @override
+  Future<List<AdminSourceSegment>> searchSourceSegments({
+    String search = '',
+  }) async {
+    try {
+      final uri =
+          _baseUrl.resolve('/api/admin/content/source-segments').replace(
+        queryParameters: {
+          if (search.trim().isNotEmpty) 'search': search.trim(),
+          'limit': '50',
+        },
+      );
+      final payload = await _request(uri, method: _HttpMethod.get);
+      final rows = (payload['segments'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<Map<String, dynamic>>();
+      return rows.map(_sourceSegmentFromJson).toList();
+    } on AdminException {
+      rethrow;
+    } catch (_) {
+      throw const AdminException(
+        'Admin service returned invalid source information.',
+      );
+    }
+  }
+
+  @override
+  Future<AdminLessonSourceReviewResult> approveLessonSource({
+    required String lessonId,
+    required String sourceSegmentId,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lessons/${Uri.encodeComponent(lessonId)}/source-review',
+      {
+        'sourceSegmentId': sourceSegmentId,
+        'evidenceNote': evidenceNote,
+        'groundingFact': groundingFact,
+      },
+    );
+    final updatedAt = payload['courseUpdatedAt'];
+    final parsedUpdatedAt =
+        updatedAt is String ? DateTime.tryParse(updatedAt) : null;
+    if (parsedUpdatedAt == null) {
+      throw const AdminException(
+        'Invalid source review response from admin service.',
+      );
+    }
+    return AdminLessonSourceReviewResult(
+      courseUpdatedAt: parsedUpdatedAt,
+      contentReady: payload['contentReady'] == true,
+    );
   }
 
   @override
@@ -158,30 +214,48 @@ class BackendAdminService implements AdminService {
     required _HttpMethod method,
     Map<String, dynamic>? body,
   }) async {
-    final headers = await _headers();
-    final response = switch (method) {
-      _HttpMethod.get =>
-        await _client.get(uri, headers: headers).timeout(timeout),
-      _HttpMethod.post => await _client
-          .post(uri, headers: headers, body: jsonEncode(body ?? const {}))
-          .timeout(timeout),
-      _HttpMethod.put => await _client
-          .put(uri, headers: headers, body: jsonEncode(body ?? const {}))
-          .timeout(timeout),
-    };
-    final payload =
-        response.body.isEmpty ? const {} : jsonDecode(response.body);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw AdminException(
-        payload is Map<String, dynamic> && payload['error'] is String
-            ? payload['error'] as String
-            : 'Admin request failed.',
+    try {
+      final headers = await _headers();
+      final response = switch (method) {
+        _HttpMethod.get =>
+          await _client.get(uri, headers: headers).timeout(timeout),
+        _HttpMethod.post => await _client
+            .post(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+        _HttpMethod.put => await _client
+            .put(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+      };
+      final payload =
+          response.body.isEmpty ? const {} : jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw AdminException(
+          payload is Map<String, dynamic> && payload['error'] is String
+              ? payload['error'] as String
+              : 'Admin request failed.',
+        );
+      }
+      if (payload is! Map<String, dynamic>) {
+        throw const AdminException(
+          'Admin service returned an invalid response.',
+        );
+      }
+      return payload;
+    } on AdminException {
+      rethrow;
+    } on TimeoutException {
+      throw const AdminException(
+        'Admin service took too long to respond. Try again.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Admin service could not be reached. Check your connection.',
+      );
+    } on FormatException {
+      throw const AdminException(
+        'Admin service returned an invalid response.',
       );
     }
-    if (payload is! Map<String, dynamic>) {
-      throw const AdminException('Admin service returned an invalid response.');
-    }
-    return payload;
   }
 
   Future<Map<String, String>> _headers() async {
@@ -211,6 +285,17 @@ AdminContentDocumentRecord _contentDocumentFromJson(Map<String, dynamic> json) {
     status: json['status'] as String,
     document: _documentFromJson(json['document'] as Map<String, dynamic>),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
+  );
+}
+
+AdminSourceSegment _sourceSegmentFromJson(Map<String, dynamic> json) {
+  return AdminSourceSegment(
+    id: json['id'] as String,
+    documentId: json['documentId'] as String,
+    documentTitle: json['documentTitle'] as String,
+    sectionTitle: json['sectionTitle'] as String?,
+    locationLabel: json['locationLabel'] as String? ?? '',
+    contentPreview: json['contentPreview'] as String? ?? '',
   );
 }
 

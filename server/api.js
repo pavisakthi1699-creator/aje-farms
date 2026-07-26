@@ -123,8 +123,13 @@ export async function registerApiRoutes(app) {
     requireAdminSession(store),
     async (req, res) => {
       const status = req.body.status ?? 'approved';
+      const createOnly = req.body.createOnly ?? false;
       if (status !== 'draft' && status !== 'approved') {
         res.status(400).json({ error: 'Content status is invalid.' });
+        return;
+      }
+      if (typeof createOnly !== 'boolean') {
+        res.status(400).json({ error: 'createOnly must be a boolean.' });
         return;
       }
       try {
@@ -158,14 +163,104 @@ export async function registerApiRoutes(app) {
             status,
             replaceCurriculum: curriculumSchemaVersion === 2,
             baseUpdatedAt,
+            createOnly,
           }),
         });
       } catch (error) {
-        res.status(error?.code === 'CURRICULUM_CONFLICT' ? 409 : 400).json({
+        const conflict =
+          error?.code === 'CURRICULUM_CONFLICT' ||
+          error?.code === 'COURSE_ALREADY_EXISTS';
+        res.status(conflict ? 409 : 400).json({
           error:
             error instanceof Error
               ? error.message
               : 'Course content is invalid.',
+        });
+      }
+    },
+  );
+
+  app.get(
+    '/api/admin/content/source-segments',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const search =
+        typeof req.query.search === 'string' ? req.query.search.trim() : '';
+      if (search.length > 200) {
+        res.status(400).json({ error: 'Source search is too long.' });
+        return;
+      }
+      const requestedLimit = Number.parseInt(String(req.query.limit ?? '50'), 10);
+      const limit = Number.isInteger(requestedLimit)
+        ? Math.min(Math.max(requestedLimit, 1), 100)
+        : 50;
+      if (typeof store.sourceSegmentsForAdmin !== 'function') {
+        res.json({ segments: [] });
+        return;
+      }
+      try {
+        res.json({
+          segments: await store.sourceSegmentsForAdmin({ search, limit }),
+        });
+      } catch {
+        res.status(500).json({ error: 'Source segments could not be loaded.' });
+      }
+    },
+  );
+
+  app.post(
+    '/api/admin/content/lessons/:lessonId/source-review',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const sourceSegmentId =
+        typeof req.body.sourceSegmentId === 'string'
+          ? req.body.sourceSegmentId.trim()
+          : '';
+      const evidenceNote =
+        typeof req.body.evidenceNote === 'string'
+          ? req.body.evidenceNote.trim()
+          : '';
+      const groundingFact =
+        typeof req.body.groundingFact === 'string'
+          ? req.body.groundingFact.trim()
+          : '';
+      if (!sourceSegmentId || !evidenceNote || !groundingFact) {
+        res.status(400).json({
+          error:
+            'Source segment, evidence note, and grounding fact are required.',
+        });
+        return;
+      }
+      if (evidenceNote.length > 2000 || groundingFact.length > 2000) {
+        res.status(400).json({
+          error: 'Evidence notes and grounding facts must be 2,000 characters or less.',
+        });
+        return;
+      }
+      if (typeof store.approveLessonSource !== 'function') {
+        res.status(501).json({
+          error: 'Source review requires the production content store.',
+        });
+        return;
+      }
+      try {
+        const reviewer = await store.getUser(req.authPhoneNumber);
+        const result = await store.approveLessonSource({
+          lessonId: req.params.lessonId,
+          sourceSegmentId,
+          evidenceNote,
+          groundingFact,
+          reviewerActorId: reviewer?.id ?? null,
+        });
+        res.json(result);
+      } catch (error) {
+        res.status(400).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Lesson source review failed.',
         });
       }
     },
@@ -830,6 +925,11 @@ function normalizeContentCourseRequest(courseId, rawCourse) {
   }
   if (rawCourse.id !== courseId) {
     throw new Error('Course id must match the route.');
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,49}$/.test(courseId)) {
+    throw new Error(
+      'Course id must use 3-50 letters, numbers, hyphens, or underscores.',
+    );
   }
   const requiredStrings = [
     'id',
