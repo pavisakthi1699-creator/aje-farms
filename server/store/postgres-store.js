@@ -6,8 +6,11 @@ import pg from 'pg';
 
 import {
   approvedCoursesFromCatalog,
+  communityPostImageUrl,
+  communityPostImagesBucket,
   createId,
   documentsFromCourses,
+  extensionForImageContentType,
   hashOtp,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
@@ -404,6 +407,32 @@ export class PostgresStore {
   }
 
   async contentCoursesForAdmin() {
+    if (process.env.AJE_STORE === 'supabase') {
+      const result = await this.pool.query(
+        `SELECT
+           c.id::text AS course_id,
+           c.code AS course_code,
+           c.title_sw AS course_title,
+           COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+           COALESCE(c.delivery_type, 'text') AS delivery_type,
+           c.status AS course_status,
+           c.updated_at AS course_updated_at,
+           m.title_sw AS module_title,
+           m.sort_order AS module_order,
+           l.id::text AS lesson_id,
+           l.title_sw AS lesson_title,
+           l.body_sw AS lesson_body,
+           l.lesson_type,
+           l.duration_minutes,
+           l.sort_order AS lesson_order
+         FROM courses c
+         LEFT JOIN course_modules m ON m.course_id = c.id
+         LEFT JOIN lessons l ON l.module_id = m.id
+         ORDER BY c.updated_at DESC, c.sort_order, c.code,
+                  m.sort_order, l.sort_order`,
+      );
+      return structuredContentCourseRecords(result.rows);
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_courses
@@ -414,6 +443,33 @@ export class PostgresStore {
 
   async upsertContentCourse({ course, status = 'approved' }) {
     const normalizedCourse = normalizeApprovedCourse(course);
+    if (process.env.AJE_STORE === 'supabase') {
+      const structuredStatus =
+        status === 'approved' ? 'published' : 'draft';
+      const result = await this.pool.query(
+        `UPDATE courses
+         SET title_sw = $2,
+             status = $3::content_status,
+             published_at = CASE
+               WHEN $3 = 'published' THEN COALESCE(published_at, NOW())
+               ELSE NULL
+             END,
+             updated_at = NOW()
+         WHERE code = $1
+         RETURNING code, status, updated_at`,
+        [normalizedCourse.id, normalizedCourse.title, structuredStatus],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error('Course was not found in the live content catalog.');
+      }
+      return {
+        id: row.code,
+        status: structuredStatus === 'published' ? 'approved' : 'draft',
+        course: normalizedCourse,
+        updatedAt: new Date(row.updated_at).toISOString(),
+      };
+    }
     const result = await this.pool.query(
       `INSERT INTO content_courses (id, status, payload, updated_at)
        VALUES ($1, $2, $3, $4)
@@ -448,6 +504,15 @@ export class PostgresStore {
   }
 
   async contentDocumentsForAdmin() {
+    if (process.env.AJE_STORE === 'supabase') {
+      const result = await this.pool.query(
+        `SELECT id::text, title, source_type, file_name, page_count,
+                processing_status, updated_at
+         FROM source_documents
+         ORDER BY updated_at DESC`,
+      );
+      return result.rows.map(structuredContentDocumentFromRow);
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_documents
@@ -458,6 +523,31 @@ export class PostgresStore {
 
   async upsertContentDocument({ document, status = 'approved' }) {
     const normalizedDocument = normalizeContentDocument(document);
+    if (process.env.AJE_STORE === 'supabase') {
+      const structuredStatus =
+        status === 'approved' ? 'published' : 'draft';
+      const result = await this.pool.query(
+        `UPDATE source_documents
+         SET title = $2,
+             processing_status = $3::content_status,
+             updated_at = NOW()
+         WHERE id = $1::uuid
+         RETURNING id::text, processing_status, updated_at`,
+        [normalizedDocument.id, normalizedDocument.title, structuredStatus],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error(
+          'Source document was not found in the live content catalog.',
+        );
+      }
+      return {
+        id: row.id,
+        status: structuredStatus === 'published' ? 'approved' : 'draft',
+        document: normalizedDocument,
+        updatedAt: new Date(row.updated_at).toISOString(),
+      };
+    }
     const result = await this.pool.query(
       `INSERT INTO content_documents (id, status, payload, updated_at)
        VALUES ($1, $2, $3, $4)
@@ -855,7 +945,7 @@ export class PostgresStore {
   async communityPosts() {
     const posts = await this.pool.query(
       `SELECT id, author, location, time_label, content, likes, comments, tags,
-              related_topic, has_image, is_expert, is_urgent,
+              related_topic, image_path, has_image, is_expert, is_urgent,
               moderation_status, moderated_at, moderated_by, created_at
        FROM community_posts
        WHERE moderation_status <> 'hidden'
@@ -1071,7 +1161,15 @@ export class PostgresStore {
     return result.rows[0] ? paymentFromRow(result.rows[0]) : null;
   }
 
-  async createCommunityPost({ author, authorPhone, content, location, tags }) {
+  async createCommunityPost({
+    author,
+    authorPhone,
+    content,
+    location,
+    tags,
+    imagePath = null,
+    isExpert = false,
+  }) {
     const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
       Boolean,
     );
@@ -1086,15 +1184,45 @@ export class PostgresStore {
       tags: normalizedTags,
       replies: [],
       relatedTopic: normalizedTags[0] ?? null,
-      hasImage: false,
-      isExpert: false,
+      imagePath: imagePath ?? null,
+      hasImage: Boolean(imagePath),
+      isExpert,
       isUrgent:
         normalizedTags.includes('Magonjwa') ||
         normalizedTags.includes('Wadudu'),
       moderationStatus: 'visible',
     };
     await this.#insertCommunityPost(post, new Date(), authorPhone);
-    return post;
+    const { imagePath: _imagePath, ...publicPost } = post;
+    return { ...publicPost, imageUrl: communityPostImageUrl(post.imagePath) };
+  }
+
+  // Uploads directly to Supabase Storage using the service role key. Only
+  // available when running against a real Supabase project (the JSON store
+  // used for local dev has no storage backend).
+  async uploadCommunityPostImage({ contentType, bytes }) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return null;
+    const extension = extensionForImageContentType(contentType);
+    if (!extension) return null;
+
+    const imagePath = `${createId('img')}.${extension}`;
+    const response = await fetch(
+      `${supabaseUrl}/storage/v1/object/${communityPostImagesBucket}/${imagePath}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': contentType,
+        },
+        body: bytes,
+      },
+    );
+    if (!response.ok) return null;
+    return imagePath;
   }
 
   async communityPostAuthorPhone(postId) {
@@ -1105,12 +1233,18 @@ export class PostgresStore {
     return result.rows[0]?.author_phone ?? null;
   }
 
-  async addCommunityReply({ postId, author, authorPhone, body }) {
+  async addCommunityReply({
+    postId,
+    author,
+    authorPhone,
+    body,
+    isExpert = false,
+  }) {
     const reply = {
       author: author.trim(),
       body: body.trim(),
       time: 'Sasa hivi',
-      isExpert: false,
+      isExpert,
     };
     await this.pool.query(
       `INSERT INTO community_replies (
@@ -1150,9 +1284,9 @@ export class PostgresStore {
     const reports = await this.pool.query(
       `SELECT r.post_id, r.reported_at,
               p.id, p.author, p.location, p.time_label, p.content, p.likes,
-              p.comments, p.tags, p.related_topic, p.has_image, p.is_expert,
-              p.is_urgent, p.moderation_status, p.moderated_at, p.moderated_by,
-              p.created_at
+              p.comments, p.tags, p.related_topic, p.image_path, p.has_image,
+              p.is_expert, p.is_urgent, p.moderation_status, p.moderated_at,
+              p.moderated_by, p.created_at
        FROM reported_community_posts r
        JOIN community_posts p ON p.id = r.post_id
        ORDER BY r.reported_at DESC`,
@@ -1176,8 +1310,9 @@ export class PostgresStore {
              moderated_by = $3
          WHERE id = $1
          RETURNING id, author, location, time_label, content, likes, comments,
-                   tags, related_topic, has_image, is_expert, is_urgent,
-                   moderation_status, moderated_at, moderated_by, created_at`,
+                   tags, related_topic, image_path, has_image, is_expert,
+                   is_urgent, moderation_status, moderated_at, moderated_by,
+                   created_at`,
         [postId, new Date().toISOString(), moderatorPhoneNumber],
       );
       await this.pool.query(
@@ -1191,7 +1326,7 @@ export class PostgresStore {
 
     const result = await this.pool.query(
       `SELECT id, author, location, time_label, content, likes, comments, tags,
-              related_topic, has_image, is_expert, is_urgent,
+              related_topic, image_path, has_image, is_expert, is_urgent,
               moderation_status, moderated_at, moderated_by, created_at
        FROM community_posts
        WHERE id = $1`,
@@ -1414,11 +1549,11 @@ export class PostgresStore {
     await this.pool.query(
       `INSERT INTO community_posts (
          id, author, author_phone, location, time_label, content, likes,
-         comments, tags, related_topic, has_image, is_expert, is_urgent,
-         moderation_status, moderated_at, moderated_by, created_at
+         comments, tags, related_topic, image_path, has_image, is_expert,
+         is_urgent, moderation_status, moderated_at, moderated_by, created_at
        ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-         $13, $14, $15, $16, $17
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+         $14, $15, $16, $17, $18
        )
        ON CONFLICT (id) DO NOTHING`,
       [
@@ -1432,6 +1567,7 @@ export class PostgresStore {
         post.comments ?? 0,
         JSON.stringify(post.tags ?? []),
         post.relatedTopic ?? null,
+        post.imagePath ?? null,
         post.hasImage ?? false,
         post.isExpert ?? false,
         post.isUrgent ?? false,
@@ -1468,6 +1604,7 @@ function communityPostFromRow(row, { includeModeration = false } = {}) {
     tags: row.tags,
     replies: [],
     relatedTopic: row.related_topic,
+    imageUrl: communityPostImageUrl(row.image_path),
     hasImage: row.has_image,
     isExpert: row.is_expert,
     isUrgent: row.is_urgent,
@@ -1541,6 +1678,82 @@ function contentDocumentFromRow(row) {
     id: row.id,
     status: row.status,
     document: normalizeContentDocument(row.payload),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function structuredContentCourseRecords(rows) {
+  const records = new Map();
+  for (const row of rows) {
+    let record = records.get(row.course_id);
+    if (!record) {
+      const course = {
+        id: row.course_code,
+        title: row.course_title,
+        description: row.course_description,
+        badge:
+          row.delivery_type === 'video'
+            ? 'Kozi ya video'
+            : 'Kozi ya maandishi',
+        icon: row.delivery_type === 'video' ? 'play_circle' : 'menu_book',
+        progress: 0,
+        imageUrl: courseImageForCode(row.course_code),
+        outcomes: [],
+        lessons: [],
+      };
+      record = {
+        id: row.course_code,
+        status:
+          row.course_status === 'published' ? 'approved' : 'draft',
+        course,
+        updatedAt: new Date(row.course_updated_at).toISOString(),
+      };
+      records.set(row.course_id, record);
+    }
+    if (
+      row.module_title &&
+      !record.course.outcomes.includes(row.module_title)
+    ) {
+      record.course.outcomes.push(row.module_title);
+    }
+    if (row.lesson_id) {
+      record.course.lessons.push({
+        id: row.lesson_id,
+        title: row.lesson_title,
+        type: row.lesson_type === 'video' ? 'video' : 'reading',
+        meta: row.duration_minutes
+          ? `Dakika ${row.duration_minutes}`
+          : row.lesson_type === 'video'
+            ? 'Video'
+            : 'Somo',
+        description: row.lesson_body ?? '',
+        isPremium: false,
+        isCompleted: false,
+      });
+    }
+  }
+  return [...records.values()].map((record) => ({
+    ...record,
+    course: normalizeApprovedCourse(record.course),
+  }));
+}
+
+function structuredContentDocumentFromRow(row) {
+  return {
+    id: row.id,
+    status:
+      row.processing_status === 'published' ? 'approved' : 'draft',
+    document: normalizeContentDocument({
+      id: row.id,
+      title: row.title,
+      courseId: '',
+      courseTitle: 'Chanzo cha mafunzo',
+      description: row.file_name || row.source_type,
+      type: row.source_type === 'pdf' ? 'pdf' : row.source_type,
+      sizeLabel: row.page_count ? `Kurasa ${row.page_count}` : '',
+      url: null,
+      isPremium: false,
+    }),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }

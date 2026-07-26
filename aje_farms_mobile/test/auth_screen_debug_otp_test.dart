@@ -17,6 +17,11 @@ void main() {
     await tester.tap(find.text('Tuma OTP'));
     await tester.pumpAndSettle();
 
+    // The debug OTP line sits below the resend affordance, past the fold of the
+    // lazily-built ListView, so scroll it into the viewport before asserting.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
     expect(find.text('OTP ya majaribio: 1234'), findsOneWidget);
   });
 }

@@ -213,16 +213,7 @@ class PaywallScreenState extends State<PaywallScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AJE Farms'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              AppFeedback.tap();
-              Navigator.of(context).maybePop();
-            },
-            child: const Text('Baadaye'),
-          ),
-        ],
+        title: const Text('Vifurushi'),
       ),
       body: AppLayoutScroll(
         padding: const EdgeInsets.only(bottom: AppSpacing.xl),

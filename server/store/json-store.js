@@ -495,6 +495,10 @@ export class JsonStore {
     return this.community.createCommunityPost(payload);
   }
 
+  uploadCommunityPostImage(payload) {
+    return this.community.uploadCommunityPostImage(payload);
+  }
+
   addCommunityReply(payload) {
     return this.community.addCommunityReply(payload);
   }

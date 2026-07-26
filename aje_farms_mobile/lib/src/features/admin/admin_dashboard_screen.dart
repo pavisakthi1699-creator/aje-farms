@@ -205,6 +205,7 @@ Future<_ContentEditResult?> _showContentEditor({
 }) async {
   final titleController = TextEditingController(text: initialTitle);
   var status = initialStatus == 'approved' ? 'approved' : 'draft';
+  String? titleError;
   try {
     return await showModalBottomSheet<_ContentEditResult>(
       context: context,
@@ -236,7 +237,13 @@ Future<_ContentEditResult?> _showContentEditor({
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
                         labelText: titleLabel,
+                        errorText: titleError,
                       ),
+                      onChanged: (_) {
+                        if (titleError != null) {
+                          setSheetState(() => titleError = null);
+                        }
+                      },
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
@@ -269,7 +276,16 @@ Future<_ContentEditResult?> _showContentEditor({
                     FilledButton.icon(
                       onPressed: () {
                         final title = titleController.text.trim();
-                        if (title.isEmpty) return;
+                        if (title.isEmpty) {
+                          // Previously this returned silently, leaving the
+                          // admin tapping Save with no indication why nothing
+                          // happened.
+                          AppFeedback.error();
+                          setSheetState(
+                            () => titleError = 'Jina haliwezi kuwa tupu.',
+                          );
+                          return;
+                        }
                         AppFeedback.tap();
                         Navigator.of(context).pop(
                           _ContentEditResult(title: title, status: status),
@@ -299,14 +315,21 @@ class _AdminContentTab extends StatefulWidget {
 }
 
 class _AdminContentTabState extends State<_AdminContentTab> {
+  bool _didRequestInitialLoad = false;
   bool _loading = true;
   String? _error;
   List<AdminContentCourseRecord> _courses = const [];
   List<AdminContentDocumentRecord> _documents = const [];
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The initial load must not run from initState: it reads
+    // `context.dependencies`, an InheritedWidget, which Flutter forbids before
+    // initState completes. Doing so threw on every mount and the generic catch
+    // turned it into a permanent "failed to load" state.
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
     _load();
   }
 
@@ -365,12 +388,16 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         status: result.status,
       );
       if (!mounted) return;
-      AppFeedback.success();
-      showSnack(context, 'Kozi imehifadhiwa.');
+      showSuccessSnack(context, 'Kozi imehifadhiwa.');
       _load();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showSnack(context, error.message);
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: () => _editCourse(record),
+      );
     }
   }
 
@@ -399,12 +426,16 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         status: result.status,
       );
       if (!mounted) return;
-      AppFeedback.success();
-      showSnack(context, 'Document imehifadhiwa.');
+      showSuccessSnack(context, 'Document imehifadhiwa.');
       _load();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showSnack(context, error.message);
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: () => _editDocument(record),
+      );
     }
   }
 
@@ -581,14 +612,21 @@ class _AdminModerationTab extends StatefulWidget {
 }
 
 class _AdminModerationTabState extends State<_AdminModerationTab> {
+  bool _didRequestInitialLoad = false;
   bool _loading = true;
   String? _error;
   List<AdminModerationReport> _reports = const [];
   String? _resolvingPostId;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The initial load must not run from initState: it reads
+    // `context.dependencies`, an InheritedWidget, which Flutter forbids before
+    // initState completes. Doing so threw on every mount and the generic catch
+    // turned it into a permanent "failed to load" state.
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
     _load();
   }
 
@@ -621,6 +659,19 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
   }
 
   Future<void> _resolve(AdminModerationReport report, String action) async {
+    // Hiding a post is visible to the community and not undoable from this
+    // screen, so require an explicit confirmation first.
+    if (action == 'hide') {
+      final confirmed = await confirmAction(
+        context,
+        title: 'Ficha chapisho?',
+        message:
+            'Chapisho hili hakitaonekana kwa wakulima wengine. Unaweza kubadilisha hili kwenye backend tu.',
+        confirmLabel: 'Ficha',
+        isDestructive: true,
+      );
+      if (!confirmed || !mounted) return;
+    }
     setState(() => _resolvingPostId = report.post.id);
     try {
       await context.dependencies.adminService.resolveModerationReport(
@@ -628,15 +679,19 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         action: action,
       );
       if (!mounted) return;
-      AppFeedback.success();
-      showSnack(
+      showSuccessSnack(
         context,
         action == 'hide' ? 'Chapisho limefichwa.' : 'Ripoti imeondolewa.',
       );
       await _load();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showSnack(context, error.message);
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: () => _resolve(report, action),
+      );
     } finally {
       if (mounted) {
         setState(() => _resolvingPostId = null);
@@ -722,31 +777,55 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.md),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _resolvingPostId == report.post.id
-                                ? null
-                                : () {
-                                    AppFeedback.tap();
-                                    _resolve(report, 'dismiss');
-                                  },
-                            icon: const Icon(Icons.close),
-                            label: const Text('Ondoa ripoti'),
-                          ),
-                          FilledButton.icon(
-                            onPressed: _resolvingPostId == report.post.id
-                                ? null
-                                : () {
-                                    AppFeedback.tap();
-                                    _resolve(report, 'hide');
-                                  },
-                            icon: const Icon(Icons.visibility_off_outlined),
-                            label: const Text('Ficha chapisho'),
-                          ),
-                        ],
+                      Builder(
+                        builder: (context) {
+                          final isResolving =
+                              _resolvingPostId == report.post.id;
+                          return Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            children: [
+                              // Dismissing the report is the safe, reversible
+                              // choice, so it carries the primary emphasis.
+                              FilledButton.icon(
+                                onPressed: isResolving
+                                    ? null
+                                    : () {
+                                        AppFeedback.tap();
+                                        _resolve(report, 'dismiss');
+                                      },
+                                icon: isResolving
+                                    ? const SizedBox.square(
+                                        dimension: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.close),
+                                label: const Text('Ondoa ripoti'),
+                              ),
+                              // Hiding is destructive: outlined and tinted with
+                              // the semantic error colour so it never reads as
+                              // the default action.
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: context.colors.error,
+                                  side: BorderSide(
+                                    color: context.colors.error,
+                                  ),
+                                ),
+                                onPressed: isResolving
+                                    ? null
+                                    : () {
+                                        AppFeedback.tap();
+                                        _resolve(report, 'hide');
+                                      },
+                                icon: const Icon(Icons.visibility_off_outlined),
+                                label: const Text('Ficha chapisho'),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -768,13 +847,20 @@ class _AdminUsersTab extends StatefulWidget {
 
 class _AdminUsersTabState extends State<_AdminUsersTab> {
   final TextEditingController _searchController = TextEditingController();
+  bool _didRequestInitialLoad = false;
   bool _loading = true;
   String? _error;
   AdminUsersPage _page = const AdminUsersPage(total: 0, users: []);
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The initial load must not run from initState: it reads
+    // `context.dependencies`, an InheritedWidget, which Flutter forbids before
+    // initState completes. Doing so threw on every mount and the generic catch
+    // turned it into a permanent "failed to load" state.
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
     _load();
   }
 
@@ -836,60 +922,116 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(
+      // ListView.builder so a 100-user page only builds the rows on screen;
+      // each row renders an avatar plus four activity chips.
+      child: ListView.builder(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        children: [
-          TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              labelText: 'Tafuta kwa namba au jina',
-              hintText: 'Mfano: +2557… au Asha',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isEmpty
-                  ? IconButton(
-                      tooltip: 'Tafuta',
-                      icon: const Icon(Icons.arrow_forward),
-                      onPressed: () {
-                        AppFeedback.tap();
-                        _load();
-                      },
-                    )
-                  : IconButton(
-                      tooltip: 'Futa utafutaji',
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        AppFeedback.tap();
-                        _searchController.clear();
-                        setState(() {});
-                        _load();
-                      },
-                    ),
+        itemCount: _headerSlotCount + _bodyItemCount,
+        itemBuilder: (context, index) {
+          if (index < _headerSlotCount) return _buildHeaderSlot(context, index);
+          if (_loading || _page.users.isEmpty) {
+            return _buildBodyPlaceholder(context);
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _AdminUserCard(user: _page.users[index - _headerSlotCount]),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Search field, stale-data warning (when present), and section header.
+  int get _headerSlotCount => _error == null ? 3 : 4;
+
+  int get _bodyItemCount =>
+      _loading || _page.users.isEmpty ? 1 : _page.users.length;
+
+  Widget _buildBodyPlaceholder(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return const EmptyState(
+      icon: Icons.person_search_outlined,
+      title: 'Hakuna matokeo',
+      body: 'Badilisha utafutaji au onyesha tena baadaye.',
+    );
+  }
+
+  Widget _buildHeaderSlot(BuildContext context, int index) {
+    // Slot 1 only exists while an error is being shown alongside stale rows.
+    final errorOffset = _error == null ? 0 : 1;
+    if (index == 1 && errorOffset == 1) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        child: Card(
+          color: context.colors.error.withValues(alpha: 0.12),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_outlined, color: context.colors.error),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    // Without this the refresh failure was swallowed entirely
+                    // and the admin kept reading stale rows as if current.
+                    'Orodha hii si ya sasa: ${_error!}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _load,
+                  child: const Text('Jaribu tena'),
+                ),
+              ],
             ),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _load(),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _AdminSectionHeader(title: 'Watumiaji', count: _page.total),
-          const SizedBox(height: AppSpacing.md),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_page.users.isEmpty)
-            const EmptyState(
-              icon: Icons.person_search_outlined,
-              title: 'Hakuna matokeo',
-              body: 'Badilisha utafutaji au onyesha tena baadaye.',
-            )
-          else
-            for (final user in _page.users)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _AdminUserCard(user: user),
-              ),
-        ],
+        ),
+      );
+    }
+    if (index == 0) return _buildSearchField(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: _AdminSectionHeader(title: 'Watumiaji', count: _page.total),
+    );
+  }
+
+  Widget _buildSearchField(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          labelText: 'Tafuta kwa namba au jina',
+          hintText: 'Mfano: +2557… au Asha',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isEmpty
+              ? IconButton(
+                  tooltip: 'Tafuta',
+                  icon: const Icon(Icons.arrow_forward),
+                  onPressed: () {
+                    AppFeedback.tap();
+                    _load();
+                  },
+                )
+              : IconButton(
+                  tooltip: 'Futa utafutaji',
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    AppFeedback.tap();
+                    _searchController.clear();
+                    setState(() {});
+                    _load();
+                  },
+                ),
+        ),
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (_) => _load(),
       ),
     );
   }

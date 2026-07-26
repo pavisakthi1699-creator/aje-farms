@@ -495,6 +495,133 @@ test('community authorship is session-derived and never exposes phone numbers', 
   });
 });
 
+test('community image uploads are unavailable outside Supabase-backed environments', async () => {
+  await withTestServer(async (baseUrl) => {
+    const phoneNumber = '+255700111222';
+    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber,
+    });
+    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber,
+      otp: otp.payload.debugOtp,
+      challengeId: otp.payload.challengeId,
+    });
+    const headers = await authHeaders(verify.payload.sessionToken);
+
+    const response = await fetch(`${baseUrl}/api/community/posts/image`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'image/jpeg' },
+      body: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+    });
+    assert.equal(response.status, 501);
+
+    const unauthenticated = await fetch(
+      `${baseUrl}/api/community/posts/image`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+      },
+    );
+    assert.equal(unauthenticated.status, 401);
+  });
+});
+
+test('a post referencing an invalid image path is rejected', async () => {
+  await withTestServer(async (baseUrl) => {
+    const phoneNumber = '+255700111333';
+    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber,
+    });
+    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber,
+      otp: otp.payload.debugOtp,
+      challengeId: otp.payload.challengeId,
+    });
+    const headers = await authHeaders(verify.payload.sessionToken);
+
+    const post = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        content: 'Nina swali kuhusu magonjwa ya nyanya wakati wa mvua.',
+        location: 'Arusha',
+        tags: ['Nyanya'],
+        imagePath: '../../etc/passwd',
+      },
+      headers,
+    );
+    assert.equal(post.response.status, 400);
+  });
+});
+
+test('admin-authored posts and replies are flagged as expert content', async () => {
+  await withTestServer(async (baseUrl) => {
+    const adminPhone = '+255799000111';
+    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: adminPhone,
+    });
+    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: adminPhone,
+      otp: adminOtp.payload.debugOtp,
+      challengeId: adminOtp.payload.challengeId,
+    });
+    const adminHeaders = await authHeaders(adminVerify.payload.sessionToken);
+
+    const farmerPhone = '+255700111444';
+    const farmerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: farmerPhone,
+    });
+    const farmerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: farmerPhone,
+      otp: farmerOtp.payload.debugOtp,
+      challengeId: farmerOtp.payload.challengeId,
+    });
+    const farmerHeaders = await authHeaders(farmerVerify.payload.sessionToken);
+
+    const adminPost = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        content: 'Ushauri wa kitaalamu kuhusu udhibiti wa wadudu waharibifu.',
+        location: 'Dodoma',
+        tags: ['Wadudu'],
+      },
+      adminHeaders,
+    );
+    assert.equal(adminPost.response.status, 200);
+    assert.equal(adminPost.payload.isExpert, true);
+
+    const farmerPost = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        content: 'Swali kuhusu udhibiti wa wadudu kwenye shamba langu.',
+        location: 'Singida',
+        tags: ['Wadudu'],
+      },
+      farmerHeaders,
+    );
+    assert.equal(farmerPost.response.status, 200);
+    assert.equal(farmerPost.payload.isExpert, false);
+
+    const adminReply = await postJson(
+      baseUrl,
+      `/api/community/posts/${farmerPost.payload.id}/replies`,
+      { body: 'Jaribu kutumia dawa ya asili kwanza.' },
+      adminHeaders,
+    );
+    assert.equal(adminReply.response.status, 200);
+    assert.equal(adminReply.payload.isExpert, true);
+
+    const community = await getJson(baseUrl, '/api/community/posts');
+    const updatedFarmerPost = community.payload.posts.find(
+      (item) => item.id === farmerPost.payload.id,
+    );
+    assert.equal(updatedFarmerPost.replies[0].isExpert, true);
+  });
+});
+
 test('admin content courses can be drafted and published into catalog', async () => {
   await withTestServer(async (baseUrl) => {
     const adminPhone = '+255799000111';

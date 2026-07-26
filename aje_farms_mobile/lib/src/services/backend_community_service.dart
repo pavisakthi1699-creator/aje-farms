@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -24,13 +25,48 @@ class BackendCommunityService implements CommunityService {
     required String content,
     required String location,
     required List<String> tags,
+    String? imagePath,
   }) async {
     final payload = await _post('/api/community/posts', {
       'content': content,
       'location': location,
       'tags': tags,
+      if (imagePath != null) 'imagePath': imagePath,
     });
     return _postFromJson(payload);
+  }
+
+  @override
+  Future<String?> uploadImage({
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    final headers = await _headers();
+    headers['Content-Type'] = contentType;
+    final response = await _client
+        .post(
+          _baseUrl.resolve('/api/community/posts/image'),
+          headers: headers,
+          body: bytes,
+        )
+        .timeout(timeout);
+
+    if (response.statusCode == 501) return null;
+
+    final payload =
+        response.body.isEmpty ? const {} : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CommunityException(
+        payload is Map<String, dynamic> && payload['error'] is String
+            ? payload['error'] as String
+            : 'Image upload failed.',
+      );
+    }
+    if (payload is! Map<String, dynamic> || payload['imagePath'] is! String) {
+      throw const CommunityException(
+          'Community service returned an invalid response.');
+    }
+    return payload['imagePath'] as String;
   }
 
   @override
@@ -106,6 +142,7 @@ CommunityPost _postFromJson(Map<String, dynamic> json) {
         .map(_replyFromJson)
         .toList(),
     relatedTopic: json['relatedTopic'] as String?,
+    imageUrl: json['imageUrl'] as String?,
     hasImage: json['hasImage'] as bool? ?? false,
     isExpert: json['isExpert'] as bool? ?? false,
     isUrgent: json['isUrgent'] as bool? ?? false,

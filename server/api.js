@@ -1,3 +1,5 @@
+import express from 'express';
+
 import { catalog } from './catalog.js';
 import {
   isAllowlistedAdminPhone,
@@ -14,6 +16,7 @@ import { createOtpCode, createOtpSender } from './sms.js';
 import { createStore, normalizePhoneNumber, resolveStoreConfig } from './store.js';
 import {
   communityDisplayName,
+  isValidCommunityImagePath,
   normalizeApprovedCourse,
   normalizeContentDocument,
 } from './store/utils.js';
@@ -559,10 +562,36 @@ export async function registerApiRoutes(app) {
   });
 
   app.post(
+    '/api/community/posts/image',
+    requireAuthSession(store),
+    express.raw({
+      type: ['image/jpeg', 'image/png', 'image/webp'],
+      limit: '6mb',
+    }),
+    async (req, res) => {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        res.status(400).json({ error: 'Picha inahitajika.' });
+        return;
+      }
+      const imagePath = await store.uploadCommunityPostImage({
+        contentType: req.get('Content-Type'),
+        bytes: req.body,
+      });
+      if (!imagePath) {
+        res
+          .status(501)
+          .json({ error: 'Upload ya picha haipatikani kwenye mazingira haya.' });
+        return;
+      }
+      res.json({ imagePath });
+    },
+  );
+
+  app.post(
     '/api/community/posts',
     requireAuthSession(store),
     async (req, res) => {
-      const { content, location, tags } = req.body;
+      const { content, location, tags, imagePath } = req.body;
 
       if (
         typeof content !== 'string' ||
@@ -570,7 +599,10 @@ export async function registerApiRoutes(app) {
         typeof location !== 'string' ||
         location.trim().length === 0 ||
         !Array.isArray(tags) ||
-        tags.some((tag) => typeof tag !== 'string')
+        tags.some((tag) => typeof tag !== 'string') ||
+        (imagePath !== undefined &&
+          imagePath !== null &&
+          !isValidCommunityImagePath(imagePath))
       ) {
         res.status(400).json({ error: 'Post details are required.' });
         return;
@@ -587,6 +619,8 @@ export async function registerApiRoutes(app) {
           content,
           location,
           tags,
+          imagePath: imagePath ?? null,
+          isExpert: userHasAdminAccess(user, req.authPhoneNumber),
         }),
       );
     },
@@ -612,6 +646,7 @@ export async function registerApiRoutes(app) {
           author,
           authorPhone: req.authPhoneNumber,
           body,
+          isExpert: userHasAdminAccess(user, req.authPhoneNumber),
         }),
       );
       const authorPhone = await store.communityPostAuthorPhone(

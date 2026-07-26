@@ -107,16 +107,20 @@ class CommunityPostCard extends StatelessWidget {
                 ),
                 if (!compact && post.hasImage) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: context.colors.mint,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: AppElevation.borderSubtle(context),
-                    ),
-                    child: Center(
-                      child: Icon(Icons.image_outlined,
-                          color: context.colors.primary, size: 42),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    child: Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: context.colors.mint,
+                        border: AppElevation.borderSubtle(context),
+                      ),
+                      child: post.imageUrl != null
+                          ? AppPhoto(source: post.imageUrl!)
+                          : Center(
+                              child: Icon(Icons.image_outlined,
+                                  color: context.colors.primary, size: 42),
+                            ),
                     ),
                   ),
                 ],
