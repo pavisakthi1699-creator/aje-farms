@@ -112,6 +112,7 @@ AppDependencies _replaceAuthService(
     subscriptionRepository: dependencies.subscriptionRepository,
     mwalimuAiService: dependencies.mwalimuAiService,
     authService: authService,
+    catalogService: dependencies.catalogService,
     adminService: dependencies.adminService,
     communityService: dependencies.communityService,
     learningProgressService: dependencies.learningProgressService,
@@ -168,5 +169,10 @@ class _RecordingAuthService implements AuthService {
       displayName: displayName,
       preferredLocation: preferredLocation,
     );
+  }
+
+  @override
+  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() {
+    return _delegate.getAdminAccessDiagnostics();
   }
 }

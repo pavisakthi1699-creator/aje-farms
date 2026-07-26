@@ -1,5 +1,8 @@
 import { catalog } from './catalog.js';
 import {
+  isAllowlistedAdminPhone,
+  userHasAdminAccess,
+  userWithEffectiveRole,
   requireAdminSession,
   requireAuthPhoneMatch,
   requireAuthSession,
@@ -10,6 +13,7 @@ import { createPaymentProvider } from './payments.js';
 import { createOtpCode, createOtpSender } from './sms.js';
 import { createStore, normalizePhoneNumber, resolveStoreConfig } from './store.js';
 import {
+  communityDisplayName,
   normalizeApprovedCourse,
   normalizeContentDocument,
 } from './store/utils.js';
@@ -36,14 +40,8 @@ export async function registerApiRoutes(app) {
           Boolean(storeConfig.databaseUrl),
       },
       sms: {
-        provider: process.env.TWILIO_ACCOUNT_SID ? 'twilio' : 'development',
-        ready:
-          !isProduction ||
-          Boolean(
-            process.env.TWILIO_ACCOUNT_SID &&
-              process.env.TWILIO_AUTH_TOKEN &&
-              process.env.TWILIO_FROM_NUMBER,
-          ),
+        provider: otpSender.name,
+        ready: !isProduction || otpSender.isProductionReady,
       },
       payments: {
         provider: paymentProvider.name,
@@ -70,18 +68,42 @@ export async function registerApiRoutes(app) {
     res.json(await store.catalogSnapshot());
   });
 
-  app.get('/api/lessons/:lessonId/video', async (req, res) => {
-    if (typeof store.lessonVideoUrl !== 'function') {
-      res.status(404).json({ error: 'Video haipatikani.' });
-      return;
-    }
-    const url = await store.lessonVideoUrl(req.params.lessonId);
-    if (!url) {
-      res.status(404).json({ error: 'Video haijachapishwa au haipatikani.' });
-      return;
-    }
-    res.redirect(302, url);
-  });
+  // Resolves a lesson video to a short-lived signed URL. The player opens that
+  // URL in an external viewer, which cannot carry an Authorization header, so
+  // the session is enforced here and only the resolved URL is handed out.
+  app.get(
+    '/api/lessons/:lessonId/video-url',
+    requireAuthSession(store),
+    async (req, res) => {
+      if (typeof store.lessonVideoUrl !== 'function') {
+        res.status(404).json({ error: 'Video haipatikani.' });
+        return;
+      }
+      const url = await store.lessonVideoUrl(req.params.lessonId);
+      if (!url) {
+        res.status(404).json({ error: 'Video haijachapishwa au haipatikani.' });
+        return;
+      }
+      res.json({ url });
+    },
+  );
+
+  app.get(
+    '/api/lessons/:lessonId/video',
+    requireAuthSession(store),
+    async (req, res) => {
+      if (typeof store.lessonVideoUrl !== 'function') {
+        res.status(404).json({ error: 'Video haipatikani.' });
+        return;
+      }
+      const url = await store.lessonVideoUrl(req.params.lessonId);
+      if (!url) {
+        res.status(404).json({ error: 'Video haijachapishwa au haipatikani.' });
+        return;
+      }
+      res.redirect(302, url);
+    },
+  );
 
   app.get(
     '/api/admin/content/courses',
@@ -258,12 +280,36 @@ export async function registerApiRoutes(app) {
       return;
     }
 
-    const user = await store.ensureUser(normalizedPhone);
+    const user = userWithEffectiveRole(
+      await store.ensureUser(normalizedPhone),
+      normalizedPhone,
+    );
     const authSession = await store.createAuthSession(normalizedPhone);
     res.json({
       phoneNumber: user.phoneNumber,
       user,
       sessionToken: authSession.token,
+    });
+  });
+
+  app.get('/api/auth/whoami', requireAuthSession(store), async (req, res) => {
+    const user = await store.getUser(req.authPhoneNumber);
+    if (!user) {
+      res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+      return;
+    }
+    const allowlistedAdmin = isAllowlistedAdminPhone(req.authPhoneNumber);
+    const effectiveUser = userWithEffectiveRole(user, req.authPhoneNumber);
+    res.json({
+      phoneNumber: effectiveUser.phoneNumber,
+      role: effectiveUser.role,
+      hasAdminAccess: userHasAdminAccess(user, req.authPhoneNumber),
+      allowlistedAdmin,
+      source: allowlistedAdmin
+        ? 'phone_allowlist'
+        : user.role === 'admin'
+          ? 'stored_role'
+          : 'learner',
     });
   });
 
@@ -277,7 +323,9 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
-      res.json({ user });
+      res.json({
+        user: userWithEffectiveRole(user, req.authPhoneNumber),
+      });
     },
   );
 
@@ -290,7 +338,9 @@ export async function registerApiRoutes(app) {
         displayName: req.body?.displayName,
         preferredLocation: req.body?.preferredLocation,
       });
-      res.json({ user });
+    res.json({
+      user: userWithEffectiveRole(user, req.authPhoneNumber),
+    });
     },
   );
 
@@ -304,7 +354,9 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
-      res.json({ user });
+    res.json({
+      user: userWithEffectiveRole(user, req.authPhoneNumber),
+    });
     },
   );
 
@@ -510,10 +562,9 @@ export async function registerApiRoutes(app) {
     '/api/community/posts',
     requireAuthSession(store),
     async (req, res) => {
-      const { author, content, location, tags } = req.body;
+      const { content, location, tags } = req.body;
 
       if (
-        typeof author !== 'string' ||
         typeof content !== 'string' ||
         content.trim().length < 12 ||
         typeof location !== 'string' ||
@@ -525,8 +576,18 @@ export async function registerApiRoutes(app) {
         return;
       }
 
+      // `author` is deliberately ignored if supplied: authorship comes from the
+      // session so it cannot be spoofed, and so a phone number never lands in
+      // the publicly readable author label.
+      const user = await store.getUser(req.authPhoneNumber);
       res.json(
-        await store.createCommunityPost({ author, content, location, tags }),
+        await store.createCommunityPost({
+          author: communityDisplayName(user, req.authPhoneNumber),
+          authorPhone: req.authPhoneNumber,
+          content,
+          location,
+          tags,
+        }),
       );
     },
   );
@@ -535,36 +596,36 @@ export async function registerApiRoutes(app) {
     '/api/community/posts/:postId/replies',
     requireAuthSession(store),
     async (req, res) => {
-      const { author, body } = req.body;
+      const { body } = req.body;
 
-      if (
-        typeof author !== 'string' ||
-        typeof body !== 'string' ||
-        body.trim().length === 0
-      ) {
+      if (typeof body !== 'string' || body.trim().length === 0) {
         res.status(400).json({ error: 'Reply details are required.' });
         return;
       }
 
+      // As with posts, a client-supplied `author` is ignored.
+      const user = await store.getUser(req.authPhoneNumber);
+      const author = communityDisplayName(user, req.authPhoneNumber);
       res.json(
         await store.addCommunityReply({
           postId: req.params.postId,
           author,
+          authorPhone: req.authPhoneNumber,
           body,
         }),
       );
-      const post = (await store.communityPosts()).find(
-        (item) => item.id === req.params.postId,
+      const authorPhone = await store.communityPostAuthorPhone(
+        req.params.postId,
       );
-      if (post?.author?.startsWith('+') && post.author !== req.authPhoneNumber) {
+      if (authorPhone && authorPhone !== req.authPhoneNumber) {
         await createAndDispatchNotification({
           store,
           notificationProvider,
-          phoneNumber: post.author,
+          phoneNumber: authorPhone,
           type: 'community_reply',
           title: 'Jibu jipya kwenye jamii',
-          body: `${author.trim()} amejibu post yako.`,
-          data: { postId: post.id },
+          body: `${author} amejibu post yako.`,
+          data: { postId: req.params.postId },
         });
       }
     },
@@ -610,11 +671,14 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Post haijapatikana.' });
         return;
       }
-      if (post.author?.startsWith('+')) {
+      const authorPhone = await store.communityPostAuthorPhone(
+        req.params.postId,
+      );
+      if (authorPhone) {
         await createAndDispatchNotification({
           store,
           notificationProvider,
-          phoneNumber: post.author,
+          phoneNumber: authorPhone,
           type: 'moderation_update',
           title: action === 'hide' ? 'Post imefichwa' : 'Ripoti imepitiwa',
           body:

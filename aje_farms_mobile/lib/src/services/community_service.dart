@@ -1,8 +1,9 @@
 import '../models/community_post.dart';
 
+/// Authorship is derived from the session by the backend, so callers do not
+/// supply an author. See `communityDisplayName` in `server/store/utils.js`.
 abstract class CommunityService {
   Future<CommunityPost> createPost({
-    required String author,
     required String content,
     required String location,
     required List<String> tags,
@@ -10,7 +11,6 @@ abstract class CommunityService {
 
   Future<CommunityReply> addReply({
     required String postId,
-    required String author,
     required String body,
   });
 

@@ -238,9 +238,9 @@ const _plans = [
     recommended: true,
   ),
   PlanOption(
-    title: 'Kozi Maalum',
-    subtitle: 'Utaalamu wa kina',
-    price: 'TZS 50,000',
-    icon: Icons.menu_book,
+    title: 'Mwaka 1',
+    subtitle: 'Okoa TZS 20,000',
+    price: 'TZS 100,000',
+    icon: Icons.trending_up,
   ),
 ];

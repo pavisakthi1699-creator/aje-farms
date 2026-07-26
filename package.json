@@ -18,6 +18,7 @@
     "db:down": "docker compose down",
     "db:migrate": "node server/scripts/migrate.js",
     "db:import": "node server/scripts/import-json-store.js",
+    "db:backfill:community-authors": "node server/scripts/backfill-community-authors.js",
     "import:notebooklm": "node server/scripts/import-notebooklm.js",
     "ingest:remaining-curriculum": "node server/scripts/ingest-remaining-curriculum.js",
     "validate:remaining-curriculum": "node server/scripts/validate-remaining-curriculum.js",
@@ -26,9 +27,11 @@
     "smoke:postgres": "node server/scripts/smoke-postgres.js",
     "smoke:supabase": "AJE_STORE=supabase node server/scripts/smoke-postgres.js",
     "smoke:supabase:live": "AJE_STORE=supabase node server/scripts/smoke-supabase-live.js",
+    "smoke:sms": "node server/scripts/smoke-africas-talking.js",
     "test:mobile:connected": "cd aje_farms_mobile && flutter test integration_test/connected_app_smoke_test.dart",
     "android:key:generate": "node server/scripts/generate-android-upload-key.js",
     "preflight:release": "node server/scripts/preflight-release.js",
+    "validate:android-apk": "node server/scripts/validate-android-apk.js",
     "release:android": "node server/scripts/build-android-release.js"
   },
   "dependencies": {

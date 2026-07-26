@@ -1,8 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
-import 'package:flutter/foundation.dart';
-
 import "../../ui.dart";
+import '../../app/build_flags.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -181,7 +180,7 @@ class AuthScreenState extends State<AuthScreen> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _continueToApp(),
               ),
-              if (kDebugMode && _challenge?.debugOtp != null) ...[
+              if (kInternalBuild && _challenge?.debugOtp != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'OTP ya majaribio: ${_challenge!.debugOtp}',

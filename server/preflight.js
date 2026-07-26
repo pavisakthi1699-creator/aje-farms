@@ -18,6 +18,7 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
       : null;
   });
   validateHttpsUrl(blockers, 'APP_URL', env.APP_URL);
+  validateProductionHostname(blockers, 'APP_URL', env.APP_URL);
 
   const storeMode = (env.AJE_STORE ?? 'json').toLowerCase();
   if (storeMode !== 'postgres' && storeMode !== 'supabase') {
@@ -25,6 +26,16 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   }
   const databaseUrlName = storeMode === 'supabase' ? 'SUPABASE_DATABASE_URL' : 'DATABASE_URL';
   requireValue(blockers, databaseUrlName, env[databaseUrlName] ?? env.DATABASE_URL);
+  if (storeMode === 'supabase') {
+    requireValue(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    validateHttpsUrl(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    validateProductionHostname(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+    requireValue(
+      blockers,
+      'SUPABASE_SERVICE_ROLE_KEY',
+      env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+  }
   requireValue(blockers, 'AJE_OTP_PEPPER', env.AJE_OTP_PEPPER, (value) => {
     return value.length < 32
       ? 'must be at least 32 characters for release.'
@@ -32,6 +43,9 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   });
   if (env.AJE_ENABLE_DEBUG_OTP === 'true') {
     blockers.push('AJE_ENABLE_DEBUG_OTP must not be true for release.');
+  }
+  if (String(env.AJE_INTERNAL_BUILD ?? '').toLowerCase() === 'true') {
+    blockers.push('AJE_INTERNAL_BUILD must not be true for release.');
   }
 
   requireValue(blockers, 'AJE_ANDROID_API_BASE_URL', env.AJE_ANDROID_API_BASE_URL, (value) => {
@@ -43,6 +57,11 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     }
     return null;
   });
+  validateProductionHostname(
+    blockers,
+    'AJE_ANDROID_API_BASE_URL',
+    env.AJE_ANDROID_API_BASE_URL,
+  );
   requireValue(
     blockers,
     'AJE_WHATSAPP_EXPERT_PHONE',
@@ -55,8 +74,34 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     );
   }
 
-  if (!hasAll(env, ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER'])) {
-    warnings.push('SMS OTP provider is not fully configured; development OTP sender cannot be used in production.');
+  const smsProvider = String(env.AJE_SMS_PROVIDER ?? '').trim().toLowerCase();
+  if (smsProvider === 'africas_talking') {
+    if (
+      !hasAll(env, [
+        'AFRICASTALKING_USERNAME',
+        'AFRICASTALKING_API_KEY',
+      ])
+    ) {
+      blockers.push(
+        "Africa's Talking SMS provider requires AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY.",
+      );
+    }
+    const smsEnvironment = String(
+      env.AFRICASTALKING_ENVIRONMENT ?? 'production',
+    ).toLowerCase();
+    if (!['production', 'sandbox'].includes(smsEnvironment)) {
+      blockers.push(
+        'AFRICASTALKING_ENVIRONMENT must be "production" or "sandbox".',
+      );
+    }
+  } else if (smsProvider && smsProvider !== 'development') {
+    blockers.push(
+      'AJE_SMS_PROVIDER must be "africas_talking" or "development".',
+    );
+  } else {
+    warnings.push(
+      "SMS OTP provider is not configured; set AJE_SMS_PROVIDER=africas_talking and Africa's Talking credentials for production login.",
+    );
   }
   if (!String(env.AJE_ADMIN_PHONE_NUMBERS ?? '').trim()) {
     warnings.push('AJE_ADMIN_PHONE_NUMBERS is not set; moderation admin access must be managed through stored user roles.');
@@ -107,6 +152,29 @@ function validateHttpsUrl(blockers, name, value) {
     }
   } catch {
     blockers.push(`${name} must be a valid URL.`);
+  }
+}
+
+function validateProductionHostname(blockers, name, value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized || placeholderValues.has(normalized)) return;
+  try {
+    const { hostname } = new URL(normalized);
+    const reserved =
+      hostname === 'localhost' ||
+      hostname === 'example.com' ||
+      hostname.endsWith('.example.com') ||
+      hostname.endsWith('.example') ||
+      hostname.endsWith('.invalid') ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.test');
+    if (reserved) {
+      blockers.push(
+        `${name} must not use a placeholder or reserved hostname.`,
+      );
+    }
+  } catch {
+    // URL syntax is reported by validateHttpsUrl or the field validator.
   }
 }
 

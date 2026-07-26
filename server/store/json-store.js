@@ -191,8 +191,8 @@ export class JsonStore {
       track(item.phoneNumber, 'notificationCount');
     }
     for (const post of this.community.state.communityPosts) {
-      if (typeof post.author === 'string' && post.author.startsWith('+')) {
-        track(post.author, 'communityPostsCount');
+      if (typeof post.authorPhone === 'string' && post.authorPhone) {
+        track(post.authorPhone, 'communityPostsCount');
       }
     }
 
@@ -497,6 +497,10 @@ export class JsonStore {
 
   addCommunityReply(payload) {
     return this.community.addCommunityReply(payload);
+  }
+
+  communityPostAuthorPhone(postId) {
+    return this.community.communityPostAuthorPhone(postId);
   }
 
   reportCommunityPost(postId) {

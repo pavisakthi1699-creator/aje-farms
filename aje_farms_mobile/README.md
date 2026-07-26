@@ -101,10 +101,28 @@ keyPassword=...
 
 `android/key.properties` is ignored by git.
 
-Release builds should pass the production backend and expert support number:
+Release builds must pass the real production backend and expert support
+number. Do not convert the Vite website into an APK; that creates a WebView
+wrapper and does not contain this Flutter application.
 
 ```sh
 npm run release:android
+```
+
+The release command builds and signs both Android artifacts:
+
+- `aje_farms_mobile/build/app/outputs/flutter-apk/app-release.apk`
+- `aje_farms_mobile/build/app/outputs/bundle/release/app-release.aab`
+
+Before the app bundle is built, the generated APK is checked for the
+`com.ajefarms.mobile` package, Flutter runtime libraries, Flutter assets, and
+the Flutter `MainActivity`. Median/GoNative wrapper assets cause the release to
+fail.
+
+You can validate an APK independently:
+
+```sh
+npm run validate:android-apk -- /absolute/path/to/app-release.apk
 ```
 
 ## Backend Readiness
@@ -171,21 +189,30 @@ debug OTP, Android signing config, and the WhatsApp support number:
 
 ```sh
 NODE_ENV=production \
-APP_URL=https://api.example.com \
+APP_URL=https://api.your-domain.example \
 AJE_STORE=supabase \
 SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
 AJE_OTP_PEPPER=replace-with-secret \
 AJE_ENABLE_DEBUG_OTP=false \
-AJE_ANDROID_API_BASE_URL=https://api.example.com \
+AJE_SMS_PROVIDER=africas_talking \
+AFRICASTALKING_USERNAME=replace-with-production-username \
+AFRICASTALKING_API_KEY=replace-with-server-only-api-key \
+AFRICASTALKING_ENVIRONMENT=production \
+AJE_ANDROID_API_BASE_URL=https://api.your-domain.example \
 AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
 AJE_ADMIN_PHONE_NUMBERS=255700000000 \
 AJE_PUSH_PROVIDER=development \
 npm run preflight:release
 ```
 
-SMS, Gemini, and payment provider gaps are reported as warnings while those
-provider integrations are intentionally deferred. `npm run release:android`
-runs the same preflight and then builds the signed Android App Bundle.
+Replace `api.your-domain.example` with the deployed API hostname; preflight
+rejects reserved example domains.
+
+Missing SMS, Gemini, and payment provider configuration is reported by the
+preflight. Africa's Talking is the supported production SMS provider; its API
+key remains server-side. `npm run release:android`
+runs the same preflight, builds and validates the signed native Flutter APK,
+and then builds the signed Android App Bundle.
 
 For the current go-live checklist, including signing, production secrets, SMS,
 Gemini, push, and content publishing, see

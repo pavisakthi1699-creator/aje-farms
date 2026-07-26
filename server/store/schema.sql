@@ -177,6 +177,17 @@ CREATE TABLE IF NOT EXISTS reported_community_posts (
   reported_at TIMESTAMPTZ NOT NULL
 );
 
+-- Private authorship key. `author` is a public display label served by the
+-- unauthenticated community feed and must never hold a phone number.
+ALTER TABLE community_posts
+  ADD COLUMN IF NOT EXISTS author_phone TEXT;
+
+ALTER TABLE community_replies
+  ADD COLUMN IF NOT EXISTS author_phone TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_community_posts_author_phone
+  ON community_posts (author_phone);
+
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE otp_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;

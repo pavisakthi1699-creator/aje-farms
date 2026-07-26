@@ -4,6 +4,10 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  releaseDartDefines,
+  validateAndroidApk,
+} from '../android-release.js';
 import { releasePreflight } from '../preflight.js';
 
 const rootDir = process.cwd();
@@ -32,17 +36,51 @@ if (!preflight.ok) {
 
 const flutterBin =
   process.env.FLUTTER_BIN ?? '/Users/frankmchaina/development/flutter/bin/flutter';
-const args = [
-  'build',
-  'appbundle',
-  '--release',
-  `--dart-define=AJE_API_BASE_URL=${process.env.AJE_ANDROID_API_BASE_URL}`,
-  `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${process.env.AJE_WHATSAPP_EXPERT_PHONE}`,
-];
+const dartDefines = releaseDartDefines(process.env);
+const mobileDir = path.join(rootDir, 'aje_farms_mobile');
 
-const result = spawnSync(flutterBin, args, {
-  cwd: path.join(rootDir, 'aje_farms_mobile'),
+const apkResult = spawnSync(flutterBin, [
+  'build',
+  'apk',
+  '--release',
+  ...dartDefines,
+], {
+  cwd: mobileDir,
   stdio: 'inherit',
 });
 
-process.exit(result.status ?? 1);
+if (apkResult.status !== 0) {
+  process.exit(apkResult.status ?? 1);
+}
+
+const apkPath = path.join(
+  mobileDir,
+  'build',
+  'app',
+  'outputs',
+  'flutter-apk',
+  'app-release.apk',
+);
+const validation = validateAndroidApk(apkPath);
+if (!validation.ok) {
+  console.error('Android release APK validation failed:');
+  for (const error of validation.errors) {
+    console.error(`- ${error}`);
+  }
+  process.exit(1);
+}
+console.log(
+  `Validated native Flutter APK: ${validation.packageName} (${apkPath})`,
+);
+
+const bundleResult = spawnSync(flutterBin, [
+  'build',
+  'appbundle',
+  '--release',
+  ...dartDefines,
+], {
+  cwd: mobileDir,
+  stdio: 'inherit',
+});
+
+process.exit(bundleResult.status ?? 1);

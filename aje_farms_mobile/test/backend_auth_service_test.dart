@@ -151,4 +151,28 @@ void main() {
     expect(session.phoneNumber, '+255712345678');
     expect(session.subscriptionPlan, isNull);
   });
+
+  test('loads admin diagnostics with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.toString(), 'http://localhost:3000/api/auth/whoami');
+        expect(request.headers['Authorization'], 'Bearer token-admin');
+        return http.Response(
+          '{"phoneNumber":"+255799000111","role":"admin","hasAdminAccess":true,"allowlistedAdmin":true,"source":"phone_allowlist"}',
+          200,
+        );
+      }),
+    );
+
+    final diagnostics = await service.getAdminAccessDiagnostics();
+
+    expect(diagnostics.phoneNumber, '+255799000111');
+    expect(diagnostics.role, 'admin');
+    expect(diagnostics.hasAdminAccess, isTrue);
+    expect(diagnostics.allowlistedAdmin, isTrue);
+    expect(diagnostics.source, 'phone_allowlist');
+  });
 }

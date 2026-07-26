@@ -12,6 +12,7 @@ abstract interface class AuthService {
     String? displayName,
     String? preferredLocation,
   });
+  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics();
 }
 
 class OtpChallenge {
@@ -48,6 +49,22 @@ class AuthSession {
   final String? preferredLocation;
 
   bool get hasActiveSubscription => subscriptionPlan != null;
+}
+
+class AdminAccessDiagnostics {
+  const AdminAccessDiagnostics({
+    required this.phoneNumber,
+    required this.role,
+    required this.hasAdminAccess,
+    required this.allowlistedAdmin,
+    required this.source,
+  });
+
+  final String phoneNumber;
+  final String role;
+  final bool hasAdminAccess;
+  final bool allowlistedAdmin;
+  final String source;
 }
 
 class AuthException implements Exception {

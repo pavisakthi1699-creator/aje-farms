@@ -54,4 +54,15 @@ class LocalAuthService implements AuthService {
           : preferredLocation?.trim(),
     );
   }
+
+  @override
+  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() async {
+    return const AdminAccessDiagnostics(
+      phoneNumber: '+255000000000',
+      role: 'learner',
+      hasAdminAccess: false,
+      allowlistedAdmin: false,
+      source: 'local_mock',
+    );
+  }
 }

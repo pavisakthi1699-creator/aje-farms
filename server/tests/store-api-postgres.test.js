@@ -29,6 +29,7 @@ async function withPostgresServer(run) {
   process.env.AJE_COMMUNITY_DATA_FILE = communityFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
+  process.env.AJE_ADMIN_PHONE_NUMBERS = '+255799000111';
   process.env.NODE_ENV = 'development';
 
   const app = express();
@@ -123,6 +124,28 @@ test(
       );
       assert.equal(profile.response.status, 200);
       assert.equal(profile.payload.user.subscriptionPlan, 'Wiki 1');
+    });
+  },
+);
+
+test(
+  'postgres admin phone allowlist maps session user role to admin',
+  { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
+  async () => {
+    await withPostgresServer(async (baseUrl) => {
+      const adminPhone = '+255799000111';
+      const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
+        phoneNumber: adminPhone,
+      });
+      assert.equal(otpRequest.response.status, 200);
+
+      const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
+        phoneNumber: adminPhone,
+        otp: otpRequest.payload.debugOtp,
+        challengeId: otpRequest.payload.challengeId,
+      });
+      assert.equal(verify.response.status, 200);
+      assert.equal(verify.payload.user.role, 'admin');
     });
   },
 );

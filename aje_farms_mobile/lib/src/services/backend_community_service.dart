@@ -21,13 +21,11 @@ class BackendCommunityService implements CommunityService {
 
   @override
   Future<CommunityPost> createPost({
-    required String author,
     required String content,
     required String location,
     required List<String> tags,
   }) async {
     final payload = await _post('/api/community/posts', {
-      'author': author,
       'content': content,
       'location': location,
       'tags': tags,
@@ -38,15 +36,11 @@ class BackendCommunityService implements CommunityService {
   @override
   Future<CommunityReply> addReply({
     required String postId,
-    required String author,
     required String body,
   }) async {
     final payload = await _post(
       '/api/community/posts/${Uri.encodeComponent(postId)}/replies',
-      {
-        'author': author,
-        'body': body,
-      },
+      {'body': body},
     );
     return _replyFromJson(payload);
   }
