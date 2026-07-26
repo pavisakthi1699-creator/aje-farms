@@ -116,12 +116,11 @@ class _OnboardingHeroCard extends StatelessWidget {
                       color: context.colors.onPrimaryBorder,
                     ),
                   ),
-                  child: ExcludeSemantics(
-                    child: Center(
-                      child: BrandMark(
-                        size: 48,
-                        color: context.colors.onPrimary,
-                      ),
+                    child: const ExcludeSemantics(
+                      child: Center(
+                        child: BrandMark(
+                          size: 48,
+                        ),
                     ),
                   ),
                 ),

@@ -111,14 +111,13 @@ class HeroActionCard extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.xxl),
                     child: Stack(
                       children: [
-                        Positioned(
+                        const Positioned(
                           right: -4,
                           top: -4,
                           child: Opacity(
                             opacity: 0.18,
                             child: BrandMark(
                               size: 112,
-                              color: colors.onPrimary,
                             ),
                           ),
                         ),
