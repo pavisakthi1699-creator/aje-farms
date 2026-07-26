@@ -128,15 +128,40 @@ export async function registerApiRoutes(app) {
         return;
       }
       try {
+        const curriculumSchemaVersion =
+          req.body.curriculumSchemaVersion ?? null;
+        const baseUpdatedAt = req.body.baseUpdatedAt ?? null;
+        if (
+          curriculumSchemaVersion != null &&
+          curriculumSchemaVersion !== 2
+        ) {
+          res.status(400).json({ error: 'Curriculum schema version is invalid.' });
+          return;
+        }
+        if (
+          curriculumSchemaVersion === 2 &&
+          (typeof baseUpdatedAt !== 'string' ||
+            Number.isNaN(Date.parse(baseUpdatedAt)))
+        ) {
+          res.status(400).json({
+            error: 'Curriculum baseUpdatedAt is required.',
+          });
+          return;
+        }
         const course = normalizeContentCourseRequest(
           req.params.courseId,
           req.body.course ?? req.body,
         );
         res.json({
-          course: await store.upsertContentCourse({ course, status }),
+          course: await store.upsertContentCourse({
+            course,
+            status,
+            replaceCurriculum: curriculumSchemaVersion === 2,
+            baseUpdatedAt,
+          }),
         });
       } catch (error) {
-        res.status(400).json({
+        res.status(error?.code === 'CURRICULUM_CONFLICT' ? 409 : 400).json({
           error:
             error instanceof Error
               ? error.message
@@ -823,13 +848,64 @@ function normalizeContentCourseRequest(courseId, rawCourse) {
     throw new Error('Course lessons are required.');
   }
   for (const lesson of rawCourse.lessons) {
-    for (const field of ['title', 'type', 'meta', 'description']) {
+    for (const field of ['title', 'type', 'meta']) {
       if (typeof lesson[field] !== 'string' || lesson[field].trim() === '') {
         throw new Error(`Lesson ${field} is required.`);
       }
     }
+    if (
+      lesson.moduleTitle != null &&
+      (typeof lesson.moduleTitle !== 'string' ||
+        lesson.moduleTitle.trim() === '')
+    ) {
+      throw new Error('Lesson moduleTitle must be a non-empty string.');
+    }
+    if (
+      lesson.moduleKey != null &&
+      (typeof lesson.moduleKey !== 'string' || lesson.moduleKey.trim() === '')
+    ) {
+      throw new Error('Lesson moduleKey must be a non-empty string.');
+    }
+    if (lesson.type !== 'reading' && lesson.type !== 'video') {
+      throw new Error('Lesson type must be reading or video.');
+    }
+    if (
+      lesson.type === 'reading' &&
+      (typeof lesson.description !== 'string' ||
+        lesson.description.trim() === '')
+    ) {
+      throw new Error('Reading lesson description is required.');
+    }
+    if (
+      lesson.durationMinutes != null &&
+      (!Number.isInteger(lesson.durationMinutes) ||
+        lesson.durationMinutes <= 0)
+    ) {
+      throw new Error('Lesson durationMinutes must be a positive integer.');
+    }
+    if (lesson.resourceUrl != null) {
+      let resourceUrl;
+      try {
+        resourceUrl = new URL(lesson.resourceUrl);
+      } catch {
+        throw new Error('Lesson resourceUrl must be a valid web URL.');
+      }
+      if (
+        resourceUrl.protocol !== 'https:' &&
+        resourceUrl.protocol !== 'http:'
+      ) {
+        throw new Error('Lesson resourceUrl must use HTTP or HTTPS.');
+      }
+    }
   }
-  return normalizeApprovedCourse(rawCourse);
+  const fallbackModuleTitle = rawCourse.outcomes[0] ?? 'Somo';
+  return normalizeApprovedCourse({
+    ...rawCourse,
+    lessons: rawCourse.lessons.map((lesson) => ({
+      ...lesson,
+      moduleTitle: lesson.moduleTitle ?? fallbackModuleTitle,
+    })),
+  });
 }
 
 function normalizeContentDocumentRequest(documentId, rawDocument) {

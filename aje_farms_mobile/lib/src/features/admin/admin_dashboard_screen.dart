@@ -307,6 +307,524 @@ Future<_ContentEditResult?> _showContentEditor({
   }
 }
 
+Future<_CourseEditResult?> _showCourseEditor({
+  required BuildContext context,
+  required AdminContentCourseRecord record,
+}) {
+  return Navigator.of(context).push<_CourseEditResult>(
+    MaterialPageRoute(
+      builder: (_) => _CourseCurriculumEditor(record: record),
+      fullscreenDialog: true,
+    ),
+  );
+}
+
+class _CourseCurriculumEditor extends StatefulWidget {
+  const _CourseCurriculumEditor({required this.record});
+
+  final AdminContentCourseRecord record;
+
+  @override
+  State<_CourseCurriculumEditor> createState() =>
+      _CourseCurriculumEditorState();
+}
+
+class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
+  final _formKey = GlobalKey<FormState>();
+  late String _title;
+  late String _description;
+  late String _status;
+  late List<_LessonDraft> _lessons;
+  bool _showValidation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final record = widget.record;
+    _title = record.course.title;
+    _description = record.course.description;
+    _status = record.status == 'approved' ? 'approved' : 'draft';
+    _lessons = [
+      for (final lesson in record.course.lessons)
+        _LessonDraft.fromLesson(lesson),
+    ];
+  }
+
+  void _addLesson({bool newSection = false}) {
+    AppFeedback.tap();
+    setState(() {
+      final previous = _lessons.isEmpty ? null : _lessons.last;
+      _lessons.add(
+        _LessonDraft(
+          key: UniqueKey(),
+          moduleId: newSection ? null : previous?.moduleId,
+          moduleKey: newSection
+              ? 'new-${DateTime.now().microsecondsSinceEpoch}-${_lessons.length}'
+              : previous?.moduleKey,
+          moduleTitle: newSection
+              ? 'Sehemu mpya'
+              : previous?.moduleTitle ?? 'Sehemu mpya',
+          title: '',
+          type: LessonType.reading,
+          durationMinutes: 5,
+          body: '',
+          videoUrl: '',
+        ),
+      );
+    });
+  }
+
+  Future<void> _removeLesson(int index) async {
+    final lesson = _lessons[index];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Ondoa somo?'),
+        content: Text(
+          lesson.title.trim().isEmpty
+              ? 'Somo hili jipya litaondolewa kwenye mtaala.'
+              : '“${lesson.title}” litaondolewa kwenye mtaala baada ya kuhifadhi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Ghairi'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Ondoa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    AppFeedback.tap();
+    setState(() => _lessons.removeAt(index));
+  }
+
+  void _save() {
+    setState(() => _showValidation = true);
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.error();
+      return;
+    }
+    if (_lessons.isEmpty) {
+      AppFeedback.error();
+      showErrorSnack(
+        context,
+        'Kozi lazima iwe na angalau somo moja.',
+      );
+      return;
+    }
+    _formKey.currentState!.save();
+    final draftError = _firstDraftError();
+    if (draftError != null) {
+      AppFeedback.error();
+      showErrorSnack(context, draftError);
+      return;
+    }
+    final original = widget.record.course;
+    final outcomes = <String>[];
+    for (final lesson in _lessons) {
+      final module = lesson.moduleTitle.trim();
+      if (!outcomes.contains(module)) outcomes.add(module);
+    }
+    final course = Course(
+      id: original.id,
+      title: _title.trim(),
+      description: _description.trim(),
+      badge: original.badge,
+      icon: original.icon,
+      progress: original.progress,
+      imageUrl: original.imageUrl,
+      outcomes: outcomes,
+      lessons: [
+        for (final draft in _lessons)
+          Lesson(
+            id: draft.id,
+            moduleId: draft.moduleId,
+            moduleKey: draft.moduleKey,
+            moduleTitle: draft.moduleTitle.trim(),
+            title: draft.title.trim(),
+            type: draft.type,
+            meta: 'Dakika ${draft.durationMinutes}',
+            description: draft.body.trim(),
+            durationMinutes: draft.durationMinutes,
+            resourceUrl:
+                draft.videoUrl.trim().isEmpty ? null : draft.videoUrl.trim(),
+            isLearnerVisible: draft.isLearnerVisible,
+            readinessReasons: draft.readinessReasons,
+          ),
+      ],
+    );
+    AppFeedback.tap();
+    Navigator.of(context).pop(
+      _CourseEditResult(course: course, status: _status),
+    );
+  }
+
+  String? _firstDraftError() {
+    for (var index = 0; index < _lessons.length; index += 1) {
+      final lesson = _lessons[index];
+      final number = index + 1;
+      if (lesson.moduleTitle.trim().isEmpty) {
+        return 'Somo la $number linahitaji jina la sehemu.';
+      }
+      if (lesson.title.trim().isEmpty) {
+        return 'Somo la $number linahitaji jina.';
+      }
+      if (lesson.durationMinutes <= 0) {
+        return 'Somo la $number linahitaji dakika zaidi ya sifuri.';
+      }
+      if (lesson.type == LessonType.reading && lesson.body.trim().isEmpty) {
+        return 'Somo la $number linahitaji maandishi.';
+      }
+      final videoUrl = lesson.videoUrl.trim();
+      if (videoUrl.isNotEmpty) {
+        final uri = Uri.tryParse(videoUrl);
+        if (uri == null ||
+            (uri.scheme != 'https' && uri.scheme != 'http') ||
+            uri.host.isEmpty) {
+          return 'Somo la $number lina kiungo cha video kisicho sahihi.';
+        }
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Hariri mtaala'),
+        actions: [
+          TextButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Hifadhi'),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          autovalidateMode: _showValidation
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            children: [
+              Text(
+                'Taarifa za kozi',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                initialValue: _title,
+                decoration: const InputDecoration(labelText: 'Jina la kozi'),
+                validator: _requiredField('Jina haliwezi kuwa tupu.'),
+                onSaved: (value) => _title = value ?? '',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                initialValue: _description,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Maelezo ya kozi',
+                  alignLabelWithHint: true,
+                ),
+                validator: _requiredField('Maelezo hayawezi kuwa tupu.'),
+                onSaved: (value) => _description = value ?? '',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Hali ya uchapishaji',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'draft',
+                    label: Text('Rasimu'),
+                    icon: Icon(Icons.edit_note_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'approved',
+                    label: Text('Chapisha'),
+                    icon: Icon(Icons.check_circle_outline),
+                  ),
+                ],
+                selected: {_status},
+                onSelectionChanged: (next) {
+                  AppFeedback.selection();
+                  setState(() => _status = next.first);
+                },
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Sehemu na masomo',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  Pill(
+                    label: '${_lessons.length}',
+                    color: context.colors.surfaceMuted,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Hariri sehemu, kichwa, maandishi, muda na video. '
+                'Buruta kadi kubadilisha mpangilio. Masomo mapya au maudhui '
+                'yaliyobadilishwa huwekwa kwenye ukaguzi wa vyanzo kabla ya '
+                'kuonekana kwa wanafunzi.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: _lessons.length,
+                onReorderItem: (oldIndex, newIndex) {
+                  setState(() {
+                    final lesson = _lessons.removeAt(oldIndex);
+                    _lessons.insert(newIndex, lesson);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final lesson = _lessons[index];
+                  return _CurriculumLessonCard(
+                    key: lesson.key,
+                    index: index,
+                    lesson: lesson,
+                    onRemove: () => _removeLesson(index),
+                    onModuleTitleChanged: (value) {
+                      setState(() {
+                        for (final candidate in _lessons) {
+                          final sameModule =
+                              candidate.moduleKey == lesson.moduleKey;
+                          if (sameModule) candidate.moduleTitle = value;
+                        }
+                      });
+                    },
+                    onTypeChanged: (value) {
+                      setState(() => lesson.type = value);
+                    },
+                  );
+                },
+              ),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _addLesson,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ongeza somo'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _addLesson(newSection: true),
+                    icon: const Icon(Icons.playlist_add),
+                    label: const Text('Ongeza sehemu'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Hifadhi mtaala mzima'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CurriculumLessonCard extends StatelessWidget {
+  const _CurriculumLessonCard({
+    required super.key,
+    required this.index,
+    required this.lesson,
+    required this.onRemove,
+    required this.onModuleTitleChanged,
+    required this.onTypeChanged,
+  });
+
+  final int index;
+  final _LessonDraft lesson;
+  final VoidCallback onRemove;
+  final ValueChanged<String> onModuleTitleChanged;
+  final ValueChanged<LessonType> onTypeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: ExpansionTile(
+        maintainState: true,
+        initiallyExpanded: index == 0,
+        leading: Semantics(
+          label: 'Hamisha somo la ${index + 1}',
+          button: true,
+          child: SizedBox.square(
+            dimension: 48,
+            child: ReorderableDragStartListener(
+              index: index,
+              child: const Icon(Icons.drag_handle),
+            ),
+          ),
+        ),
+        title: Text(
+          lesson.title.trim().isEmpty ? 'Somo jipya' : lesson.title,
+        ),
+        subtitle: Text(
+          '${lesson.moduleTitle} · ${lesson.type.label}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        children: [
+          TextFormField(
+            initialValue: lesson.moduleTitle,
+            decoration: const InputDecoration(labelText: 'Jina la sehemu'),
+            validator: _requiredField('Jina la sehemu linahitajika.'),
+            onChanged: onModuleTitleChanged,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            initialValue: lesson.title,
+            decoration: const InputDecoration(labelText: 'Jina la somo'),
+            validator: _requiredField('Jina la somo linahitajika.'),
+            onSaved: (value) => lesson.title = value ?? '',
+            onChanged: (value) => lesson.title = value,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<LessonType>(
+            initialValue: lesson.type,
+            decoration: const InputDecoration(labelText: 'Aina ya somo'),
+            items: [
+              for (final type in LessonType.values)
+                DropdownMenuItem(
+                  value: type,
+                  child: Text(type.label),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) onTypeChanged(value);
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            initialValue: '${lesson.durationMinutes}',
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Muda (dakika)'),
+            validator: (value) {
+              final parsed = int.tryParse(value?.trim() ?? '');
+              return parsed == null || parsed <= 0
+                  ? 'Weka dakika zaidi ya sifuri.'
+                  : null;
+            },
+            onSaved: (value) {
+              lesson.durationMinutes = int.tryParse(value?.trim() ?? '') ?? 5;
+            },
+            onChanged: (value) {
+              lesson.durationMinutes =
+                  int.tryParse(value.trim()) ?? lesson.durationMinutes;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            initialValue: lesson.body,
+            minLines: 4,
+            maxLines: 12,
+            decoration: InputDecoration(
+              labelText: lesson.type == LessonType.video
+                  ? 'Maelezo ya video'
+                  : 'Maandishi ya somo',
+              alignLabelWithHint: true,
+            ),
+            validator: (value) {
+              if (lesson.type == LessonType.reading &&
+                  (value == null || value.trim().isEmpty)) {
+                return 'Maandishi ya somo yanahitajika.';
+              }
+              return null;
+            },
+            onSaved: (value) => lesson.body = value ?? '',
+            onChanged: (value) => lesson.body = value,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            initialValue: lesson.videoUrl,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(
+              labelText: 'Kiungo cha video (hiari kwa video iliyohifadhiwa)',
+            ),
+            validator: (value) {
+              final text = value?.trim() ?? '';
+              final uri = Uri.tryParse(text);
+              if (text.isEmpty ||
+                  (uri != null &&
+                      (uri.scheme == 'https' || uri.scheme == 'http') &&
+                      uri.host.isNotEmpty)) {
+                return null;
+              }
+              return 'Weka kiungo kamili cha video.';
+            },
+            onSaved: (value) => lesson.videoUrl = value ?? '',
+            onChanged: (value) => lesson.videoUrl = value,
+          ),
+          if (lesson.readinessReasons.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: AppDecorations.pastelPanel(
+                context,
+                context.colors.surfacePeach,
+              ),
+              child: Text(
+                'Kabla ya kuonekana kwa mwanafunzi:\n'
+                '${lesson.readinessReasons.map((reason) => '• $reason').join('\n')}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onRemove,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Ondoa somo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String? Function(String?) _requiredField(String message) {
+  return (value) => value == null || value.trim().isEmpty ? message : null;
+}
+
 class _AdminContentTab extends StatefulWidget {
   const _AdminContentTab();
 
@@ -365,27 +883,16 @@ class _AdminContentTabState extends State<_AdminContentTab> {
 
   Future<void> _editCourse(AdminContentCourseRecord record) async {
     final adminService = context.dependencies.adminService;
-    final result = await _showContentEditor(
+    final result = await _showCourseEditor(
       context: context,
-      titleLabel: 'Jina la kozi',
-      initialTitle: record.course.title,
-      initialStatus: record.status,
+      record: record,
     );
-    if (result == null || result.title.isEmpty) return;
+    if (result == null) return;
     try {
       await adminService.upsertContentCourse(
-        course: Course(
-          id: record.course.id,
-          title: result.title,
-          description: record.course.description,
-          badge: record.course.badge,
-          icon: record.course.icon,
-          progress: record.course.progress,
-          imageUrl: record.course.imageUrl,
-          outcomes: record.course.outcomes,
-          lessons: record.course.lessons,
-        ),
+        course: result.course,
         status: result.status,
+        baseUpdatedAt: record.updatedAt,
       );
       if (!mounted) return;
       showSuccessSnack(context, 'Kozi imehifadhiwa.');
@@ -520,9 +1027,17 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.xs),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: _AdminStatusPill(status: record.status),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${record.course.lessons.length} masomo'
+                            '${record.course.lessons.any((lesson) => lesson.type == LessonType.video) ? ' · Ina video' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          _AdminStatusPill(status: record.status),
+                        ],
                       ),
                     ),
                     trailing: IconButton(
@@ -1205,4 +1720,65 @@ class _ContentEditResult {
 
   final String title;
   final String status;
+}
+
+class _CourseEditResult {
+  const _CourseEditResult({
+    required this.course,
+    required this.status,
+  });
+
+  final Course course;
+  final String status;
+}
+
+class _LessonDraft {
+  _LessonDraft({
+    required this.key,
+    required this.moduleTitle,
+    required this.title,
+    required this.type,
+    required this.durationMinutes,
+    required this.body,
+    required this.videoUrl,
+    this.id,
+    this.moduleId,
+    String? moduleKey,
+    this.isLearnerVisible = false,
+    this.readinessReasons = const [],
+  }) : moduleKey = moduleKey ?? moduleId ?? key.toString();
+
+  factory _LessonDraft.fromLesson(Lesson lesson) {
+    return _LessonDraft(
+      key: ValueKey(lesson.id ?? UniqueKey()),
+      id: lesson.id,
+      moduleId: lesson.moduleId,
+      moduleKey: lesson.moduleKey ?? lesson.moduleId,
+      moduleTitle: lesson.moduleTitle ??
+          'Sehemu ya ${lesson.type == LessonType.video ? 'video' : 'masomo'}',
+      title: lesson.title,
+      type: lesson.type,
+      durationMinutes: lesson.durationMinutes ??
+          int.tryParse(
+              RegExp(r'\d+').firstMatch(lesson.meta)?.group(0) ?? '') ??
+          5,
+      body: lesson.description,
+      videoUrl: lesson.resourceUrl ?? '',
+      isLearnerVisible: lesson.isLearnerVisible,
+      readinessReasons: lesson.readinessReasons,
+    );
+  }
+
+  final Key key;
+  final String? id;
+  final String? moduleId;
+  final String moduleKey;
+  String moduleTitle;
+  String title;
+  LessonType type;
+  int durationMinutes;
+  String body;
+  String videoUrl;
+  final bool isLearnerVisible;
+  final List<String> readinessReasons;
 }

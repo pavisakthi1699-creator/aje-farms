@@ -22,8 +22,19 @@ class _OneCourseAdminService extends LocalAdminService {
           icon: Icons.eco_outlined,
           progress: 0,
           imageUrl: '',
-          outcomes: [],
-          lessons: [],
+          outcomes: ['Msingi'],
+          lessons: [
+            Lesson(
+              id: 'lesson-1',
+              moduleId: 'module-1',
+              moduleTitle: 'Msingi',
+              title: 'Kuandaa kitalu',
+              type: LessonType.reading,
+              meta: 'Dakika 5',
+              description: 'Andaa kitalu salama.',
+              durationMinutes: 5,
+            ),
+          ],
         ),
       ),
     ];
@@ -291,13 +302,39 @@ void main() {
       await tester.pumpAndSettle();
 
       // Clear the pre-filled title, then attempt to save.
-      await tester.enterText(find.byType(EditableText).last, '');
-      await tester.tap(find.text('Hifadhi'));
+      await tester.enterText(find.byType(EditableText).first, '');
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
       await tester.pumpAndSettle();
 
       expect(find.text('Jina haliwezi kuwa tupu.'), findsOneWidget);
-      // The sheet must stay open so the admin can correct the title.
-      expect(find.text('Hariri content'), findsOneWidget);
+      // The editor must stay open so the admin can correct the title.
+      expect(find.text('Hariri mtaala'), findsOneWidget);
+    });
+
+    testWidgets('course editor exposes the complete curriculum fields',
+        (tester) async {
+      await openAdminDashboard(
+        tester,
+        adminService: const _OneCourseAdminService(),
+      );
+
+      await tester.tap(find.byTooltip('Hariri kozi').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Maelezo ya kozi'), findsOneWidget);
+      expect(find.text('Sehemu na masomo'), findsOneWidget);
+      expect(find.text('Kuandaa kitalu'), findsAtLeastNWidgets(1));
+
+      expect(find.text('Jina la sehemu'), findsOneWidget);
+      expect(find.text('Jina la somo'), findsOneWidget);
+      expect(find.text('Muda (dakika)'), findsOneWidget);
+      expect(find.text('Maandishi ya somo'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Ongeza somo'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Ongeza somo'), findsOneWidget);
     });
   });
 

@@ -17,19 +17,31 @@ class Lesson {
     required this.meta,
     required this.description,
     this.id,
+    this.moduleId,
+    this.moduleKey,
+    this.moduleTitle,
+    this.durationMinutes,
     this.sourceTitle,
     this.resourceUrl,
+    this.isLearnerVisible = true,
+    this.readinessReasons = const [],
     this.isPremium = false,
     this.isCompleted = false,
   });
 
   final String? id;
+  final String? moduleId;
+  final String? moduleKey;
+  final String? moduleTitle;
   final String title;
   final LessonType type;
   final String meta;
   final String description;
+  final int? durationMinutes;
   final String? sourceTitle;
   final String? resourceUrl;
+  final bool isLearnerVisible;
+  final List<String> readinessReasons;
   final bool isPremium;
   final bool isCompleted;
 }
