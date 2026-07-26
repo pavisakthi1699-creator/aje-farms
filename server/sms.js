@@ -18,6 +18,9 @@ export function createOtpSender({
       fetchImpl,
     });
   }
+  if (provider === 'manual') {
+    return new ManualOtpSender(env);
+  }
 
   return new DevelopmentOtpSender(env);
 }
@@ -112,12 +115,11 @@ class DevelopmentOtpSender {
   constructor(env) {
     this.name = 'development';
     this.env = env;
-    this.debugOtpEnabled = env.AJE_ENABLE_DEBUG_OTP === 'true';
-    this.isProductionReady = this.debugOtpEnabled;
+    this.isProductionReady = false;
   }
 
   async sendOtp({ phoneNumber, otp }) {
-    if (this.env.NODE_ENV === 'production' && !this.debugOtpEnabled) {
+    if (this.env.NODE_ENV === 'production') {
       throw new Error('SMS provider is not configured.');
     }
 
@@ -126,9 +128,42 @@ class DevelopmentOtpSender {
       provider: 'development',
       debugOtp:
         this.env.NODE_ENV === 'development' ||
-        this.debugOtpEnabled
+        this.env.AJE_ENABLE_DEBUG_OTP === 'true'
           ? otp
           : undefined,
     };
   }
+}
+
+class ManualOtpSender {
+  constructor(env) {
+    this.name = 'manual';
+    this.code = String(env.AJE_MANUAL_OTP_CODE ?? '').trim();
+    this.allowedPhoneNumbers = new Set(
+      String(env.AJE_MANUAL_OTP_PHONE_NUMBERS ?? '')
+        .split(',')
+        .map(normalizeSmsPhone)
+        .filter(Boolean),
+    );
+    this.isProductionReady =
+      /^\d{6}$/.test(this.code) && this.allowedPhoneNumbers.size > 0;
+  }
+
+  async sendOtp({ phoneNumber }) {
+    if (!this.isProductionReady) {
+      throw new Error('Manual OTP provider is not configured.');
+    }
+    if (!this.allowedPhoneNumbers.has(normalizeSmsPhone(phoneNumber))) {
+      throw new Error('Phone number is not enabled for manual OTP testing.');
+    }
+    return {
+      provider: 'manual',
+      challengeOtp: this.code,
+    };
+  }
+}
+
+function normalizeSmsPhone(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
 }

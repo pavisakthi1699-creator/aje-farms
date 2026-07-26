@@ -274,13 +274,16 @@ export async function registerApiRoutes(app) {
 
     const challenge = await store.createOtpChallenge({
       phoneNumber: normalizedPhone,
-      otp,
+      otp: delivery.challengeOtp ?? otp,
       deliveryProvider: delivery.provider,
     });
 
     res.json({
       challengeId: challenge.id,
-      message: `OTP imetumwa kwa ${normalizedPhone}.`,
+      message:
+        delivery.provider === 'manual'
+          ? 'Tumia OTP ya majaribio uliyopewa.'
+          : `OTP imetumwa kwa ${normalizedPhone}.`,
       debugOtp: delivery.debugOtp,
       retryAfterSeconds: 60,
     });

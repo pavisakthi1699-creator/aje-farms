@@ -120,40 +120,43 @@ test("Africa's Talking recipient rejection fails OTP delivery", async () => {
   );
 });
 
-test('manual OTP can be explicitly enabled for internal production testing', async () => {
+test('manual OTP uses a fixed code only for allowlisted test phones', async () => {
   const sender = createOtpSender({
     env: {
       NODE_ENV: 'production',
-      AJE_SMS_PROVIDER: 'development',
-      AJE_ENABLE_DEBUG_OTP: 'true',
+      AJE_SMS_PROVIDER: 'manual',
+      AJE_MANUAL_OTP_CODE: '123456',
+      AJE_MANUAL_OTP_PHONE_NUMBERS: '+255743812853,+255700000001',
     },
   });
 
   const result = await sender.sendOtp({
     phoneNumber: '+255743812853',
-    otp: '123456',
+    otp: '999999',
   });
 
-  assert.equal(sender.name, 'development');
+  assert.equal(sender.name, 'manual');
   assert.equal(sender.isProductionReady, true);
-  assert.equal(result.debugOtp, '123456');
+  assert.equal(result.challengeOtp, '123456');
+  assert.equal(result.debugOtp, undefined);
 });
 
-test('manual OTP remains blocked in production without the explicit flag', async () => {
+test('manual OTP rejects phones outside the test allowlist', async () => {
   const sender = createOtpSender({
     env: {
       NODE_ENV: 'production',
-      AJE_SMS_PROVIDER: 'development',
+      AJE_SMS_PROVIDER: 'manual',
+      AJE_MANUAL_OTP_CODE: '123456',
+      AJE_MANUAL_OTP_PHONE_NUMBERS: '+255743812853',
     },
   });
 
-  assert.equal(sender.isProductionReady, false);
   await assert.rejects(
     sender.sendOtp({
-      phoneNumber: '+255743812853',
-      otp: '123456',
+      phoneNumber: '+255712345678',
+      otp: '999999',
     }),
-    /SMS provider is not configured/,
+    /not enabled for manual OTP testing/,
   );
 });
 
