@@ -15,6 +15,7 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.1
+  image_picker: ^1.2.3
 
 dev_dependencies:
   integration_test:
@@ -22,9 +23,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/courses/
     - assets/images/hero/
+    - assets/branding/
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/branding/aje-farms-logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/branding/aje-farms-logo-adaptive-fg.png"
+  min_sdk_android: 21

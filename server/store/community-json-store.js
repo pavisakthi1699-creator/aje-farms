@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createId } from './utils.js';
+import { communityPostImageUrl, createId } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,7 +28,15 @@ export class CommunityJsonStore {
       .map((post) => toPublicPost(post));
   }
 
-  createCommunityPost({ author, authorPhone, content, location, tags }) {
+  createCommunityPost({
+    author,
+    authorPhone,
+    content,
+    location,
+    tags,
+    imagePath = null,
+    isExpert = false,
+  }) {
     const normalizedTags = [...new Set(tags.map((tag) => tag.trim()))].filter(
       Boolean,
     );
@@ -44,8 +52,9 @@ export class CommunityJsonStore {
       tags: normalizedTags,
       replies: [],
       relatedTopic: normalizedTags[0] ?? null,
-      hasImage: false,
-      isExpert: false,
+      imagePath: imagePath ?? null,
+      hasImage: Boolean(imagePath),
+      isExpert,
       isUrgent:
         normalizedTags.includes('Magonjwa') ||
         normalizedTags.includes('Wadudu'),
@@ -56,18 +65,24 @@ export class CommunityJsonStore {
     return toPublicPost(post);
   }
 
+  // Image uploads require Supabase Storage, which the JSON store (local/dev
+  // mode) does not have.
+  uploadCommunityPostImage() {
+    return null;
+  }
+
   communityPostAuthorPhone(postId) {
     const post = this.state.communityPosts.find((item) => item.id === postId);
     return post?.authorPhone ?? null;
   }
 
-  addCommunityReply({ postId, author, authorPhone, body }) {
+  addCommunityReply({ postId, author, authorPhone, body, isExpert = false }) {
     const reply = {
       author: author.trim(),
       authorPhone: authorPhone ?? null,
       body: body.trim(),
       time: 'Sasa hivi',
-      isExpert: false,
+      isExpert,
     };
     const post = this.state.communityPosts.find((item) => item.id === postId);
     if (post) {
@@ -157,10 +172,12 @@ function toPublicPost(post) {
     authorPhone: _authorPhone,
     moderatedAt: _moderatedAt,
     moderatedBy: _moderatedBy,
+    imagePath,
     ...rest
   } = post;
   return {
     ...rest,
+    imageUrl: communityPostImageUrl(imagePath),
     replies: (post.replies ?? []).map((reply) => toPublicReply(reply)),
   };
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/community_post.dart';
 import 'community_service.dart';
 
@@ -9,6 +11,7 @@ class LocalCommunityService implements CommunityService {
     required String content,
     required String location,
     required List<String> tags,
+    String? imagePath,
   }) async {
     return CommunityPost(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
@@ -20,8 +23,18 @@ class LocalCommunityService implements CommunityService {
       comments: 0,
       tags: tags,
       replies: const [],
+      hasImage: imagePath != null,
       isUrgent: tags.contains('Magonjwa') || tags.contains('Wadudu'),
     );
+  }
+
+  @override
+  Future<String?> uploadImage({
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    // The demo/offline backend has no storage to upload to.
+    return null;
   }
 
   @override

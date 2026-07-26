@@ -1,5 +1,9 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'dart:typed_data';
+
+import 'package:image_picker/image_picker.dart';
+
 import '../../ui.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -299,6 +303,8 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   final Set<String> _tags = {'Magonjwa'};
   bool _initializedLocation = false;
   bool _isSubmitting = false;
+  Uint8List? _pickedImageBytes;
+  String? _pickedImageContentType;
 
   static const _availableTags = [
     'Magonjwa',
@@ -326,6 +332,34 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    final contentType = _contentTypeForXFile(picked);
+    if (contentType == null) {
+      if (!mounted) return;
+      showSnack(context, 'Aina ya picha haikubaliki. Tumia JPG, PNG au WEBP.');
+      return;
+    }
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _pickedImageBytes = bytes;
+      _pickedImageContentType = contentType;
+    });
+  }
+
+  void _removeImage() {
+    setState(() {
+      _pickedImageBytes = null;
+      _pickedImageContentType = null;
+    });
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     final content = _contentController.text.trim();
@@ -340,12 +374,26 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     }
     setState(() => _isSubmitting = true);
     final session = context.session;
+    final communityService = context.dependencies.communityService;
     try {
       final tags = _tags.toList()..sort();
-      final post = await context.dependencies.communityService.createPost(
+      String? imagePath;
+      final imageBytes = _pickedImageBytes;
+      final imageContentType = _pickedImageContentType;
+      if (imageBytes != null && imageContentType != null) {
+        imagePath = await communityService.uploadImage(
+          bytes: imageBytes,
+          contentType: imageContentType,
+        );
+        if (imagePath == null && mounted) {
+          showSnack(context, 'Imeshindikana kupakia picha; post itatumwa bila picha.');
+        }
+      }
+      final post = await communityService.createPost(
         content: content,
         location: location,
         tags: tags,
+        imagePath: imagePath,
       );
       await session.setPreferredLocation(location);
       await session.addCommunityPostRecord(post);
@@ -410,6 +458,41 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                   ),
               ],
             ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Ongeza picha (hiari)',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.md),
+            if (_pickedImageBytes != null)
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    child: Image.memory(
+                      _pickedImageBytes!,
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  IconButton.filled(
+                    onPressed: _isSubmitting ? null : _removeImage,
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Ondoa picha',
+                  ),
+                ],
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: _isSubmitting
+                    ? null
+                    : () {
+                        AppFeedback.tap();
+                        _pickImage();
+                      },
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Chagua picha'),
+              ),
             const SizedBox(height: AppSpacing.xxl),
             FilledButton.icon(
               onPressed: _isSubmitting
@@ -425,5 +508,26 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         ),
       ),
     );
+  }
+}
+
+String? _contentTypeForXFile(XFile file) {
+  final mimeType = file.mimeType?.toLowerCase();
+  if (mimeType == 'image/jpeg' ||
+      mimeType == 'image/png' ||
+      mimeType == 'image/webp') {
+    return mimeType;
+  }
+  final extension = file.name.toLowerCase().split('.').last;
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return null;
   }
 }

@@ -10,6 +10,7 @@ class CommunityPost {
     required this.tags,
     required this.replies,
     this.relatedTopic,
+    this.imageUrl,
     this.hasImage = false,
     this.isExpert = false,
     this.isUrgent = false,
@@ -25,6 +26,7 @@ class CommunityPost {
   final List<String> tags;
   final List<CommunityReply> replies;
   final String? relatedTopic;
+  final String? imageUrl;
   final bool hasImage;
   final bool isExpert;
   final bool isUrgent;
@@ -40,6 +42,7 @@ class CommunityPost {
     List<String>? tags,
     List<CommunityReply>? replies,
     String? relatedTopic,
+    String? imageUrl,
     bool? hasImage,
     bool? isExpert,
     bool? isUrgent,
@@ -55,6 +58,7 @@ class CommunityPost {
       tags: tags ?? this.tags,
       replies: replies ?? this.replies,
       relatedTopic: relatedTopic ?? this.relatedTopic,
+      imageUrl: imageUrl ?? this.imageUrl,
       hasImage: hasImage ?? this.hasImage,
       isExpert: isExpert ?? this.isExpert,
       isUrgent: isUrgent ?? this.isUrgent,

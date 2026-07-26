@@ -188,6 +188,12 @@ ALTER TABLE community_replies
 CREATE INDEX IF NOT EXISTS idx_community_posts_author_phone
   ON community_posts (author_phone);
 
+-- Storage object path in the public `community-post-images` bucket. The path
+-- is a bare generated filename (no phone number or other identifier) since
+-- the bucket is public and the path is embedded in the returned image URL.
+ALTER TABLE community_posts
+  ADD COLUMN IF NOT EXISTS image_path TEXT;
+
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE otp_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;

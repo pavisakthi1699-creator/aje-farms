@@ -147,6 +147,48 @@ export function communityDisplayName(user, phoneNumber) {
   return `Mkulima ${suffix}`;
 }
 
+export const communityPostImagesBucket = 'community-post-images';
+
+export function extensionForImageContentType(contentType) {
+  const normalized = String(contentType ?? '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  switch (normalized) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    default:
+      return null;
+  }
+}
+
+const communityImagePathPattern = /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/;
+
+// `imagePath` is a bare generated filename returned by our own upload
+// endpoint; this guards against a caller sending an arbitrary string (path
+// traversal, another bucket's object, etc.) when referencing it on a post.
+export function isValidCommunityImagePath(imagePath) {
+  return (
+    typeof imagePath === 'string' &&
+    imagePath.length <= 200 &&
+    communityImagePathPattern.test(imagePath)
+  );
+}
+
+// The bucket is public, so the URL needs no signing (unlike lesson videos,
+// which are gated behind a paid session). Only the upload path is
+// authenticated.
+export function communityPostImageUrl(imagePath) {
+  if (!imagePath) return null;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl) return null;
+  return `${supabaseUrl}/storage/v1/object/public/${communityPostImagesBucket}/${encodeURIComponent(imagePath)}`;
+}
+
 export function hashOtp(otp) {
   return crypto
     .createHash('sha256')
