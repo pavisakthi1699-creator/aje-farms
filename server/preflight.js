@@ -94,9 +94,24 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
         'AFRICASTALKING_ENVIRONMENT must be "production" or "sandbox".',
       );
     }
+  } else if (smsProvider === 'manual') {
+    requireValue(
+      blockers,
+      'AJE_MANUAL_OTP_CODE',
+      env.AJE_MANUAL_OTP_CODE,
+      (value) => (/^\d{6}$/.test(value) ? null : 'must be exactly 6 digits.'),
+    );
+    requireValue(
+      blockers,
+      'AJE_MANUAL_OTP_PHONE_NUMBERS',
+      env.AJE_MANUAL_OTP_PHONE_NUMBERS,
+    );
+    warnings.push(
+      'Manual OTP is enabled for internal testing; switch to africas_talking before public launch.',
+    );
   } else if (smsProvider && smsProvider !== 'development') {
     blockers.push(
-      'AJE_SMS_PROVIDER must be "africas_talking" or "development".',
+      'AJE_SMS_PROVIDER must be "africas_talking", "manual", or "development".',
     );
   } else {
     warnings.push(

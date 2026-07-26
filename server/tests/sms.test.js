@@ -120,6 +120,46 @@ test("Africa's Talking recipient rejection fails OTP delivery", async () => {
   );
 });
 
+test('manual OTP uses a fixed code only for allowlisted test phones', async () => {
+  const sender = createOtpSender({
+    env: {
+      NODE_ENV: 'production',
+      AJE_SMS_PROVIDER: 'manual',
+      AJE_MANUAL_OTP_CODE: '123456',
+      AJE_MANUAL_OTP_PHONE_NUMBERS: '+255743812853,+255700000001',
+    },
+  });
+
+  const result = await sender.sendOtp({
+    phoneNumber: '+255743812853',
+    otp: '999999',
+  });
+
+  assert.equal(sender.name, 'manual');
+  assert.equal(sender.isProductionReady, true);
+  assert.equal(result.challengeOtp, '123456');
+  assert.equal(result.debugOtp, undefined);
+});
+
+test('manual OTP rejects phones outside the test allowlist', async () => {
+  const sender = createOtpSender({
+    env: {
+      NODE_ENV: 'production',
+      AJE_SMS_PROVIDER: 'manual',
+      AJE_MANUAL_OTP_CODE: '123456',
+      AJE_MANUAL_OTP_PHONE_NUMBERS: '+255743812853',
+    },
+  });
+
+  await assert.rejects(
+    sender.sendOtp({
+      phoneNumber: '+255712345678',
+      otp: '999999',
+    }),
+    /not enabled for manual OTP testing/,
+  );
+});
+
 test('SMS provider selection defaults safely to development', () => {
   assert.equal(configuredSmsProvider({}), 'development');
   assert.equal(
