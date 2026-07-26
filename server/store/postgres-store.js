@@ -407,6 +407,32 @@ export class PostgresStore {
   }
 
   async contentCoursesForAdmin() {
+    if (process.env.AJE_STORE === 'supabase') {
+      const result = await this.pool.query(
+        `SELECT
+           c.id::text AS course_id,
+           c.code AS course_code,
+           c.title_sw AS course_title,
+           COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+           COALESCE(c.delivery_type, 'text') AS delivery_type,
+           c.status AS course_status,
+           c.updated_at AS course_updated_at,
+           m.title_sw AS module_title,
+           m.sort_order AS module_order,
+           l.id::text AS lesson_id,
+           l.title_sw AS lesson_title,
+           l.body_sw AS lesson_body,
+           l.lesson_type,
+           l.duration_minutes,
+           l.sort_order AS lesson_order
+         FROM courses c
+         LEFT JOIN course_modules m ON m.course_id = c.id
+         LEFT JOIN lessons l ON l.module_id = m.id
+         ORDER BY c.updated_at DESC, c.sort_order, c.code,
+                  m.sort_order, l.sort_order`,
+      );
+      return structuredContentCourseRecords(result.rows);
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_courses
@@ -417,6 +443,33 @@ export class PostgresStore {
 
   async upsertContentCourse({ course, status = 'approved' }) {
     const normalizedCourse = normalizeApprovedCourse(course);
+    if (process.env.AJE_STORE === 'supabase') {
+      const structuredStatus =
+        status === 'approved' ? 'published' : 'draft';
+      const result = await this.pool.query(
+        `UPDATE courses
+         SET title_sw = $2,
+             status = $3::content_status,
+             published_at = CASE
+               WHEN $3 = 'published' THEN COALESCE(published_at, NOW())
+               ELSE NULL
+             END,
+             updated_at = NOW()
+         WHERE code = $1
+         RETURNING code, status, updated_at`,
+        [normalizedCourse.id, normalizedCourse.title, structuredStatus],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error('Course was not found in the live content catalog.');
+      }
+      return {
+        id: row.code,
+        status: structuredStatus === 'published' ? 'approved' : 'draft',
+        course: normalizedCourse,
+        updatedAt: new Date(row.updated_at).toISOString(),
+      };
+    }
     const result = await this.pool.query(
       `INSERT INTO content_courses (id, status, payload, updated_at)
        VALUES ($1, $2, $3, $4)
@@ -451,6 +504,15 @@ export class PostgresStore {
   }
 
   async contentDocumentsForAdmin() {
+    if (process.env.AJE_STORE === 'supabase') {
+      const result = await this.pool.query(
+        `SELECT id::text, title, source_type, file_name, page_count,
+                processing_status, updated_at
+         FROM source_documents
+         ORDER BY updated_at DESC`,
+      );
+      return result.rows.map(structuredContentDocumentFromRow);
+    }
     const result = await this.pool.query(
       `SELECT id, status, payload, updated_at
        FROM content_documents
@@ -461,6 +523,31 @@ export class PostgresStore {
 
   async upsertContentDocument({ document, status = 'approved' }) {
     const normalizedDocument = normalizeContentDocument(document);
+    if (process.env.AJE_STORE === 'supabase') {
+      const structuredStatus =
+        status === 'approved' ? 'published' : 'draft';
+      const result = await this.pool.query(
+        `UPDATE source_documents
+         SET title = $2,
+             processing_status = $3::content_status,
+             updated_at = NOW()
+         WHERE id = $1::uuid
+         RETURNING id::text, processing_status, updated_at`,
+        [normalizedDocument.id, normalizedDocument.title, structuredStatus],
+      );
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error(
+          'Source document was not found in the live content catalog.',
+        );
+      }
+      return {
+        id: row.id,
+        status: structuredStatus === 'published' ? 'approved' : 'draft',
+        document: normalizedDocument,
+        updatedAt: new Date(row.updated_at).toISOString(),
+      };
+    }
     const result = await this.pool.query(
       `INSERT INTO content_documents (id, status, payload, updated_at)
        VALUES ($1, $2, $3, $4)
@@ -1591,6 +1678,82 @@ function contentDocumentFromRow(row) {
     id: row.id,
     status: row.status,
     document: normalizeContentDocument(row.payload),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function structuredContentCourseRecords(rows) {
+  const records = new Map();
+  for (const row of rows) {
+    let record = records.get(row.course_id);
+    if (!record) {
+      const course = {
+        id: row.course_code,
+        title: row.course_title,
+        description: row.course_description,
+        badge:
+          row.delivery_type === 'video'
+            ? 'Kozi ya video'
+            : 'Kozi ya maandishi',
+        icon: row.delivery_type === 'video' ? 'play_circle' : 'menu_book',
+        progress: 0,
+        imageUrl: courseImageForCode(row.course_code),
+        outcomes: [],
+        lessons: [],
+      };
+      record = {
+        id: row.course_code,
+        status:
+          row.course_status === 'published' ? 'approved' : 'draft',
+        course,
+        updatedAt: new Date(row.course_updated_at).toISOString(),
+      };
+      records.set(row.course_id, record);
+    }
+    if (
+      row.module_title &&
+      !record.course.outcomes.includes(row.module_title)
+    ) {
+      record.course.outcomes.push(row.module_title);
+    }
+    if (row.lesson_id) {
+      record.course.lessons.push({
+        id: row.lesson_id,
+        title: row.lesson_title,
+        type: row.lesson_type === 'video' ? 'video' : 'reading',
+        meta: row.duration_minutes
+          ? `Dakika ${row.duration_minutes}`
+          : row.lesson_type === 'video'
+            ? 'Video'
+            : 'Somo',
+        description: row.lesson_body ?? '',
+        isPremium: false,
+        isCompleted: false,
+      });
+    }
+  }
+  return [...records.values()].map((record) => ({
+    ...record,
+    course: normalizeApprovedCourse(record.course),
+  }));
+}
+
+function structuredContentDocumentFromRow(row) {
+  return {
+    id: row.id,
+    status:
+      row.processing_status === 'published' ? 'approved' : 'draft',
+    document: normalizeContentDocument({
+      id: row.id,
+      title: row.title,
+      courseId: '',
+      courseTitle: 'Chanzo cha mafunzo',
+      description: row.file_name || row.source_type,
+      type: row.source_type === 'pdf' ? 'pdf' : row.source_type,
+      sizeLabel: row.page_count ? `Kurasa ${row.page_count}` : '',
+      url: null,
+      isPremium: false,
+    }),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
