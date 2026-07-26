@@ -1192,61 +1192,109 @@ class _AdminContentTabState extends State<_AdminContentTab> {
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.sm,
-                    ),
-                    leading: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: AppDecorations.pastelPanel(
-                        context,
-                        context.colors.surfaceLavender,
-                      ),
-                      child: Icon(
-                        Icons.menu_book_outlined,
-                        color: context.colors.primary,
-                      ),
-                    ),
-                    title: Text(
-                      record.course.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xs),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${record.course.lessons.length} masomo'
-                            '${record.course.lessons.any((lesson) => lesson.type == LessonType.video) ? ' · Ina video' : ''}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            '${record.course.lessons.where((lesson) => lesson.isLearnerVisible).length} tayari · '
-                            '${record.course.lessons.where((lesson) => !lesson.isLearnerVisible).length} yanahitaji ukaguzi',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: context.colors.muted,
-                                    ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          _AdminStatusPill(status: record.status),
-                        ],
-                      ),
-                    ),
-                    trailing: IconButton(
-                      tooltip: 'Hariri kozi',
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () {
+                  child: Builder(
+                    builder: (context) {
+                      final readyLessons = record.course.lessons
+                          .where((lesson) => lesson.isLearnerVisible)
+                          .length;
+                      final blockedLessons =
+                          record.course.lessons.length - readyLessons;
+                      void openEditor() {
                         AppFeedback.tap();
                         _editCourse(record);
-                      },
-                    ),
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListTile(
+                            onTap: openEditor,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.sm,
+                            ),
+                            leading: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: AppDecorations.pastelPanel(
+                                context,
+                                context.colors.surfaceLavender,
+                              ),
+                              child: Icon(
+                                Icons.menu_book_outlined,
+                                color: context.colors.primary,
+                              ),
+                            ),
+                            title: Text(
+                              record.course.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.xs),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${record.course.lessons.length} masomo'
+                                    '${record.course.lessons.any((lesson) => lesson.type == LessonType.video) ? ' · Ina video' : ''}',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    '$readyLessons tayari · '
+                                    '$blockedLessons yanahitaji ukaguzi',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: context.colors.muted),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  _AdminStatusPill(status: record.status),
+                                ],
+                              ),
+                            ),
+                            trailing: IconButton(
+                              tooltip: 'Hariri kozi',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: openEditor,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              0,
+                              AppSpacing.lg,
+                              AppSpacing.sm,
+                            ),
+                            child: OutlinedButton.icon(
+                              onPressed: openEditor,
+                              icon: const Icon(Icons.menu_book_outlined),
+                              label: const Text('Hariri mtaala na masomo'),
+                            ),
+                          ),
+                          if (blockedLessons > 0)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                0,
+                                AppSpacing.lg,
+                                AppSpacing.md,
+                              ),
+                              child: FilledButton.tonalIcon(
+                                onPressed: openEditor,
+                                icon: const Icon(Icons.fact_check_outlined),
+                                label: Text(
+                                  'Kagua chanzo cha masomo $blockedLessons',
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
