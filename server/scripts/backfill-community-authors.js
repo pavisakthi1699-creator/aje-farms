@@ -9,9 +9,12 @@ import { communityDisplayName } from '../store/utils.js';
 // phone number are skipped, so a second run migrates nothing.
 //
 //   node server/scripts/backfill-community-authors.js            # dry run
+//   node server/scripts/backfill-community-authors.js --summary-only
 //   node server/scripts/backfill-community-authors.js --apply
+//   node server/scripts/backfill-community-authors.js --apply --summary-only
 
 const apply = process.argv.includes('--apply');
+const summaryOnly = process.argv.includes('--summary-only');
 
 async function backfillTable(client, table, usersByPhone) {
   const result = await client.query(
@@ -81,8 +84,10 @@ async function main() {
       await client.query('ROLLBACK');
     }
 
-    for (const migration of [...posts, ...replies]) {
-      console.log(`  ${migration.authorPhone} -> ${migration.author}`);
+    if (!summaryOnly) {
+      for (const migration of [...posts, ...replies]) {
+        console.log(`  ${migration.authorPhone} -> ${migration.author}`);
+      }
     }
     console.log(
       `${apply ? 'Migrated' : 'Would migrate'} ${posts.length} post(s) and ` +
