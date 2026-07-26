@@ -16,6 +16,7 @@ class LocalAdminService implements AdminService {
   Future<AdminContentCourseRecord> upsertContentCourse({
     required Course course,
     required String status,
+    DateTime? baseUpdatedAt,
   }) async {
     throw const AdminException(
       'Admin content management requires a connected backend.',

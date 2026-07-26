@@ -32,6 +32,7 @@
     "android:key:generate": "node server/scripts/generate-android-upload-key.js",
     "preflight:release": "node server/scripts/preflight-release.js",
     "validate:android-apk": "node server/scripts/validate-android-apk.js",
+    "build:android:internal": "node server/scripts/build-android-internal.js",
     "release:android": "node server/scripts/build-android-release.js"
   },
   "dependencies": {

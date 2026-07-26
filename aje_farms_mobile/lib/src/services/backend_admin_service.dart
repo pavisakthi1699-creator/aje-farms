@@ -26,9 +26,8 @@ class BackendAdminService implements AdminService {
   @override
   Future<List<AdminContentCourseRecord>> listContentCourses() async {
     final payload = await _get('/api/admin/content/courses');
-    final rows =
-        (payload['courses'] as List<dynamic>? ?? const <dynamic>[])
-            .cast<Map<String, dynamic>>();
+    final rows = (payload['courses'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
     return rows.map(_contentCourseFromJson).toList();
   }
 
@@ -36,10 +35,18 @@ class BackendAdminService implements AdminService {
   Future<AdminContentCourseRecord> upsertContentCourse({
     required Course course,
     required String status,
+    DateTime? baseUpdatedAt,
   }) async {
     final payload = await _put(
       '/api/admin/content/courses/${Uri.encodeComponent(course.id)}',
-      {'status': status, 'course': _courseToJson(course)},
+      {
+        'status': status,
+        'course': _courseToJson(course),
+        if (baseUpdatedAt != null) ...{
+          'curriculumSchemaVersion': 2,
+          'baseUpdatedAt': baseUpdatedAt.toUtc().toIso8601String(),
+        },
+      },
     );
     final row = payload['course'];
     if (row is! Map<String, dynamic>) {
@@ -51,9 +58,8 @@ class BackendAdminService implements AdminService {
   @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async {
     final payload = await _get('/api/admin/content/documents');
-    final rows =
-        (payload['documents'] as List<dynamic>? ?? const <dynamic>[])
-            .cast<Map<String, dynamic>>();
+    final rows = (payload['documents'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
     return rows.map(_contentDocumentFromJson).toList();
   }
 
@@ -77,9 +83,8 @@ class BackendAdminService implements AdminService {
   @override
   Future<List<AdminModerationReport>> listModerationReports() async {
     final payload = await _get('/api/admin/moderation/reports');
-    final rows =
-        (payload['reports'] as List<dynamic>? ?? const <dynamic>[])
-            .cast<Map<String, dynamic>>();
+    final rows = (payload['reports'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
     return rows.map(_moderationReportFromJson).toList();
   }
 
@@ -94,7 +99,8 @@ class BackendAdminService implements AdminService {
     );
     final row = payload['post'];
     if (row is! Map<String, dynamic>) {
-      throw const AdminException('Invalid moderation response from admin service.');
+      throw const AdminException(
+          'Invalid moderation response from admin service.');
     }
     return _communityPostFromJson(row);
   }
@@ -110,7 +116,8 @@ class BackendAdminService implements AdminService {
       'limit': '$limit',
       'offset': '$offset',
     };
-    final uri = _baseUrl.resolve('/api/admin/users').replace(queryParameters: query);
+    final uri =
+        _baseUrl.resolve('/api/admin/users').replace(queryParameters: query);
     final payload = await _request(uri, method: _HttpMethod.get);
     final rows = (payload['users'] as List<dynamic>? ?? const <dynamic>[])
         .cast<Map<String, dynamic>>();
@@ -172,8 +179,7 @@ class BackendAdminService implements AdminService {
       );
     }
     if (payload is! Map<String, dynamic>) {
-      throw const AdminException(
-          'Admin service returned an invalid response.');
+      throw const AdminException('Admin service returned an invalid response.');
     }
     return payload;
   }
@@ -233,7 +239,8 @@ AdminUserSummary _adminUserFromJson(Map<String, dynamic> json) {
         : DateTime.parse(json['subscriptionStartedAt'] as String),
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
-    learningProgressCount: (json['learningProgressCount'] as num?)?.toInt() ?? 0,
+    learningProgressCount:
+        (json['learningProgressCount'] as num?)?.toInt() ?? 0,
     paymentTransactionsCount:
         (json['paymentTransactionsCount'] as num?)?.toInt() ?? 0,
     notificationCount: (json['notificationCount'] as num?)?.toInt() ?? 0,
@@ -259,14 +266,23 @@ Course _courseFromJson(Map<String, dynamic> json) {
 }
 
 Lesson _lessonFromJson(Map<String, dynamic> json) {
+  final readiness = json['readiness'] as Map<String, dynamic>?;
   return Lesson(
     id: json['id'] as String?,
+    moduleId: json['moduleId'] as String?,
+    moduleKey: json['moduleKey'] as String?,
+    moduleTitle: json['moduleTitle'] as String?,
     title: json['title'] as String,
     type: _lessonTypeFromWire(json['type'] as String),
     meta: json['meta'] as String,
     description: json['description'] as String,
+    durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
     sourceTitle: json['sourceTitle'] as String?,
     resourceUrl: json['resourceUrl'] as String?,
+    isLearnerVisible: readiness?['visible'] as bool? ?? true,
+    readinessReasons:
+        (readiness?['reasons'] as List<dynamic>? ?? const <dynamic>[])
+            .cast<String>(),
     isPremium: json['isPremium'] as bool? ?? false,
     isCompleted: json['isCompleted'] as bool? ?? false,
   );
@@ -333,10 +349,15 @@ Map<String, dynamic> _courseToJson(Course course) {
 Map<String, dynamic> _lessonToJson(Lesson lesson) {
   return {
     if (lesson.id != null) 'id': lesson.id,
+    if (lesson.moduleId != null) 'moduleId': lesson.moduleId,
+    if (lesson.moduleKey != null) 'moduleKey': lesson.moduleKey,
+    if (lesson.moduleTitle != null) 'moduleTitle': lesson.moduleTitle,
     'title': lesson.title,
     'type': lesson.type.name,
     'meta': lesson.meta,
     'description': lesson.description,
+    if (lesson.durationMinutes != null)
+      'durationMinutes': lesson.durationMinutes,
     if (lesson.sourceTitle != null) 'sourceTitle': lesson.sourceTitle,
     if (lesson.resourceUrl != null) 'resourceUrl': lesson.resourceUrl,
     'isPremium': lesson.isPremium,

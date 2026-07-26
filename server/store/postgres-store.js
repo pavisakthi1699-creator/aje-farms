@@ -181,12 +181,10 @@ export class PostgresStore {
          AND l.source_link_status = 'linked'
          AND l.lesson_type IN ('reading', 'video')
          AND (
-           (COALESCE(c.delivery_type, 'text') = 'text'
-             AND l.lesson_type = 'reading'
+           (l.lesson_type = 'reading'
              AND NULLIF(BTRIM(l.body_sw), '') IS NOT NULL)
            OR
-           (c.delivery_type = 'video'
-             AND l.lesson_type = 'video'
+           (l.lesson_type = 'video'
              AND EXISTS (
                SELECT 1
                FROM lesson_resources lr
@@ -417,14 +415,60 @@ export class PostgresStore {
            COALESCE(c.delivery_type, 'text') AS delivery_type,
            c.status AS course_status,
            c.updated_at AS course_updated_at,
+           m.id::text AS module_id,
            m.title_sw AS module_title,
            m.sort_order AS module_order,
+           m.status::text AS module_status,
            l.id::text AS lesson_id,
            l.title_sw AS lesson_title,
            l.body_sw AS lesson_body,
            l.lesson_type,
            l.duration_minutes,
-           l.sort_order AS lesson_order
+           l.sort_order AS lesson_order,
+           l.status::text AS lesson_status,
+           l.source_link_status::text AS lesson_link_status,
+           (
+             SELECT lr.external_url
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+             ORDER BY
+               CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+               lr.created_at
+             LIMIT 1
+           ) AS video_url,
+           EXISTS (
+             SELECT 1
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+               AND (lr.external_url IS NOT NULL OR lr.storage_path IS NOT NULL)
+           ) AS has_video,
+           EXISTS (
+             SELECT 1
+             FROM content_source_links csl
+             JOIN source_segments ss ON ss.id = csl.source_segment_id
+             JOIN source_documents sd ON sd.id = ss.source_document_id
+             WHERE csl.content_type = 'lesson'
+               AND csl.content_id = l.id
+               AND csl.link_status = 'linked'
+               AND ss.review_status IN ('approved', 'published')
+               AND sd.processing_status IN ('approved', 'published')
+           ) AS has_source_link,
+           EXISTS (
+             SELECT 1
+             FROM grounding_facts gf
+             JOIN source_segments ss ON ss.id = gf.source_segment_id
+             JOIN source_documents sd ON sd.id = ss.source_document_id
+             WHERE (
+                 gf.lesson_id = l.id
+                 OR (gf.lesson_id IS NULL AND gf.course_id = c.id)
+               )
+               AND gf.status = 'published'
+               AND gf.risk_level <> 'high'
+               AND ss.review_status IN ('approved', 'published')
+               AND sd.processing_status IN ('approved', 'published')
+           ) AS has_grounding
          FROM courses c
          LEFT JOIN course_modules m ON m.course_id = c.id
          LEFT JOIN lessons l ON l.module_id = m.id
@@ -441,34 +485,80 @@ export class PostgresStore {
     return result.rows.map(contentCourseFromRow);
   }
 
-  async upsertContentCourse({ course, status = 'approved' }) {
+  async upsertContentCourse({
+    course,
+    status = 'approved',
+    replaceCurriculum = false,
+    baseUpdatedAt = null,
+  }) {
     const normalizedCourse = normalizeApprovedCourse(course);
     if (process.env.AJE_STORE === 'supabase') {
-      const structuredStatus =
-        status === 'approved' ? 'published' : 'draft';
-      const result = await this.pool.query(
-        `UPDATE courses
-         SET title_sw = $2,
-             status = $3::content_status,
-             published_at = CASE
-               WHEN $3 = 'published' THEN COALESCE(published_at, NOW())
-               ELSE NULL
-             END,
-             updated_at = NOW()
-         WHERE code = $1
-         RETURNING code, status, updated_at`,
-        [normalizedCourse.id, normalizedCourse.title, structuredStatus],
-      );
-      const row = result.rows[0];
-      if (!row) {
-        throw new Error('Course was not found in the live content catalog.');
+      if (!replaceCurriculum) {
+        const structuredStatus =
+          status === 'approved' ? 'published' : 'draft';
+        const result = await this.pool.query(
+          `UPDATE courses
+           SET title_sw = $2,
+               description_sw = $3,
+               status = $4::content_status,
+               published_at = CASE
+                 WHEN $4 = 'published' THEN COALESCE(published_at, NOW())
+                 ELSE NULL
+               END,
+               updated_at = NOW()
+           WHERE code = $1
+           RETURNING code, status, updated_at`,
+          [
+            normalizedCourse.id,
+            normalizedCourse.title,
+            normalizedCourse.description,
+            structuredStatus,
+          ],
+        );
+        if (result.rows.length === 0) {
+          throw new Error('Course was not found in the live content catalog.');
+        }
+        return this.contentCoursesForAdmin().then((records) => {
+          const record = records.find(
+            (candidate) => candidate.id === normalizedCourse.id,
+          );
+          if (!record) {
+            throw new Error('Updated course could not be loaded.');
+          }
+          return record;
+        });
       }
-      return {
-        id: row.code,
-        status: structuredStatus === 'published' ? 'approved' : 'draft',
-        course: normalizedCourse,
-        updatedAt: new Date(row.updated_at).toISOString(),
-      };
+      const curriculum = await this.saveCourseCurriculum(
+        normalizedCourse.id,
+        {
+          baseUpdatedAt,
+          status,
+          title: normalizedCourse.title,
+          description: normalizedCourse.description,
+          deliveryType: normalizedCourse.lessons.some(
+            (lesson) => lesson.type === 'video',
+          )
+            ? 'video'
+            : 'text',
+          badge: normalizedCourse.badge,
+          icon: normalizedCourse.icon,
+          imageUrl: normalizedCourse.imageUrl,
+          lessons: normalizedCourse.lessons.map((lesson) => ({
+            id: lesson.id,
+            moduleId: lesson.moduleId ?? null,
+            moduleKey: lesson.moduleKey ?? null,
+            moduleTitle: lesson.moduleTitle ?? 'Somo',
+            title: lesson.title,
+            type: lesson.type,
+            meta: lesson.meta,
+            body: lesson.description,
+            durationMinutes:
+              lesson.durationMinutes ?? durationFromMeta(lesson.meta),
+            videoUrl: lesson.resourceUrl ?? null,
+          })),
+        },
+      );
+      return contentCourseRecordFromCurriculum(curriculum);
     }
     const result = await this.pool.query(
       `INSERT INTO content_courses (id, status, payload, updated_at)
@@ -486,6 +576,458 @@ export class PostgresStore {
       ],
     );
     return contentCourseFromRow(result.rows[0]);
+  }
+
+  /**
+   * Full module/lesson tree for one course, with a per-lesson learner-visibility
+   * verdict. Unlike `approvedContentCourses`, this includes draft and
+   * unlinked rows so an admin can see and fix what is blocking a lesson.
+   */
+  async courseCurriculum(courseCode) {
+    if (process.env.AJE_STORE === 'supabase') {
+      return this.#structuredCourseCurriculum(courseCode);
+    }
+    const result = await this.pool.query(
+      `SELECT id, status, payload, updated_at
+       FROM content_courses
+       WHERE id = $1`,
+      [courseCode],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Course was not found.');
+    }
+    return contentCourseToCurriculum(row);
+  }
+
+  async #structuredCourseCurriculum(courseCode) {
+    const result = await this.pool.query(
+      `SELECT
+         c.id::text AS course_id,
+         c.code AS course_code,
+         c.title_sw AS course_title,
+         COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+         COALESCE(c.delivery_type, 'text') AS delivery_type,
+         c.status::text AS course_status,
+         c.updated_at AS course_updated_at,
+         m.id::text AS module_id,
+         m.title_sw AS module_title,
+         m.sort_order AS module_order,
+         m.status::text AS module_status,
+         l.id::text AS lesson_id,
+         l.title_sw AS lesson_title,
+         l.body_sw AS lesson_body,
+         l.lesson_type,
+         l.duration_minutes,
+         l.sort_order AS lesson_order,
+         l.status::text AS lesson_status,
+         l.source_link_status::text AS lesson_link_status,
+         (
+           SELECT lr.external_url
+           FROM lesson_resources lr
+           WHERE lr.lesson_id = l.id
+             AND lr.resource_type = 'video'
+           ORDER BY
+             CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+             lr.created_at
+           LIMIT 1
+         ) AS video_url,
+         (
+           SELECT lr.storage_path
+           FROM lesson_resources lr
+           WHERE lr.lesson_id = l.id
+             AND lr.resource_type = 'video'
+           ORDER BY
+             CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+             lr.created_at
+           LIMIT 1
+         ) AS video_storage_path,
+         EXISTS (
+           SELECT 1
+           FROM content_source_links csl
+           JOIN source_segments ss ON ss.id = csl.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE csl.content_type = 'lesson'
+             AND csl.content_id = l.id
+             AND csl.link_status = 'linked'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         ) AS has_source_link,
+         EXISTS (
+           SELECT 1
+           FROM grounding_facts gf
+           JOIN source_segments ss ON ss.id = gf.source_segment_id
+           JOIN source_documents sd ON sd.id = ss.source_document_id
+           WHERE (gf.lesson_id = l.id OR (gf.lesson_id IS NULL AND gf.course_id = c.id))
+             AND gf.status = 'published'
+             AND gf.risk_level <> 'high'
+             AND ss.review_status IN ('approved', 'published')
+             AND sd.processing_status IN ('approved', 'published')
+         ) AS has_grounding
+       FROM courses c
+       LEFT JOIN course_modules m ON m.course_id = c.id
+       LEFT JOIN lessons l ON l.module_id = m.id
+       WHERE c.code = $1
+       ORDER BY m.sort_order, m.title_sw, l.sort_order`,
+      [courseCode],
+    );
+    if (result.rows.length === 0) {
+      throw new Error('Course was not found in the live content catalog.');
+    }
+    return structuredCourseCurriculumFromRows(result.rows);
+  }
+
+  /**
+   * Replaces a course's module/lesson tree in one transaction. Modules and
+   * lessons are matched by id when present; anything else is treated as new.
+   * Existing rows not present in the incoming lesson/module lists are deleted
+   * (cascading to their lesson_resources and grounding_facts).
+   */
+  async saveCourseCurriculum(courseCode, curriculum) {
+    if (process.env.AJE_STORE === 'supabase') {
+      return this.#saveStructuredCourseCurriculum(courseCode, curriculum);
+    }
+    const status = curriculum.status === 'approved' ? 'approved' : 'draft';
+    const outcomes = [
+      ...new Set(
+        curriculum.lessons
+          .map((lesson) => (lesson.moduleTitle ?? '').trim())
+          .filter((title) => title.length > 0),
+      ),
+    ];
+    const course = normalizeApprovedCourse({
+      id: courseCode,
+      title: curriculum.title,
+      description: curriculum.description,
+      badge: curriculum.badge,
+      icon: curriculum.icon,
+      progress: 0,
+      imageUrl: curriculum.imageUrl,
+      outcomes,
+      lessons: curriculum.lessons.map((lesson) => ({
+        id: lesson.id || undefined,
+        title: lesson.title,
+        type: lesson.type,
+        meta: lesson.meta,
+        description: lesson.body,
+        resourceUrl: lesson.videoUrl || undefined,
+        isPremium: false,
+        isCompleted: false,
+      })),
+    });
+    await this.upsertContentCourse({ course, status });
+    return this.courseCurriculum(courseCode);
+  }
+
+  async #saveStructuredCourseCurriculum(courseCode, curriculum) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const courseResult = await client.query(
+        `SELECT id, status::text AS status, updated_at
+         FROM courses
+         WHERE code = $1
+         FOR UPDATE`,
+        [courseCode],
+      );
+      const courseRow = courseResult.rows[0];
+      if (!courseRow) {
+        throw new Error('Course was not found in the live content catalog.');
+      }
+      const courseId = courseRow.id;
+      if (
+        curriculum.baseUpdatedAt &&
+        new Date(courseRow.updated_at).getTime() !==
+          new Date(curriculum.baseUpdatedAt).getTime()
+      ) {
+        const conflict = new Error(
+          'Kozi imebadilishwa na msimamizi mwingine. Pakia upya kabla ya kuhifadhi.',
+        );
+        conflict.code = 'CURRICULUM_CONFLICT';
+        throw conflict;
+      }
+      const structuredStatus =
+        curriculum.status === 'approved' ? 'published' : 'draft';
+
+      await client.query(
+        `UPDATE courses
+         SET title_sw = $2,
+             description_sw = $3,
+             delivery_type = $4,
+             status = $5::content_status,
+             published_at = CASE
+               WHEN $5 = 'published' THEN COALESCE(published_at, NOW())
+               ELSE NULL
+             END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [
+          courseId,
+          curriculum.title,
+          curriculum.description,
+          curriculum.deliveryType === 'video' ? 'video' : 'text',
+          structuredStatus,
+        ],
+      );
+
+      const existingModules = await client.query(
+        `SELECT id::text, code, title_sw, status::text AS status
+         FROM course_modules
+         WHERE course_id = $1`,
+        [courseId],
+      );
+      const existingModuleIds = new Set(
+        existingModules.rows.map((row) => row.id),
+      );
+      const existingModuleTitles = new Map(
+        existingModules.rows.map((row) => [row.id, row.title_sw]),
+      );
+      const existingCourseLessons = await client.query(
+        `SELECT
+           l.id::text,
+           l.module_id::text,
+           l.body_sw,
+           l.lesson_type::text,
+           (
+             SELECT lr.external_url
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+             ORDER BY
+               CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+               lr.created_at
+             LIMIT 1
+           ) AS video_url
+         FROM lessons l
+         JOIN course_modules m ON m.id = l.module_id
+         WHERE m.course_id = $1`,
+        [courseId],
+      );
+      const existingLessonModules = new Map(
+        existingCourseLessons.rows.map((row) => [row.id, row.module_id]),
+      );
+      const existingLessonsById = new Map(
+        existingCourseLessons.rows.map((row) => [row.id, row]),
+      );
+
+      // Group incoming lessons by the module they belong to, preserving order.
+      const moduleGroups = new Map();
+      curriculum.lessons.forEach((lesson, index) => {
+        const explicitModuleId =
+          lesson.moduleId && existingModuleIds.has(lesson.moduleId)
+            ? lesson.moduleId
+            : null;
+        const legacyModuleId =
+          lesson.id && existingLessonModules.has(lesson.id)
+            ? existingLessonModules.get(lesson.id)
+            : null;
+        const resolvedModuleId = explicitModuleId ?? legacyModuleId;
+        const requestedTitle = (lesson.moduleTitle ?? '').trim();
+        const resolvedTitle =
+          explicitModuleId || !legacyModuleId
+            ? requestedTitle || 'Somo'
+            : existingModuleTitles.get(legacyModuleId) || requestedTitle || 'Somo';
+        const key = resolvedModuleId
+          ? resolvedModuleId
+          : `new:${lesson.moduleKey ?? resolvedTitle}`;
+        if (!moduleGroups.has(key)) {
+          moduleGroups.set(key, {
+            moduleId: resolvedModuleId,
+            title: resolvedTitle,
+            order: moduleGroups.size,
+            lessons: [],
+          });
+        }
+        moduleGroups.get(key).lessons.push({ ...lesson, sortOrder: index });
+      });
+
+      const keptModuleIds = new Set();
+      let moduleOrder = 0;
+      for (const group of moduleGroups.values()) {
+        let moduleId = group.moduleId;
+        if (moduleId) {
+          await client.query(
+            `UPDATE course_modules
+             SET title_sw = $2, sort_order = $3, updated_at = NOW()
+             WHERE id = $1`,
+            [moduleId, group.title, moduleOrder],
+          );
+        } else {
+          const inserted = await client.query(
+            `INSERT INTO course_modules
+               (course_id, code, title_sw, sort_order, status, source_link_status)
+             VALUES ($1, $2, $3, $4, 'draft'::content_status,
+                     'pending_review'::source_link_status)
+             RETURNING id::text`,
+            [
+              courseId,
+              createId('MOD'),
+              group.title,
+              moduleOrder,
+            ],
+          );
+          moduleId = inserted.rows[0].id;
+        }
+        keptModuleIds.add(moduleId);
+        moduleOrder += 1;
+
+        const existingLessons = await client.query(
+          `SELECT id::text FROM lessons WHERE module_id = $1`,
+          [moduleId],
+        );
+        const existingLessonIds = new Set(
+          existingLessons.rows.map((row) => row.id),
+        );
+        const keptLessonIds = new Set();
+
+        for (const lesson of group.lessons) {
+          const lessonType = lesson.type === 'video' ? 'video' : 'reading';
+          let lessonId =
+            lesson.id && existingLessonIds.has(lesson.id) ? lesson.id : null;
+          if (lessonId) {
+            const existingLesson = existingLessonsById.get(lessonId);
+            const requestedBody = lesson.body || null;
+            const requestedVideoUrl = (lesson.videoUrl ?? '').trim() || null;
+            const lessonContentChanged =
+              (existingLesson?.body_sw ?? null) !== requestedBody ||
+              existingLesson?.lesson_type !== lessonType;
+            const videoChanged =
+              lessonType === 'video' &&
+              requestedVideoUrl != null &&
+              (existingLesson?.video_url ?? null) !== requestedVideoUrl;
+            const requiresReview = lessonContentChanged || videoChanged;
+            await client.query(
+              `UPDATE lessons
+               SET title_sw = $2, body_sw = $3, lesson_type = $4,
+                   duration_minutes = $5, sort_order = $6,
+                   status = CASE
+                     WHEN $7 THEN 'draft'::content_status
+                     ELSE status
+                   END,
+                   source_link_status = CASE
+                     WHEN $7 THEN 'pending_review'::source_link_status
+                     ELSE source_link_status
+                   END,
+                   updated_at = NOW()
+               WHERE id = $1`,
+              [
+                lessonId,
+                lesson.title,
+                requestedBody,
+                lessonType,
+                lesson.durationMinutes || null,
+                lesson.sortOrder,
+                requiresReview,
+              ],
+            );
+            if (requiresReview) {
+              await client.query(
+                `UPDATE content_source_links
+                 SET link_status = 'pending_review'::source_link_status
+                 WHERE content_type = 'lesson' AND content_id = $1`,
+                [lessonId],
+              );
+            }
+          } else {
+            const inserted = await client.query(
+              `INSERT INTO lessons
+                 (module_id, code, title_sw, body_sw, lesson_type,
+                  duration_minutes, sort_order, status, source_link_status)
+               VALUES ($1, $2, $3, $4, $5, $6, $7,
+                       'draft'::content_status,
+                       'pending_review'::source_link_status)
+               RETURNING id::text`,
+              [
+                moduleId,
+                createId('LSN'),
+                lesson.title,
+                lesson.body || null,
+                lessonType,
+                lesson.durationMinutes || null,
+                lesson.sortOrder,
+              ],
+            );
+            lessonId = inserted.rows[0].id;
+          }
+          keptLessonIds.add(lessonId);
+
+          if (lessonType === 'video' && (lesson.videoUrl ?? '').trim()) {
+            const existingLesson = existingLessonsById.get(lessonId);
+            const videoChanged =
+              existingLesson != null &&
+              (existingLesson.video_url ?? null) !== lesson.videoUrl.trim();
+            const existingResource = await client.query(
+              `UPDATE lesson_resources
+               SET external_url = $2,
+                   title_sw = $3,
+                   status = CASE
+                     WHEN $4 THEN 'draft'::content_status
+                     ELSE status
+                   END,
+                   updated_at = NOW()
+               WHERE id = (
+                 SELECT id
+                 FROM lesson_resources
+                 WHERE lesson_id = $1 AND resource_type = 'video'
+                 ORDER BY
+                   CASE WHEN status = 'published' THEN 0 ELSE 1 END,
+                   created_at
+                 LIMIT 1
+               )
+               RETURNING id`,
+              [lessonId, lesson.videoUrl.trim(), lesson.title, videoChanged],
+            );
+            if (existingResource.rows.length === 0) {
+              await client.query(
+                `INSERT INTO lesson_resources
+                   (lesson_id, resource_type, external_url, title_sw, status)
+                 VALUES ($1, 'video', $2, $3, 'draft'::content_status)`,
+                [lessonId, lesson.videoUrl.trim(), lesson.title],
+              );
+            }
+          }
+        }
+
+        const removedLessonIds = [...existingLessonIds].filter(
+          (id) => !keptLessonIds.has(id),
+        );
+        if (removedLessonIds.length > 0) {
+          await client.query(
+            `DELETE FROM content_source_links
+             WHERE content_type = 'lesson' AND content_id = ANY($1::uuid[])`,
+            [removedLessonIds],
+          );
+          await client.query(`DELETE FROM lessons WHERE id = ANY($1::uuid[])`, [
+            removedLessonIds,
+          ]);
+        }
+      }
+
+      const removedModuleIds = [...existingModuleIds].filter(
+        (id) => !keptModuleIds.has(id),
+      );
+      if (removedModuleIds.length > 0) {
+        await client.query(
+          `DELETE FROM content_source_links
+           WHERE content_type = 'lesson' AND content_id IN (
+             SELECT id FROM lessons WHERE module_id = ANY($1::uuid[])
+           )`,
+          [removedModuleIds],
+        );
+        await client.query(
+          `DELETE FROM course_modules WHERE id = ANY($1::uuid[])`,
+          [removedModuleIds],
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    return this.courseCurriculum(courseCode);
   }
 
   async approvedContentDocuments() {
@@ -1673,6 +2215,116 @@ function contentCourseFromRow(row) {
   };
 }
 
+function contentCourseToCurriculum(row) {
+  const payload = row.payload ?? {};
+  const isApproved = row.status === 'approved';
+  return {
+    id: row.id,
+    status: row.status,
+    updatedAt: new Date(row.updated_at).toISOString(),
+    course: {
+      id: row.id,
+      title: payload.title ?? '',
+      description: payload.description ?? '',
+      badge: payload.badge ?? '',
+      icon: payload.icon ?? 'menu_book',
+      imageUrl: payload.imageUrl ?? '',
+      deliveryType: 'text',
+      lessons: (payload.lessons ?? []).map((lesson) => {
+        const isVideo = lesson.type === 'video';
+        const hasContent = isVideo
+          ? Boolean((lesson.resourceUrl ?? '').trim())
+          : Boolean((lesson.description ?? '').trim());
+        const reasons = [];
+        if (!isApproved) reasons.push('Kozi bado haijaidhinishwa.');
+        if (!hasContent) {
+          reasons.push(
+            isVideo
+              ? 'Somo hili halina video.'
+              : 'Somo hili halina maandishi.',
+          );
+        }
+        return {
+          id: lesson.id ?? null,
+          moduleId: null,
+          moduleTitle: null,
+          title: lesson.title ?? '',
+          type: isVideo ? 'video' : 'reading',
+          meta: lesson.meta ?? '',
+          body: lesson.description ?? '',
+          durationMinutes: null,
+          videoUrl: lesson.resourceUrl ?? null,
+          readiness: { visible: reasons.length === 0, reasons },
+        };
+      }),
+    },
+  };
+}
+
+function structuredCourseCurriculumFromRows(rows) {
+  const first = rows[0];
+  const isApproved = first.course_status === 'published';
+  const lessons = [];
+  for (const row of rows) {
+    if (!row.lesson_id) continue;
+    const isVideo = row.lesson_type === 'video';
+    const hasVideo = Boolean(row.video_url || row.video_storage_path);
+    const hasBody = Boolean((row.lesson_body ?? '').trim());
+    const reasons = [];
+    if (row.course_status !== 'published') {
+      reasons.push('Kozi bado haijachapishwa.');
+    }
+    if (row.module_status !== 'published') {
+      reasons.push('Sehemu (module) bado haijachapishwa.');
+    }
+    if (row.lesson_status !== 'published') {
+      reasons.push('Somo bado halijachapishwa.');
+    }
+    if (row.lesson_link_status !== 'linked') {
+      reasons.push('Somo halijaunganishwa na hati chanzo.');
+    }
+    if (isVideo && !hasVideo) {
+      reasons.push('Video ya somo haijawekwa.');
+    }
+    if (!isVideo && !hasBody) {
+      reasons.push('Maandishi ya somo hayajajazwa.');
+    }
+    if (!row.has_source_link) {
+      reasons.push('Hakuna kiungo cha chanzo kilichothibitishwa.');
+    }
+    if (!row.has_grounding) {
+      reasons.push('Hakuna ukweli wa msingi (grounding facts) uliochapishwa.');
+    }
+    lessons.push({
+      id: row.lesson_id,
+      moduleId: row.module_id,
+      moduleTitle: row.module_title,
+      title: row.lesson_title,
+      type: isVideo ? 'video' : 'reading',
+      meta: row.duration_minutes ? `Dakika ${row.duration_minutes}` : '',
+      body: row.lesson_body ?? '',
+      durationMinutes: row.duration_minutes ?? null,
+      videoUrl: row.video_url ?? null,
+      readiness: { visible: reasons.length === 0, reasons },
+    });
+  }
+  return {
+    id: first.course_code,
+    status: isApproved ? 'approved' : 'draft',
+    updatedAt: new Date(first.course_updated_at).toISOString(),
+    course: {
+      id: first.course_code,
+      title: first.course_title,
+      description: first.course_description,
+      badge: first.delivery_type === 'video' ? 'Kozi ya video' : 'Kozi ya maandishi',
+      icon: first.delivery_type === 'video' ? 'play_circle' : 'menu_book',
+      imageUrl: courseImageForCode(first.course_code),
+      deliveryType: first.delivery_type,
+      lessons,
+    },
+  };
+}
+
 function contentDocumentFromRow(row) {
   return {
     id: row.id,
@@ -1717,16 +2369,50 @@ function structuredContentCourseRecords(rows) {
       record.course.outcomes.push(row.module_title);
     }
     if (row.lesson_id) {
+      const isVideo = row.lesson_type === 'video';
+      const readinessReasons = [];
+      if (row.course_status !== 'published') {
+        readinessReasons.push('Kozi bado haijachapishwa.');
+      }
+      if (row.module_status !== 'published') {
+        readinessReasons.push('Sehemu bado haijachapishwa.');
+      }
+      if (row.lesson_status !== 'published') {
+        readinessReasons.push('Somo bado halijachapishwa.');
+      }
+      if (row.lesson_link_status !== 'linked') {
+        readinessReasons.push('Somo halijaunganishwa na hati chanzo.');
+      }
+      if (isVideo && !row.has_video) {
+        readinessReasons.push('Video ya somo haijawekwa.');
+      }
+      if (!isVideo && !(row.lesson_body ?? '').trim()) {
+        readinessReasons.push('Maandishi ya somo hayajajazwa.');
+      }
+      if (!row.has_source_link) {
+        readinessReasons.push('Hakuna kiungo cha chanzo kilichothibitishwa.');
+      }
+      if (!row.has_grounding) {
+        readinessReasons.push('Hakuna ukweli wa msingi uliochapishwa.');
+      }
       record.course.lessons.push({
         id: row.lesson_id,
+        moduleId: row.module_id,
+        moduleTitle: row.module_title,
         title: row.lesson_title,
-        type: row.lesson_type === 'video' ? 'video' : 'reading',
+        type: isVideo ? 'video' : 'reading',
         meta: row.duration_minutes
           ? `Dakika ${row.duration_minutes}`
-          : row.lesson_type === 'video'
+          : isVideo
             ? 'Video'
             : 'Somo',
         description: row.lesson_body ?? '',
+        durationMinutes: row.duration_minutes ?? null,
+        resourceUrl: row.video_url ?? null,
+        readiness: {
+          visible: readinessReasons.length === 0,
+          reasons: readinessReasons,
+        },
         isPremium: false,
         isCompleted: false,
       });
@@ -1736,6 +2422,51 @@ function structuredContentCourseRecords(rows) {
     ...record,
     course: normalizeApprovedCourse(record.course),
   }));
+}
+
+function contentCourseRecordFromCurriculum(record) {
+  return {
+    id: record.id,
+    status: record.status,
+    updatedAt: record.updatedAt,
+    course: normalizeApprovedCourse({
+      id: record.course.id,
+      title: record.course.title,
+      description: record.course.description,
+      badge: record.course.badge,
+      icon: record.course.icon,
+      progress: 0,
+      imageUrl: record.course.imageUrl,
+      outcomes: [
+        ...new Set(
+          record.course.lessons
+            .map((lesson) => lesson.moduleTitle)
+            .filter(Boolean),
+        ),
+      ],
+      lessons: record.course.lessons.map((lesson) => ({
+        id: lesson.id,
+        moduleId: lesson.moduleId,
+        moduleTitle: lesson.moduleTitle,
+        title: lesson.title,
+        type: lesson.type,
+        meta: lesson.meta,
+        description: lesson.body,
+        durationMinutes: lesson.durationMinutes,
+        resourceUrl: lesson.videoUrl,
+        readiness: lesson.readiness,
+        isPremium: false,
+        isCompleted: false,
+      })),
+    }),
+  };
+}
+
+function durationFromMeta(meta) {
+  const match = String(meta ?? '').match(/\d+/);
+  if (!match) return null;
+  const duration = Number.parseInt(match[0], 10);
+  return Number.isInteger(duration) && duration > 0 ? duration : null;
 }
 
 function structuredContentDocumentFromRow(row) {

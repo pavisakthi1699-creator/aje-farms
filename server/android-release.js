@@ -6,11 +6,25 @@ import path from 'node:path';
 export const ANDROID_APPLICATION_ID = 'com.ajefarms.mobile';
 export const ANDROID_LAUNCH_ACTIVITY =
   'com.ajefarms.mobile.MainActivity';
+export const PRODUCTION_API_BASE_URL =
+  'https://aje-farms-api-production.up.railway.app';
 
 export function releaseDartDefines(env) {
   return [
     `--dart-define=AJE_API_BASE_URL=${env.AJE_ANDROID_API_BASE_URL}`,
     `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${env.AJE_WHATSAPP_EXPERT_PHONE}`,
+  ];
+}
+
+export function internalTestingDartDefines(env) {
+  if (env.AJE_ANDROID_API_BASE_URL !== PRODUCTION_API_BASE_URL) {
+    throw new Error(
+      `Internal testing APK must use the production API: ${PRODUCTION_API_BASE_URL}`,
+    );
+  }
+  return [
+    ...releaseDartDefines(env),
+    '--dart-define=AJE_INTERNAL_BUILD=true',
   ];
 }
 

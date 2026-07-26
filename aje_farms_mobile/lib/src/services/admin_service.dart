@@ -8,6 +8,7 @@ abstract interface class AdminService {
   Future<AdminContentCourseRecord> upsertContentCourse({
     required Course course,
     required String status,
+    DateTime? baseUpdatedAt,
   });
   Future<List<AdminContentDocumentRecord>> listContentDocuments();
   Future<AdminContentDocumentRecord> upsertContentDocument({
