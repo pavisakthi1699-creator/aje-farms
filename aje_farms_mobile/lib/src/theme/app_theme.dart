@@ -363,9 +363,15 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: colors.charcoal,
+        // `onPrimary` is a near-black in the dark theme, which gave snack bar
+        // text a 1.03:1 ratio against the charcoal fill — effectively
+        // invisible. `onCharcoal` stays light in both themes.
         contentTextStyle: baseTextTheme.bodyMedium?.copyWith(
-          color: colors.onPrimary,
+          color: colors.onCharcoal,
         ),
+        // Left unset, the action label fell back to an underived
+        // `inversePrimary` with no guaranteed contrast on charcoal.
+        actionTextColor: colors.onCharcoalAccent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),

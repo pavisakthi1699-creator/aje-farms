@@ -191,7 +191,25 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       await session.addCommunityReplyRecord(_postId, reply);
       _replyController.clear();
       if (!mounted) return;
-      showSnack(context, 'Jibu limehifadhiwa.');
+      showSuccessSnack(context, 'Jibu limehifadhiwa.');
+    } on CommunityException catch (error) {
+      if (!mounted) return;
+      // The draft is deliberately left in the composer so a retry does not
+      // force the user to retype their reply.
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: _sendReply,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        'Imeshindikana kutuma jibu. Angalia mtandao wako.',
+        actionLabel: 'Jaribu tena',
+        onAction: _sendReply,
+      );
     } finally {
       if (mounted) setState(() => _isSendingReply = false);
     }
@@ -207,7 +225,23 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       await communityService.reportPost(_postId);
       await session.reportCommunityPost(_postId);
       if (!mounted) return;
-      showSnack(context, 'Ripoti imepokelewa.');
+      showSuccessSnack(context, 'Ripoti imepokelewa.');
+    } on CommunityException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: _reportPost,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        'Imeshindikana kutuma ripoti. Angalia mtandao wako.',
+        actionLabel: 'Jaribu tena',
+        onAction: _reportPost,
+      );
     } finally {
       if (mounted) setState(() => _isReporting = false);
     }
@@ -300,9 +334,13 @@ class CreateCommunityPostScreen extends StatefulWidget {
 class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   final _contentController = TextEditingController();
   final _locationController = TextEditingController();
+  final _contentFocus = FocusNode();
+  final _locationFocus = FocusNode();
   final Set<String> _tags = {'Magonjwa'};
   bool _initializedLocation = false;
   bool _isSubmitting = false;
+  String? _contentError;
+  String? _locationError;
   Uint8List? _pickedImageBytes;
   String? _pickedImageContentType;
 
@@ -329,6 +367,8 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   void dispose() {
     _contentController.dispose();
     _locationController.dispose();
+    _contentFocus.dispose();
+    _locationFocus.dispose();
     super.dispose();
   }
 
@@ -364,15 +404,28 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     if (_isSubmitting) return;
     final content = _contentController.text.trim();
     final location = _locationController.text.trim();
-    if (content.length < 12) {
-      showSnack(context, 'Andika maelezo ya kutosha kuhusu changamoto.');
+    // Validate both fields in one pass so the user sees every problem at once,
+    // then focus the first offending field.
+    final contentError = content.length < 12
+        ? 'Andika maelezo ya kutosha (angalau herufi 12) kuhusu changamoto.'
+        : null;
+    final locationError = location.isEmpty
+        ? 'Weka eneo lako ili wakulima wakuelewe vizuri.'
+        : null;
+    if (contentError != null || locationError != null) {
+      AppFeedback.error();
+      setState(() {
+        _contentError = contentError;
+        _locationError = locationError;
+      });
+      (contentError != null ? _contentFocus : _locationFocus).requestFocus();
       return;
     }
-    if (location.isEmpty) {
-      showSnack(context, 'Weka eneo lako ili wakulima wakuelewe vizuri.');
-      return;
-    }
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _contentError = null;
+      _locationError = null;
+      _isSubmitting = true;
+    });
     final session = context.session;
     final communityService = context.dependencies.communityService;
     try {
@@ -386,7 +439,10 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           contentType: imageContentType,
         );
         if (imagePath == null && mounted) {
-          showSnack(context, 'Imeshindikana kupakia picha; post itatumwa bila picha.');
+          showErrorSnack(
+            context,
+            'Imeshindikana kupakia picha; post itatumwa bila picha.',
+          );
         }
       }
       final post = await communityService.createPost(
@@ -399,7 +455,25 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       await session.addCommunityPostRecord(post);
       if (!mounted) return;
       Navigator.of(context).pop();
-      showSnack(context, 'Post imetumwa kwenye jamii.');
+      showSuccessSnack(context, 'Post imetumwa kwenye jamii.');
+    } on CommunityException catch (error) {
+      // Previously there was no catch here at all: a failed post threw, the
+      // draft stayed on screen, and the user got no explanation.
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: _submit,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        'Imeshindikana kutuma post. Angalia mtandao wako.',
+        actionLabel: 'Jaribu tena',
+        onAction: _submit,
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -415,17 +489,33 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
           children: [
             AppTextField(
               controller: _contentController,
+              focusNode: _contentFocus,
               labelText: 'Swali au changamoto',
               hintText: 'Mfano: Majani ya nyanya yana madoa ya njano...',
               minLines: 4,
               maxLines: 7,
+              enabled: !_isSubmitting,
+              errorText: _contentError,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (_) {
+                if (_contentError != null) setState(() => _contentError = null);
+              },
             ),
             const SizedBox(height: AppSpacing.lg),
             AppTextField(
               controller: _locationController,
+              focusNode: _locationFocus,
               labelText: 'Eneo',
               hintText: 'Mfano: Morogoro',
               prefixIcon: const Icon(Icons.place_outlined),
+              enabled: !_isSubmitting,
+              errorText: _locationError,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) {
+                if (_locationError != null) {
+                  setState(() => _locationError = null);
+                }
+              },
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Chagua mada', style: Theme.of(context).textTheme.titleMedium),
@@ -501,8 +591,15 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       AppFeedback.tap();
                       _submit();
                     },
-              icon: const Icon(Icons.send),
-              label: const Text('Tuma kwenye Jamii'),
+              // Uploading an image over a rural connection can take a while;
+              // without a spinner the disabled button reads as broken.
+              icon: _isSubmitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send),
+              label: Text(_isSubmitting ? 'Inatuma...' : 'Tuma kwenye Jamii'),
             ),
           ],
         ),

@@ -153,6 +153,18 @@ class ProfileScreen extends StatelessWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () async {
+                            AppFeedback.tap();
+                            // Cancelling revokes premium access immediately and
+                            // cannot be undone from the app.
+                            final confirmed = await confirmAction(
+                              context,
+                              title: 'Sitisha kifurushi?',
+                              message:
+                                  'Utapoteza ufikiaji wa masomo ya premium na Mwalimu AI mara moja.',
+                              confirmLabel: 'Sitisha',
+                              isDestructive: true,
+                            );
+                            if (!confirmed || !context.mounted) return;
                             final phoneNumber = session.phoneNumber;
                             if (phoneNumber != null) {
                               try {
@@ -160,13 +172,20 @@ class ProfileScreen extends StatelessWidget {
                                     .cancelSubscription(phoneNumber);
                               } on AuthException catch (error) {
                                 if (!context.mounted) return;
-                                showSnack(context, error.message);
+                                showErrorSnack(context, error.message);
+                                return;
+                              } catch (_) {
+                                if (!context.mounted) return;
+                                showErrorSnack(
+                                  context,
+                                  'Imeshindikana kusitisha kifurushi. Angalia mtandao wako.',
+                                );
                                 return;
                               }
                             }
                             await session.cancelSubscription();
                             if (!context.mounted) return;
-                            showSnack(context, 'Kifurushi kimezimwa.');
+                            showSuccessSnack(context, 'Kifurushi kimezimwa.');
                           },
                           icon: const Icon(Icons.cancel_outlined),
                           label: const Text('Sitisha Kifurushi'),
@@ -230,6 +249,17 @@ class ProfileScreen extends StatelessWidget {
             TextButton.icon(
               onPressed: () async {
                 AppFeedback.tap();
+                // Signing out drops the stored session; on a shared phone an
+                // accidental tap here means re-doing SMS verification.
+                final confirmed = await confirmAction(
+                  context,
+                  title: 'Ondoka kwenye akaunti?',
+                  message:
+                      'Utahitaji kuthibitisha namba yako kwa OTP tena ili kuingia.',
+                  confirmLabel: 'Ondoka',
+                  isDestructive: true,
+                );
+                if (!confirmed || !context.mounted) return;
                 await session.signOut();
                 if (!context.mounted) return;
                 AppNavigator.replaceWithOnboarding(context);
@@ -693,7 +723,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                child:                     TextField(
+                child: TextField(
                   controller: _displayNameController,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(

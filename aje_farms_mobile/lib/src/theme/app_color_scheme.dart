@@ -22,6 +22,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     required this.textSecondary,
     required this.borderSubtle,
     required this.charcoal,
+    required this.onCharcoal,
+    required this.onCharcoalAccent,
     required this.success,
     required this.successSurface,
     required this.warning,
@@ -54,6 +56,14 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
   final Color textSecondary;
   final Color borderSubtle;
   final Color charcoal;
+
+  /// Foreground for [charcoal] surfaces (snack bars). [charcoal] is the same
+  /// dark tone in light and dark themes, so this must stay light in both.
+  final Color onCharcoal;
+
+  /// Accent for interactive labels on [charcoal] (snack bar actions). Also
+  /// theme-invariant, and kept clear of the body text colour for affordance.
+  final Color onCharcoalAccent;
   final Color success;
   final Color successSurface;
   final Color warning;
@@ -94,6 +104,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     textSecondary: Color(0xFF64748B),
     borderSubtle: Color(0xFFE2E8F0),
     charcoal: Color(0xFF1A1F2C),
+    onCharcoal: Color(0xFFF7F7F5),
+    onCharcoalAccent: Color(0xFF5CB8CC),
     success: Color(0xFF2F8F5B),
     successSurface: Color(0xFFE8F5EE),
     warning: Color(0xFFD4A03A),
@@ -127,6 +139,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     textSecondary: Color(0xFFA6B3C2),
     borderSubtle: Color(0xFF3A4556),
     charcoal: Color(0xFF1A1F2C),
+    onCharcoal: Color(0xFFF7F7F5),
+    onCharcoalAccent: Color(0xFF5CB8CC),
     success: Color(0xFF5BBF82),
     successSurface: Color(0xFF1A2E24),
     warning: Color(0xFFE0B04A),
@@ -161,6 +175,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     Color? textSecondary,
     Color? borderSubtle,
     Color? charcoal,
+    Color? onCharcoal,
+    Color? onCharcoalAccent,
     Color? success,
     Color? successSurface,
     Color? warning,
@@ -193,6 +209,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       textSecondary: textSecondary ?? this.textSecondary,
       borderSubtle: borderSubtle ?? this.borderSubtle,
       charcoal: charcoal ?? this.charcoal,
+      onCharcoal: onCharcoal ?? this.onCharcoal,
+      onCharcoalAccent: onCharcoalAccent ?? this.onCharcoalAccent,
       success: success ?? this.success,
       successSurface: successSurface ?? this.successSurface,
       warning: warning ?? this.warning,
@@ -232,6 +250,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       textSecondary: lerpColor(textSecondary, other.textSecondary),
       borderSubtle: lerpColor(borderSubtle, other.borderSubtle),
       charcoal: lerpColor(charcoal, other.charcoal),
+      onCharcoal: lerpColor(onCharcoal, other.onCharcoal),
+      onCharcoalAccent: lerpColor(onCharcoalAccent, other.onCharcoalAccent),
       success: lerpColor(success, other.success),
       successSurface: lerpColor(successSurface, other.successSurface),
       warning: lerpColor(warning, other.warning),

@@ -71,6 +71,7 @@ export 'shared/widgets/app_text_field.dart';
 export 'shared/widgets/brand_header.dart';
 export 'shared/widgets/circle_icon_button.dart';
 export 'shared/widgets/chat_composer_bar.dart';
+export 'shared/widgets/confirm_dialog.dart';
 export 'shared/widgets/connectivity_scope.dart';
 export 'shared/widgets/empty_state.dart';
 export 'shared/widgets/fade_in_content.dart';

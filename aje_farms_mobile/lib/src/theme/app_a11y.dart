@@ -49,11 +49,19 @@ class AccessibleTappable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `excludeSemantics` collapses the decorative subtree (icons, stacked text
+    // fragments) into a single button node carrying the curated [label]/[hint].
+    // Without it screen readers announce the card twice: once for this node and
+    // again for every inner Text. Callers wire the same [onTap] into their
+    // InkWell, so it is re-exposed here to keep the tap action reachable by
+    // assistive tech after the inner node is excluded.
     return Semantics(
       button: true,
       enabled: enabled,
       label: label,
       hint: hint,
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
       child: child,
     );
   }
