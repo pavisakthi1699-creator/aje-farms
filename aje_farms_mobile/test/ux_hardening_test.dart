@@ -368,7 +368,7 @@ void main() {
         adminService: const _OneCourseAdminService(),
       );
 
-      await tester.tap(find.byTooltip('Hariri kozi').first);
+      await tester.tap(find.text('Hariri mtaala na masomo'));
       await tester.pumpAndSettle();
 
       // Clear the pre-filled title, then attempt to save.
@@ -388,7 +388,7 @@ void main() {
         adminService: const _OneCourseAdminService(),
       );
 
-      await tester.tap(find.byTooltip('Hariri kozi').first);
+      await tester.tap(find.text('Hariri mtaala na masomo'));
       await tester.pumpAndSettle();
 
       expect(find.text('Maelezo ya kozi'), findsOneWidget);
@@ -477,7 +477,7 @@ void main() {
       final service = _SourceReviewAdminService();
       await openAdminDashboard(tester, adminService: service);
 
-      await tester.tap(find.byTooltip('Hariri kozi').first);
+      await tester.tap(find.text('Kagua chanzo cha masomo 1'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Unganisha chanzo na idhinisha'),
@@ -495,14 +495,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Kitabu cha Kilimo cha Nyanya'), findsOneWidget);
-      final sourceOption = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Kitabu cha Kilimo cha Nyanya'),
-          matching: find.byType(ListTile),
-        ),
-      );
-      sourceOption.onTap?.call();
-      await tester.pump();
+      await tester.tap(find.text('Kitabu cha Kilimo cha Nyanya'));
+      await tester.pumpAndSettle();
       Finder reviewField(String label) => find.ancestor(
             of: find.text(label),
             matching: find.byType(TextField),
@@ -515,13 +509,9 @@ void main() {
         reviewField('Ukweli wa msingi uliothibitishwa'),
         'Kitalu kinahitaji eneo safi lenye mifereji mizuri.',
       );
-      final submitButton = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Unganisha na idhinisha'),
-          matching: find.byType(FilledButton),
-        ),
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Unganisha na idhinisha'),
       );
-      submitButton.onPressed?.call();
       await tester.pumpAndSettle();
 
       expect(service.approvedLessonId, 'lesson-1');
