@@ -101,58 +101,65 @@ class _OnboardingHeroCard extends StatelessWidget {
             label: 'Mafunzo ya vitendo',
             color: context.colors.secondary,
           ),
-          const Spacer(),
-          Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              color: context.colors.onPrimaryFaint,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              border: Border.all(
-                color: context.colors.onPrimaryBorder,
-              ),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: context.colors.onPrimaryFaint,
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    border: Border.all(
+                      color: context.colors.onPrimaryBorder,
+                    ),
+                  ),
+                  child: ExcludeSemantics(
+                    child: Center(
+                      child: BrandMark(
+                        size: 48,
+                        color: context.colors.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                Text(
+                  'Kilimo na Ujasiriamali',
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        color: context.colors.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Soma mafunzo, rekodi changamoto za shamba, shiriki na wakulima, na wasiliana na mtaalamu unapohitaji uthibitisho.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: context.colors.onPrimarySubtle,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                const OnboardingValueRow(
+                  icon: Icons.smart_toy_outlined,
+                  label: 'Mwongozo wa kurekodi changamoto za shamba',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const OnboardingValueRow(
+                  icon: Icons.menu_book_outlined,
+                  label: 'Masomo ya vitendo kwa mazao na mifugo',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const OnboardingValueRow(
+                  icon: Icons.support_agent,
+                  label: 'Msaada wa mtaalamu kupitia WhatsApp',
+                ),
+              ],
             ),
-            child: ExcludeSemantics(
-              child: Center(
-                child: BrandMark(
-                  size: 48,
-                  color: context.colors.onPrimary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          Text(
-            'Kilimo na Ujasiriamali',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: context.colors.onPrimary,
-                  fontWeight: FontWeight.w700,
-                  height: 1.05,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Soma mafunzo, rekodi changamoto za shamba, shiriki na wakulima, na wasiliana na mtaalamu unapohitaji uthibitisho.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: context.colors.onPrimarySubtle,
-                  height: 1.45,
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          const OnboardingValueRow(
-            icon: Icons.smart_toy_outlined,
-            label: 'Mwongozo wa kurekodi changamoto za shamba',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const OnboardingValueRow(
-            icon: Icons.menu_book_outlined,
-            label: 'Masomo ya vitendo kwa mazao na mifugo',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const OnboardingValueRow(
-            icon: Icons.support_agent,
-            label: 'Msaada wa mtaalamu kupitia WhatsApp',
           ),
         ],
       ),
