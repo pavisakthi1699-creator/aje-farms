@@ -28,7 +28,10 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Semantics(
               header: true,
-              label: '$phoneLabel, $memberLabel',
+              excludeSemantics: true,
+              label: phoneLabel == memberLabel
+                  ? phoneLabel
+                  : '$phoneLabel, $memberLabel',
               child: Card(
                 color: context.colors.surfaceMuted,
                 child: Padding(
@@ -68,10 +71,11 @@ class ProfileScreen extends StatelessWidget {
                         spacing: AppSpacing.sm,
                         runSpacing: AppSpacing.sm,
                         children: [
-                          Pill(
-                            label: memberLabel,
-                            color: context.colors.surface,
-                          ),
+                          if (phoneLabel != memberLabel)
+                            Pill(
+                              label: memberLabel,
+                              color: context.colors.surface,
+                            ),
                           if (session.isAdmin)
                             Pill(
                               label: 'Admin',
