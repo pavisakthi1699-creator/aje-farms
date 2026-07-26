@@ -17,9 +17,29 @@ class LocalAdminService implements AdminService {
     required Course course,
     required String status,
     DateTime? baseUpdatedAt,
+    bool createOnly = false,
   }) async {
     throw const AdminException(
       'Admin content management requires a connected backend.',
+    );
+  }
+
+  @override
+  Future<List<AdminSourceSegment>> searchSourceSegments({
+    String search = '',
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<AdminLessonSourceReviewResult> approveLessonSource({
+    required String lessonId,
+    required String sourceSegmentId,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    throw const AdminException(
+      'Source review requires a connected backend.',
     );
   }
 

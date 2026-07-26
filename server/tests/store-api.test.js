@@ -641,6 +641,18 @@ test('admin content courses can be drafted and published into catalog', async ()
     );
     assert.ok(pasheni);
 
+    const duplicate = await putJson(
+      baseUrl,
+      '/api/admin/content/courses/pasheni',
+      {
+        status: 'draft',
+        createOnly: true,
+        course: pasheni,
+      },
+      adminHeaders,
+    );
+    assert.equal(duplicate.response.status, 409);
+
     const draft = await putJson(
       baseUrl,
       '/api/admin/content/courses/pasheni',
@@ -780,6 +792,72 @@ test('admin users endpoint is role-gated', async () => {
       await authHeaders(learnerToken),
     );
     assert.equal(forbidden.response.status, 403);
+  });
+});
+
+test('admin source review routes enforce authorization and validation', async () => {
+  await withTestServer(async (baseUrl) => {
+    const anonymous = await getJson(
+      baseUrl,
+      '/api/admin/content/source-segments',
+    );
+    assert.equal(anonymous.response.status, 401);
+
+    const learnerPhone = '+255700333445';
+    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: learnerPhone,
+    });
+    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: learnerPhone,
+      otp: learnerOtp.payload.debugOtp,
+      challengeId: learnerOtp.payload.challengeId,
+    });
+    const forbidden = await getJson(
+      baseUrl,
+      '/api/admin/content/source-segments',
+      await authHeaders(learnerVerify.payload.sessionToken),
+    );
+    assert.equal(forbidden.response.status, 403);
+
+    const adminPhone = '+255799000111';
+    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
+      phoneNumber: adminPhone,
+    });
+    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
+      phoneNumber: adminPhone,
+      otp: adminOtp.payload.debugOtp,
+      challengeId: adminOtp.payload.challengeId,
+    });
+    const adminHeaders = await authHeaders(
+      adminVerify.payload.sessionToken,
+    );
+    const segments = await getJson(
+      baseUrl,
+      '/api/admin/content/source-segments?search=maharage',
+      adminHeaders,
+    );
+    assert.equal(segments.response.status, 200);
+    assert.deepEqual(segments.payload.segments, []);
+
+    const invalid = await postJson(
+      baseUrl,
+      '/api/admin/content/lessons/lesson-1/source-review',
+      {},
+      adminHeaders,
+    );
+    assert.equal(invalid.response.status, 400);
+
+    const unsupported = await postJson(
+      baseUrl,
+      '/api/admin/content/lessons/lesson-1/source-review',
+      {
+        sourceSegmentId: 'segment-1',
+        evidenceNote: 'Ushahidi',
+        groundingFact: 'Ukweli',
+      },
+      adminHeaders,
+    );
+    assert.equal(unsupported.response.status, 501);
   });
 });
 

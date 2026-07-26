@@ -310,19 +310,24 @@ Future<_ContentEditResult?> _showContentEditor({
 Future<_CourseEditResult?> _showCourseEditor({
   required BuildContext context,
   required AdminContentCourseRecord record,
+  bool isNew = false,
 }) {
   return Navigator.of(context).push<_CourseEditResult>(
     MaterialPageRoute(
-      builder: (_) => _CourseCurriculumEditor(record: record),
+      builder: (_) => _CourseCurriculumEditor(record: record, isNew: isNew),
       fullscreenDialog: true,
     ),
   );
 }
 
 class _CourseCurriculumEditor extends StatefulWidget {
-  const _CourseCurriculumEditor({required this.record});
+  const _CourseCurriculumEditor({
+    required this.record,
+    required this.isNew,
+  });
 
   final AdminContentCourseRecord record;
+  final bool isNew;
 
   @override
   State<_CourseCurriculumEditor> createState() =>
@@ -331,9 +336,11 @@ class _CourseCurriculumEditor extends StatefulWidget {
 
 class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   final _formKey = GlobalKey<FormState>();
+  late String _courseId;
   late String _title;
   late String _description;
   late String _status;
+  late DateTime _baseUpdatedAt;
   late List<_LessonDraft> _lessons;
   bool _showValidation = false;
 
@@ -341,9 +348,11 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   void initState() {
     super.initState();
     final record = widget.record;
+    _courseId = record.course.id;
     _title = record.course.title;
     _description = record.course.description;
     _status = record.status == 'approved' ? 'approved' : 'draft';
+    _baseUpdatedAt = record.updatedAt;
     _lessons = [
       for (final lesson in record.course.lessons)
         _LessonDraft.fromLesson(lesson),
@@ -402,6 +411,67 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     setState(() => _lessons.removeAt(index));
   }
 
+  Future<void> _reviewLessonSource(int index) async {
+    final lesson = _lessons[index];
+    final lessonId = lesson.id;
+    if (lessonId == null) {
+      showErrorSnack(
+        context,
+        'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
+      );
+      return;
+    }
+    final result = await showDialog<_LessonSourceReviewResult>(
+      context: context,
+      builder: (_) => _LessonSourceReviewDialog(
+        adminService: context.dependencies.adminService,
+        lessonTitle: lesson.title,
+      ),
+    );
+    if (result == null || !mounted) return;
+    try {
+      final review =
+          await context.dependencies.adminService.approveLessonSource(
+        lessonId: lessonId,
+        sourceSegmentId: result.sourceSegmentId,
+        evidenceNote: result.evidenceNote,
+        groundingFact: result.groundingFact,
+      );
+      if (!mounted) return;
+      setState(() {
+        _baseUpdatedAt = review.courseUpdatedAt;
+        const sourceReviewReasons = {
+          'Sehemu bado haijachapishwa.',
+          'Somo bado halijachapishwa.',
+          'Somo halijaunganishwa na hati chanzo.',
+          'Hakuna kiungo cha chanzo kilichothibitishwa.',
+          'Hakuna ukweli wa msingi uliochapishwa.',
+        };
+        lesson.readinessReasons = lesson.readinessReasons
+            .where(
+              (reason) =>
+                  !sourceReviewReasons.contains(reason) ||
+                  (!review.contentReady &&
+                      reason == 'Somo bado halijachapishwa.'),
+            )
+            .toList();
+        if (_status != 'approved' &&
+            !lesson.readinessReasons.contains('Kozi bado haijachapishwa.')) {
+          lesson.readinessReasons.insert(0, 'Kozi bado haijachapishwa.');
+        }
+        lesson.isLearnerVisible =
+            _status == 'approved' && lesson.readinessReasons.isEmpty;
+      });
+      showSuccessSnack(
+        context,
+        'Somo limeunganishwa na chanzo na kuidhinishwa.',
+      );
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    }
+  }
+
   void _save() {
     setState(() => _showValidation = true);
     if (!_formKey.currentState!.validate()) {
@@ -430,7 +500,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       if (!outcomes.contains(module)) outcomes.add(module);
     }
     final course = Course(
-      id: original.id,
+      id: _courseId.trim().toUpperCase(),
       title: _title.trim(),
       description: _description.trim(),
       badge: original.badge,
@@ -459,7 +529,11 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     );
     AppFeedback.tap();
     Navigator.of(context).pop(
-      _CourseEditResult(course: course, status: _status),
+      _CourseEditResult(
+        course: course,
+        status: widget.isNew ? 'draft' : _status,
+        baseUpdatedAt: widget.isNew ? null : _baseUpdatedAt,
+      ),
     );
   }
 
@@ -496,7 +570,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hariri mtaala'),
+        title: Text(widget.isNew ? 'Kozi mpya' : 'Hariri mtaala'),
         actions: [
           TextButton.icon(
             onPressed: _save,
@@ -519,6 +593,25 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppSpacing.md),
+              if (widget.isNew) ...[
+                TextFormField(
+                  initialValue: _courseId,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Msimbo wa kozi',
+                    helperText: 'Mfano: CRS-MAH-01',
+                  ),
+                  validator: (value) {
+                    final code = value?.trim().toUpperCase() ?? '';
+                    return RegExp(r'^[A-Z0-9][A-Z0-9-]{2,49}$').hasMatch(code)
+                        ? null
+                        : 'Tumia herufi kubwa, namba au vistari; tarakimu 3–50.';
+                  },
+                  onChanged: (value) => _courseId = value,
+                  onSaved: (value) => _courseId = value ?? '',
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
               TextFormField(
                 initialValue: _title,
                 decoration: const InputDecoration(labelText: 'Jina la kozi'),
@@ -538,30 +631,45 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 onSaved: (value) => _description = value ?? '',
               ),
               const SizedBox(height: AppSpacing.md),
-              Text(
-                'Hali ya uchapishaji',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(
-                    value: 'draft',
-                    label: Text('Rasimu'),
-                    icon: Icon(Icons.edit_note_outlined),
+              if (widget.isNew)
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: AppDecorations.pastelPanel(
+                    context,
+                    context.colors.surfacePeach,
                   ),
-                  ButtonSegment(
-                    value: 'approved',
-                    label: Text('Chapisha'),
-                    icon: Icon(Icons.check_circle_outline),
+                  child: const Text(
+                    'Kozi mpya huhifadhiwa kama rasimu. Masomo yataonekana '
+                    'kwa wanafunzi baada ya kuunganishwa na chanzo '
+                    'kilichothibitishwa na kukaguliwa.',
                   ),
-                ],
-                selected: {_status},
-                onSelectionChanged: (next) {
-                  AppFeedback.selection();
-                  setState(() => _status = next.first);
-                },
-              ),
+                )
+              else ...[
+                Text(
+                  'Hali ya uchapishaji',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'draft',
+                      label: Text('Rasimu'),
+                      icon: Icon(Icons.edit_note_outlined),
+                    ),
+                    ButtonSegment(
+                      value: 'approved',
+                      label: Text('Chapisha'),
+                      icon: Icon(Icons.check_circle_outline),
+                    ),
+                  ],
+                  selected: {_status},
+                  onSelectionChanged: (next) {
+                    AppFeedback.selection();
+                    setState(() => _status = next.first);
+                  },
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               Row(
                 children: [
@@ -618,6 +726,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     onTypeChanged: (value) {
                       setState(() => lesson.type = value);
                     },
+                    onReviewSource: () => _reviewLessonSource(index),
                   );
                 },
               ),
@@ -659,6 +768,7 @@ class _CurriculumLessonCard extends StatelessWidget {
     required this.onRemove,
     required this.onModuleTitleChanged,
     required this.onTypeChanged,
+    required this.onReviewSource,
   });
 
   final int index;
@@ -666,6 +776,7 @@ class _CurriculumLessonCard extends StatelessWidget {
   final VoidCallback onRemove;
   final ValueChanged<String> onModuleTitleChanged;
   final ValueChanged<LessonType> onTypeChanged;
+  final VoidCallback onReviewSource;
 
   @override
   Widget build(BuildContext context) {
@@ -805,6 +916,23 @@ class _CurriculumLessonCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            const SizedBox(height: AppSpacing.md),
+            if (lesson.id == null)
+              Text(
+                'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: onReviewSource,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Unganisha chanzo na idhinisha'),
+                ),
+              ),
           ],
           const SizedBox(height: AppSpacing.md),
           Align(
@@ -892,7 +1020,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       await adminService.upsertContentCourse(
         course: result.course,
         status: result.status,
-        baseUpdatedAt: record.updatedAt,
+        baseUpdatedAt: result.baseUpdatedAt,
       );
       if (!mounted) return;
       showSuccessSnack(context, 'Kozi imehifadhiwa.');
@@ -904,6 +1032,68 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         error.message,
         actionLabel: 'Jaribu tena',
         onAction: () => _editCourse(record),
+      );
+    }
+  }
+
+  Future<void> _createCourse() async {
+    final adminService = context.dependencies.adminService;
+    final now = DateTime.now();
+    final record = AdminContentCourseRecord(
+      id: 'CRS-',
+      status: 'draft',
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      course: Course(
+        id: 'CRS-',
+        title: '',
+        description: '',
+        badge: 'Kozi ya maandishi',
+        icon: Icons.menu_book_outlined,
+        progress: 0,
+        imageUrl: 'assets/images/courses/nyanya.jpg',
+        outcomes: const ['Sehemu mpya'],
+        lessons: [
+          Lesson(
+            moduleKey: 'new-${now.microsecondsSinceEpoch}',
+            moduleTitle: 'Sehemu mpya',
+            title: '',
+            type: LessonType.reading,
+            meta: 'Dakika 5',
+            description: '',
+            durationMinutes: 5,
+            isLearnerVisible: false,
+            readinessReasons: const [
+              'Somo linahitaji kuunganishwa na hati chanzo.',
+            ],
+          ),
+        ],
+      ),
+    );
+    final result = await _showCourseEditor(
+      context: context,
+      record: record,
+      isNew: true,
+    );
+    if (result == null) return;
+    try {
+      await adminService.upsertContentCourse(
+        course: result.course,
+        status: 'draft',
+        createOnly: true,
+      );
+      if (!mounted) return;
+      showSuccessSnack(
+        context,
+        'Kozi mpya imehifadhiwa kama rasimu kwa ukaguzi wa vyanzo.',
+      );
+      _load();
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: _createCourse,
       );
     }
   }
@@ -965,24 +1155,24 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         ),
       );
     }
-    if (_courses.isEmpty && _documents.isEmpty) {
-      return Center(
-        child: EmptyState(
-          icon: Icons.library_books_outlined,
-          title: 'Hakuna content bado',
-          body: 'Anza kwa kuunda kozi au document kutoka backend.',
-          actionLabel: 'Onyesha tena',
-          onAction: _load,
-        ),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          _AdminSectionHeader(title: 'Kozi', count: _courses.length),
+          _AdminSectionHeader(
+            title: 'Kozi',
+            count: _courses.length,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: _createCourse,
+              icon: const Icon(Icons.add),
+              label: const Text('Ongeza kozi'),
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           if (_courses.isEmpty)
             Card(
@@ -1034,6 +1224,15 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                             '${record.course.lessons.length} masomo'
                             '${record.course.lessons.any((lesson) => lesson.type == LessonType.video) ? ' · Ina video' : ''}',
                             style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${record.course.lessons.where((lesson) => lesson.isLearnerVisible).length} tayari · '
+                            '${record.course.lessons.where((lesson) => !lesson.isLearnerVisible).length} yanahitaji ukaguzi',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: context.colors.muted,
+                                    ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           _AdminStatusPill(status: record.status),
@@ -1712,6 +1911,232 @@ String _initialsFor(String value) {
   return ('${parts.first[0]}${parts.last[0]}').toUpperCase();
 }
 
+class _LessonSourceReviewResult {
+  const _LessonSourceReviewResult({
+    required this.sourceSegmentId,
+    required this.evidenceNote,
+    required this.groundingFact,
+  });
+
+  final String sourceSegmentId;
+  final String evidenceNote;
+  final String groundingFact;
+}
+
+class _LessonSourceReviewDialog extends StatefulWidget {
+  const _LessonSourceReviewDialog({
+    required this.adminService,
+    required this.lessonTitle,
+  });
+
+  final AdminService adminService;
+  final String lessonTitle;
+
+  @override
+  State<_LessonSourceReviewDialog> createState() =>
+      _LessonSourceReviewDialogState();
+}
+
+class _LessonSourceReviewDialogState extends State<_LessonSourceReviewDialog> {
+  final _searchController = TextEditingController();
+  final _evidenceController = TextEditingController();
+  final _factController = TextEditingController();
+  List<AdminSourceSegment> _segments = const [];
+  String? _selectedSegmentId;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _search();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _evidenceController.dispose();
+    _factController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final segments = await widget.adminService.searchSourceSegments(
+        search: _searchController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _segments = segments;
+        _loading = false;
+        if (!_segments.any((item) => item.id == _selectedSegmentId)) {
+          _selectedSegmentId = null;
+        }
+      });
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Imeshindikana kupakia vyanzo. Jaribu tena.';
+        _loading = false;
+      });
+    }
+  }
+
+  void _submit() {
+    final evidence = _evidenceController.text.trim();
+    final fact = _factController.text.trim();
+    if (_selectedSegmentId == null || evidence.isEmpty || fact.isEmpty) {
+      setState(() {
+        _error =
+            'Chagua sehemu ya chanzo, andika ushahidi na ukweli wa msingi.';
+      });
+      return;
+    }
+    Navigator.of(context).pop(
+      _LessonSourceReviewResult(
+        sourceSegmentId: _selectedSegmentId!,
+        evidenceNote: evidence,
+        groundingFact: fact,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Unganisha chanzo'),
+      content: SizedBox(
+        width: 680,
+        height: MediaQuery.sizeOf(context).height * 0.68,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.lessonTitle,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Tafuta kitabu, sehemu au maneno',
+                suffixIcon: IconButton(
+                  tooltip: 'Tafuta chanzo',
+                  onPressed: _search,
+                  icon: const Icon(Icons.search),
+                ),
+              ),
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _segments.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Hakuna sehemu ya chanzo iliyoidhinishwa.',
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _segments.length,
+                          itemBuilder: (context, index) {
+                            final segment = _segments[index];
+                            final selected = segment.id == _selectedSegmentId;
+                            return Semantics(
+                              selected: selected,
+                              button: true,
+                              label: 'Chanzo: ${segment.documentTitle}',
+                              child: ListTile(
+                                selected: selected,
+                                onTap: () {
+                                  setState(
+                                    () => _selectedSegmentId = segment.id,
+                                  );
+                                },
+                                leading: Icon(
+                                  selected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: selected
+                                      ? context.colors.primary
+                                      : context.colors.muted,
+                                ),
+                                title: Text(segment.documentTitle),
+                                subtitle: Text(
+                                  [
+                                    if ((segment.sectionTitle ?? '').isNotEmpty)
+                                      segment.sectionTitle!,
+                                    if (segment.locationLabel.isNotEmpty)
+                                      segment.locationLabel,
+                                    segment.contentPreview,
+                                  ].join('\n'),
+                                  maxLines: 5,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _evidenceController,
+              minLines: 2,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Maelezo ya ushahidi',
+                hintText: 'Eleza jinsi sehemu hii inavyothibitisha somo.',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _factController,
+              minLines: 2,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Ukweli wa msingi uliothibitishwa',
+                hintText: 'Andika dai salama linaloungwa mkono na chanzo.',
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.error,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Ghairi'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.fact_check_outlined),
+          label: const Text('Unganisha na idhinisha'),
+        ),
+      ],
+    );
+  }
+}
+
 class _ContentEditResult {
   const _ContentEditResult({
     required this.title,
@@ -1726,10 +2151,12 @@ class _CourseEditResult {
   const _CourseEditResult({
     required this.course,
     required this.status,
+    required this.baseUpdatedAt,
   });
 
   final Course course;
   final String status;
+  final DateTime? baseUpdatedAt;
 }
 
 class _LessonDraft {
@@ -1779,6 +2206,6 @@ class _LessonDraft {
   int durationMinutes;
   String body;
   String videoUrl;
-  final bool isLearnerVisible;
-  final List<String> readinessReasons;
+  bool isLearnerVisible;
+  List<String> readinessReasons;
 }

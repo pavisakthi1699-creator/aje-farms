@@ -63,8 +63,20 @@ export class JsonStore {
     return this.state.contentCourses;
   }
 
-  upsertContentCourse({ course, status = 'approved' }) {
+  upsertContentCourse({
+    course,
+    status = 'approved',
+    createOnly = false,
+  }) {
     const normalizedCourse = normalizeApprovedCourse(course);
+    if (
+      createOnly &&
+      this.state.contentCourses.some((item) => item.id === normalizedCourse.id)
+    ) {
+      const conflict = new Error('A course with this code already exists.');
+      conflict.code = 'COURSE_ALREADY_EXISTS';
+      throw conflict;
+    }
     const record = {
       id: normalizedCourse.id,
       status,
