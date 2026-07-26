@@ -120,6 +120,43 @@ test("Africa's Talking recipient rejection fails OTP delivery", async () => {
   );
 });
 
+test('manual OTP can be explicitly enabled for internal production testing', async () => {
+  const sender = createOtpSender({
+    env: {
+      NODE_ENV: 'production',
+      AJE_SMS_PROVIDER: 'development',
+      AJE_ENABLE_DEBUG_OTP: 'true',
+    },
+  });
+
+  const result = await sender.sendOtp({
+    phoneNumber: '+255743812853',
+    otp: '123456',
+  });
+
+  assert.equal(sender.name, 'development');
+  assert.equal(sender.isProductionReady, true);
+  assert.equal(result.debugOtp, '123456');
+});
+
+test('manual OTP remains blocked in production without the explicit flag', async () => {
+  const sender = createOtpSender({
+    env: {
+      NODE_ENV: 'production',
+      AJE_SMS_PROVIDER: 'development',
+    },
+  });
+
+  assert.equal(sender.isProductionReady, false);
+  await assert.rejects(
+    sender.sendOtp({
+      phoneNumber: '+255743812853',
+      otp: '123456',
+    }),
+    /SMS provider is not configured/,
+  );
+});
+
 test('SMS provider selection defaults safely to development', () => {
   assert.equal(configuredSmsProvider({}), 'development');
   assert.equal(

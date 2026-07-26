@@ -112,11 +112,12 @@ class DevelopmentOtpSender {
   constructor(env) {
     this.name = 'development';
     this.env = env;
-    this.isProductionReady = false;
+    this.debugOtpEnabled = env.AJE_ENABLE_DEBUG_OTP === 'true';
+    this.isProductionReady = this.debugOtpEnabled;
   }
 
   async sendOtp({ phoneNumber, otp }) {
-    if (this.env.NODE_ENV === 'production') {
+    if (this.env.NODE_ENV === 'production' && !this.debugOtpEnabled) {
       throw new Error('SMS provider is not configured.');
     }
 
@@ -125,7 +126,7 @@ class DevelopmentOtpSender {
       provider: 'development',
       debugOtp:
         this.env.NODE_ENV === 'development' ||
-        this.env.AJE_ENABLE_DEBUG_OTP === 'true'
+        this.debugOtpEnabled
           ? otp
           : undefined,
     };
