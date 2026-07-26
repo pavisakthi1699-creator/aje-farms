@@ -917,23 +917,27 @@ class _CurriculumLessonCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            if (lesson.id == null)
-              Text(
-                'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.colors.muted,
-                    ),
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: onReviewSource,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('Unganisha chanzo na idhinisha'),
+          ],
+          if (lesson.id == null && lesson.readinessReasons.isNotEmpty)
+            Text(
+              'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.colors.muted,
+                  ),
+            )
+          else if (lesson.id != null)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: onReviewSource,
+                icon: const Icon(Icons.fact_check_outlined),
+                label: Text(
+                  lesson.readinessReasons.isEmpty
+                      ? 'Kagua au badilisha chanzo'
+                      : 'Unganisha chanzo na idhinisha',
                 ),
               ),
-          ],
+            ),
           const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
@@ -1167,10 +1171,10 @@ class _AdminContentTabState extends State<_AdminContentTab> {
           const SizedBox(height: AppSpacing.sm),
           Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
+            child: FilledButton.icon(
               onPressed: _createCourse,
               icon: const Icon(Icons.add),
-              label: const Text('Ongeza kozi'),
+              label: const Text('Ongeza kozi na mtaala'),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1270,10 +1274,10 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                               AppSpacing.lg,
                               AppSpacing.sm,
                             ),
-                            child: OutlinedButton.icon(
+                            child: FilledButton.tonalIcon(
                               onPressed: openEditor,
                               icon: const Icon(Icons.menu_book_outlined),
-                              label: const Text('Hariri mtaala na masomo'),
+                              label: const Text('Hariri maudhui na mtaala'),
                             ),
                           ),
                           if (blockedLessons > 0)

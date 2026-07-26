@@ -111,6 +111,42 @@ class _SourceReviewAdminService extends _RecordingCourseAdminService {
   }
 }
 
+class _ApprovedSourceReviewAdminService extends _SourceReviewAdminService {
+  @override
+  Future<List<AdminContentCourseRecord>> listContentCourses() async {
+    return [
+      AdminContentCourseRecord(
+        id: 'course-1',
+        status: 'approved',
+        updatedAt: DateTime(2026),
+        course: const Course(
+          id: 'course-1',
+          title: 'Kilimo cha Nyanya',
+          description: 'Mwongozo wa nyanya.',
+          badge: 'Msingi',
+          icon: Icons.eco_outlined,
+          progress: 0,
+          imageUrl: '',
+          outcomes: ['Msingi'],
+          lessons: [
+            Lesson(
+              id: 'lesson-1',
+              moduleId: 'module-1',
+              moduleTitle: 'Msingi',
+              title: 'Kuandaa kitalu',
+              type: LessonType.reading,
+              meta: 'Dakika 5',
+              description: 'Andaa kitalu salama.',
+              durationMinutes: 5,
+              isLearnerVisible: true,
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+}
+
 /// Covers the accessibility, validation, and destructive-action guarantees that
 /// are easy to regress because nothing in the happy path exercises them.
 void main() {
@@ -368,7 +404,7 @@ void main() {
         adminService: const _OneCourseAdminService(),
       );
 
-      await tester.tap(find.text('Hariri mtaala na masomo'));
+      await tester.tap(find.text('Hariri maudhui na mtaala'));
       await tester.pumpAndSettle();
 
       // Clear the pre-filled title, then attempt to save.
@@ -388,7 +424,7 @@ void main() {
         adminService: const _OneCourseAdminService(),
       );
 
-      await tester.tap(find.text('Hariri mtaala na masomo'));
+      await tester.tap(find.text('Hariri maudhui na mtaala'));
       await tester.pumpAndSettle();
 
       expect(find.text('Maelezo ya kozi'), findsOneWidget);
@@ -412,7 +448,7 @@ void main() {
       final service = _RecordingCourseAdminService();
       await openAdminDashboard(tester, adminService: service);
 
-      await tester.tap(find.text('Ongeza kozi'));
+      await tester.tap(find.text('Ongeza kozi na mtaala'));
       await tester.pumpAndSettle();
 
       expect(find.text('Kozi mpya'), findsOneWidget);
@@ -527,6 +563,24 @@ void main() {
         service.savedBaseUpdatedAt,
         DateTime.utc(2026, 7, 26, 12),
       );
+    });
+
+    testWidgets('approved lessons still expose a source review action',
+        (tester) async {
+      await openAdminDashboard(
+        tester,
+        adminService: _ApprovedSourceReviewAdminService(),
+      );
+
+      await tester.tap(find.text('Hariri maudhui na mtaala'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Kagua au badilisha chanzo'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(find.text('Kagua au badilisha chanzo'), findsOneWidget);
     });
   });
 
