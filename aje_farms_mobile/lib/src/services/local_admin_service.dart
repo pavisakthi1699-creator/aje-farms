@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
@@ -40,6 +42,16 @@ class LocalAdminService implements AdminService {
   }) async {
     throw const AdminException(
       'Source review requires a connected backend.',
+    );
+  }
+
+  @override
+  Future<String> uploadLessonVideo({
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    throw const AdminException(
+      'Upload ya video inahitaji backend iliyounganishwa.',
     );
   }
 

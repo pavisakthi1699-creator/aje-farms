@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
@@ -19,6 +21,13 @@ abstract interface class AdminService {
     required String sourceSegmentId,
     required String evidenceNote,
     required String groundingFact,
+  });
+  /// Uploads a lesson video and returns its storage key, which a lesson can
+  /// then reference. The bytes go straight to storage through a short-lived
+  /// signed URL rather than through the API.
+  Future<String> uploadLessonVideo({
+    required Uint8List bytes,
+    required String contentType,
   });
   Future<List<AdminContentDocumentRecord>> listContentDocuments();
   Future<AdminContentDocumentRecord> upsertContentDocument({

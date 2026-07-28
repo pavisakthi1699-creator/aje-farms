@@ -23,6 +23,7 @@ class Lesson {
     this.durationMinutes,
     this.sourceTitle,
     this.resourceUrl,
+    this.videoPath,
     this.isLearnerVisible = true,
     this.readinessReasons = const [],
     this.isPremium = false,
@@ -39,7 +40,14 @@ class Lesson {
   final String description;
   final int? durationMinutes;
   final String? sourceTitle;
+
+  /// A pasted external video link.
   final String? resourceUrl;
+
+  /// The storage key of a video uploaded through the admin dashboard. Playback
+  /// resolves it through `/api/lessons/:id/video-url`, which signs it per
+  /// request — the object itself is never public.
+  final String? videoPath;
   final bool isLearnerVisible;
   final List<String> readinessReasons;
   final bool isPremium;

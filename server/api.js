@@ -17,6 +17,7 @@ import { createStore, normalizePhoneNumber, resolveStoreConfig } from './store.j
 import {
   communityDisplayName,
   isValidCommunityImagePath,
+  isValidLessonVideoPath,
   normalizeApprovedCourse,
   normalizeContentDocument,
 } from './store/utils.js';
@@ -177,6 +178,38 @@ export async function registerApiRoutes(app) {
               : 'Course content is invalid.',
         });
       }
+    },
+  );
+
+  // Hands the admin app a signed URL it can PUT a lesson video to. The file
+  // never passes through this process; only the resulting object key comes
+  // back, and `normalizeContentCourseRequest` validates it before a lesson can
+  // reference it.
+  app.post(
+    '/api/admin/content/lesson-videos/upload-url',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const contentType = req.body?.contentType;
+      if (typeof contentType !== 'string' || contentType.trim() === '') {
+        res.status(400).json({ error: 'Aina ya video inahitajika.' });
+        return;
+      }
+      if (typeof store.createLessonVideoUploadUrl !== 'function') {
+        res.status(501).json({
+          error: 'Upload ya video haipatikani kwenye mazingira haya.',
+        });
+        return;
+      }
+      const upload = await store.createLessonVideoUploadUrl({ contentType });
+      if (!upload) {
+        res.status(501).json({
+          error:
+            'Upload ya video haipatikani. Tumia MP4, MOV au WEBM kwenye mazingira ya production.',
+        });
+        return;
+      }
+      res.json(upload);
     },
   );
 
@@ -999,6 +1032,9 @@ function normalizeContentCourseRequest(courseId, rawCourse) {
       ) {
         throw new Error('Lesson resourceUrl must use HTTP or HTTPS.');
       }
+    }
+    if (lesson.videoPath != null && !isValidLessonVideoPath(lesson.videoPath)) {
+      throw new Error('Lesson videoPath must come from the video upload.');
     }
   }
   const fallbackModuleTitle = rawCourse.outcomes[0] ?? 'Somo';

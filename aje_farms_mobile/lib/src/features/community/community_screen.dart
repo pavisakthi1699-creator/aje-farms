@@ -18,10 +18,9 @@ class CommunityScreenState extends State<CommunityScreen> {
 
   List<CommunityPost> _filteredPosts(BuildContext context) {
     final session = context.session;
-    final posts = [
-      ...session.state.localPosts,
-      ...context.dependencies.communityRepository.posts,
-    ];
+    final posts = session.state.communityPostsMergedWith(
+      context.dependencies.communityRepository.posts,
+    );
     if (_selectedFilter == 'Zote') return posts;
     return posts.where((post) => post.tags.contains(_selectedFilter)).toList();
   }
@@ -59,10 +58,9 @@ class CommunityScreenState extends State<CommunityScreen> {
               );
             }
 
-            final allPosts = [
-              ...context.session.state.localPosts,
-              ...dependencies.communityRepository.posts,
-            ];
+            final allPosts = context.session.state.communityPostsMergedWith(
+              dependencies.communityRepository.posts,
+            );
             final posts = _filteredPosts(context);
 
             return FadeInContent(

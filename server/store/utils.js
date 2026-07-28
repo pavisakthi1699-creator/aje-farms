@@ -189,6 +189,44 @@ export function communityPostImageUrl(imagePath) {
   return `${supabaseUrl}/storage/v1/object/public/${communityPostImagesBucket}/${encodeURIComponent(imagePath)}`;
 }
 
+// Lesson videos live in the private source-documents bucket. Unlike community
+// images they are never served by public URL: `lessonVideoUrl` signs them per
+// request so playback stays behind a paid session.
+export const lessonVideosBucket = 'source-documents';
+export const lessonVideosPrefix = 'lesson-videos';
+
+export function extensionForVideoContentType(contentType) {
+  const normalized = String(contentType ?? '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  switch (normalized) {
+    case 'video/mp4':
+      return 'mp4';
+    case 'video/quicktime':
+      return 'mov';
+    case 'video/webm':
+      return 'webm';
+    default:
+      return null;
+  }
+}
+
+const lessonVideoPathPattern = new RegExp(
+  `^${lessonVideosPrefix}/[A-Za-z0-9_-]+\\.(mp4|mov|webm)$`,
+);
+
+// `videoPath` is a bucket-relative object key minted by our own signed-upload
+// endpoint. Validating it stops a caller from pointing a lesson at an
+// arbitrary object in the bucket — which holds unpublished source documents.
+export function isValidLessonVideoPath(videoPath) {
+  return (
+    typeof videoPath === 'string' &&
+    videoPath.length <= 200 &&
+    lessonVideoPathPattern.test(videoPath)
+  );
+}
+
 export function hashOtp(otp) {
   return crypto
     .createHash('sha256')

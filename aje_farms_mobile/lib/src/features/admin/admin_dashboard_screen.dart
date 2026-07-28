@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'package:image_picker/image_picker.dart';
+
 import "../../ui.dart";
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -342,6 +344,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   late String _status;
   late DateTime _baseUpdatedAt;
   late List<_LessonDraft> _lessons;
+  final Set<Key> _uploadingVideoKeys = {};
   bool _showValidation = false;
 
   @override
@@ -411,6 +414,71 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     setState(() => _lessons.removeAt(index));
   }
 
+  Future<void> _pickLessonVideo(int index) async {
+    final lesson = _lessons[index];
+    if (_uploadingVideoKeys.contains(lesson.key)) return;
+    final adminService = context.dependencies.adminService;
+
+    final picked = await ImagePicker().pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(minutes: 30),
+    );
+    if (picked == null || !mounted) return;
+    final contentType = _contentTypeForVideo(picked);
+    if (contentType == null) {
+      showErrorSnack(
+        context,
+        'Aina ya video haikubaliki. Tumia MP4, MOV au WEBM.',
+      );
+      return;
+    }
+
+    setState(() => _uploadingVideoKeys.add(lesson.key));
+    try {
+      final bytes = await picked.readAsBytes();
+      if (bytes.lengthInBytes > _maxVideoBytes) {
+        if (!mounted) return;
+        showErrorSnack(
+          context,
+          'Video ni kubwa kuliko MB 50. Punguza ubora kisha jaribu tena.',
+        );
+        return;
+      }
+      final videoPath = await adminService.uploadLessonVideo(
+        bytes: bytes,
+        contentType: contentType,
+      );
+      if (!mounted) return;
+      setState(() {
+        lesson.videoPath = videoPath;
+        // An upload supersedes any pasted link so the two can never disagree.
+        lesson.videoUrl = '';
+        lesson.type = LessonType.video;
+      });
+      showSuccessSnack(context, 'Video imepakiwa. Hifadhi kozi kukamilisha.');
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        error.message,
+        actionLabel: 'Jaribu tena',
+        onAction: () => _pickLessonVideo(index),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(context, 'Imeshindikana kupakia video. Jaribu tena.');
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingVideoKeys.remove(lesson.key));
+      }
+    }
+  }
+
+  void _removeLessonVideo(int index) {
+    AppFeedback.tap();
+    setState(() => _lessons[index].videoPath = null);
+  }
+
   Future<void> _reviewLessonSource(int index) async {
     final lesson = _lessons[index];
     final lessonId = lesson.id;
@@ -473,6 +541,11 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   }
 
   void _save() {
+    if (_uploadingVideoKeys.isNotEmpty) {
+      AppFeedback.error();
+      showErrorSnack(context, 'Subiri video imalize kupakiwa kabla ya kuhifadhi.');
+      return;
+    }
     setState(() => _showValidation = true);
     if (!_formKey.currentState!.validate()) {
       AppFeedback.error();
@@ -487,6 +560,15 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       return;
     }
     _formKey.currentState!.save();
+    // Fields scrolled out of the lazy ListView are unmounted, so
+    // `validate()` above cannot see them. Re-check the course-level values
+    // here so the admin gets a Swahili error instead of a server rejection.
+    final courseError = _firstCourseError();
+    if (courseError != null) {
+      AppFeedback.error();
+      showErrorSnack(context, courseError);
+      return;
+    }
     final draftError = _firstDraftError();
     if (draftError != null) {
       AppFeedback.error();
@@ -500,7 +582,13 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       if (!outcomes.contains(module)) outcomes.add(module);
     }
     final course = Course(
-      id: _courseId.trim().toUpperCase(),
+      // Only a brand new code is normalised. An existing course keeps its
+      // stored code verbatim: upper-casing it here addressed a different
+      // course row, which created a duplicate on the JSON store and failed
+      // outright on the structured store.
+      id: widget.isNew
+          ? _courseId.trim().toUpperCase()
+          : widget.record.course.id,
       title: _title.trim(),
       description: _description.trim(),
       badge: original.badge,
@@ -522,6 +610,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
             durationMinutes: draft.durationMinutes,
             resourceUrl:
                 draft.videoUrl.trim().isEmpty ? null : draft.videoUrl.trim(),
+            videoPath: draft.videoPath,
             isLearnerVisible: draft.isLearnerVisible,
             readinessReasons: draft.readinessReasons,
           ),
@@ -535,6 +624,21 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         baseUpdatedAt: widget.isNew ? null : _baseUpdatedAt,
       ),
     );
+  }
+
+  String? _firstCourseError() {
+    if (widget.isNew) {
+      final code = _courseId.trim().toUpperCase();
+      if (!RegExp(r'^[A-Z0-9][A-Z0-9-]{2,49}$').hasMatch(code)) {
+        return 'Msimbo wa kozi unahitaji herufi kubwa, namba au vistari; '
+            'tarakimu 3–50.';
+      }
+    }
+    if (_title.trim().isEmpty) return 'Jina la kozi haliwezi kuwa tupu.';
+    if (_description.trim().isEmpty) {
+      return 'Maelezo ya kozi hayawezi kuwa tupu.';
+    }
+    return null;
   }
 
   String? _firstDraftError() {
@@ -552,6 +656,11 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       }
       if (lesson.type == LessonType.reading && lesson.body.trim().isEmpty) {
         return 'Somo la $number linahitaji maandishi.';
+      }
+      if (lesson.type == LessonType.video &&
+          lesson.videoPath == null &&
+          lesson.videoUrl.trim().isEmpty) {
+        return 'Somo la $number linahitaji video iliyopakiwa au kiungo.';
       }
       final videoUrl = lesson.videoUrl.trim();
       if (videoUrl.isNotEmpty) {
@@ -612,10 +721,16 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
+              // `onChanged` is what actually persists these two fields. The
+              // enclosing ListView builds lazily, so scrolling down to the
+              // lessons unmounts them; `FormState.save()` then never reaches
+              // their `onSaved` and the editor would post the values captured
+              // in initState ('' for a new course).
               TextFormField(
                 initialValue: _title,
                 decoration: const InputDecoration(labelText: 'Jina la kozi'),
                 validator: _requiredField('Jina haliwezi kuwa tupu.'),
+                onChanged: (value) => _title = value,
                 onSaved: (value) => _title = value ?? '',
               ),
               const SizedBox(height: AppSpacing.md),
@@ -628,6 +743,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                   alignLabelWithHint: true,
                 ),
                 validator: _requiredField('Maelezo hayawezi kuwa tupu.'),
+                onChanged: (value) => _description = value,
                 onSaved: (value) => _description = value ?? '',
               ),
               const SizedBox(height: AppSpacing.md),
@@ -713,6 +829,10 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     key: lesson.key,
                     index: index,
                     lesson: lesson,
+                    isUploadingVideo:
+                        _uploadingVideoKeys.contains(lesson.key),
+                    onPickVideo: () => _pickLessonVideo(index),
+                    onRemoveVideo: () => _removeLessonVideo(index),
                     onRemove: () => _removeLesson(index),
                     onModuleTitleChanged: (value) {
                       setState(() {
@@ -765,6 +885,9 @@ class _CurriculumLessonCard extends StatelessWidget {
     required super.key,
     required this.index,
     required this.lesson,
+    required this.isUploadingVideo,
+    required this.onPickVideo,
+    required this.onRemoveVideo,
     required this.onRemove,
     required this.onModuleTitleChanged,
     required this.onTypeChanged,
@@ -773,6 +896,9 @@ class _CurriculumLessonCard extends StatelessWidget {
 
   final int index;
   final _LessonDraft lesson;
+  final bool isUploadingVideo;
+  final VoidCallback onPickVideo;
+  final VoidCallback onRemoveVideo;
   final VoidCallback onRemove;
   final ValueChanged<String> onModuleTitleChanged;
   final ValueChanged<LessonType> onTypeChanged;
@@ -880,12 +1006,25 @@ class _CurriculumLessonCard extends StatelessWidget {
             onSaved: (value) => lesson.body = value ?? '',
             onChanged: (value) => lesson.body = value,
           ),
+          if (lesson.type == LessonType.video) ...[
+            const SizedBox(height: AppSpacing.md),
+            _LessonVideoField(
+              lesson: lesson,
+              isUploading: isUploadingVideo,
+              onPickVideo: onPickVideo,
+              onRemoveVideo: onRemoveVideo,
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           TextFormField(
+            key: ValueKey('video-url-${lesson.key}-${lesson.videoPath}'),
             initialValue: lesson.videoUrl,
             keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'Kiungo cha video (hiari kwa video iliyohifadhiwa)',
+            enabled: lesson.videoPath == null,
+            decoration: InputDecoration(
+              labelText: lesson.videoPath == null
+                  ? 'Kiungo cha video (hiari kwa video iliyohifadhiwa)'
+                  : 'Kiungo cha video (hakitumiki — video imepakiwa)',
             ),
             validator: (value) {
               final text = value?.trim() ?? '';
@@ -955,6 +1094,140 @@ class _CurriculumLessonCard extends StatelessWidget {
 
 String? Function(String?) _requiredField(String message) {
   return (value) => value == null || value.trim().isEmpty ? message : null;
+}
+
+/// The bucket's own limit is 100MB, but Supabase also enforces a project-wide
+/// global upload size cap (measured at ~50MiB on this project and only
+/// changeable from the Supabase dashboard, not from bucket config) that binds
+/// first. Checking against the tighter limit here avoids uploading most of an
+/// oversized file only to have it rejected at the very end.
+const _maxVideoBytes = 50 * 1024 * 1024;
+
+String? _contentTypeForVideo(XFile file) {
+  final declared = file.mimeType?.toLowerCase();
+  if (declared != null && _supportedVideoTypes.contains(declared)) {
+    return declared;
+  }
+  // Android's gallery picker frequently reports no MIME type, so fall back to
+  // the file extension.
+  return switch (file.name.toLowerCase().split('.').last) {
+    'mp4' || 'm4v' => 'video/mp4',
+    'mov' => 'video/quicktime',
+    'webm' => 'video/webm',
+    _ => null,
+  };
+}
+
+const _supportedVideoTypes = {
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+};
+
+class _LessonVideoField extends StatelessWidget {
+  const _LessonVideoField({
+    required this.lesson,
+    required this.isUploading,
+    required this.onPickVideo,
+    required this.onRemoveVideo,
+  });
+
+  final _LessonDraft lesson;
+  final bool isUploading;
+  final VoidCallback onPickVideo;
+  final VoidCallback onRemoveVideo;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isUploading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: AppDecorations.pastelPanel(
+          context,
+          context.colors.surfaceMuted,
+        ),
+        child: Row(
+          children: [
+            const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'Inapakia video... usifunge ukurasa huu.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final videoPath = lesson.videoPath;
+    if (videoPath == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: onPickVideo,
+          icon: const Icon(Icons.videocam_outlined),
+          label: const Text('Pakia video ya somo'),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: AppDecorations.pastelPanel(
+        context,
+        context.colors.primaryContainer,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, color: context.colors.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Video imepakiwa',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            videoPath.split('/').last,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.colors.muted,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onPickVideo,
+                icon: const Icon(Icons.swap_horiz),
+                label: const Text('Badilisha'),
+              ),
+              TextButton.icon(
+                onPressed: onRemoveVideo,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Ondoa video'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AdminContentTab extends StatefulWidget {
@@ -2223,6 +2496,7 @@ class _LessonDraft {
     this.id,
     this.moduleId,
     String? moduleKey,
+    this.videoPath,
     this.isLearnerVisible = false,
     this.readinessReasons = const [],
   }) : moduleKey = moduleKey ?? moduleId ?? key.toString();
@@ -2243,6 +2517,7 @@ class _LessonDraft {
           5,
       body: lesson.description,
       videoUrl: lesson.resourceUrl ?? '',
+      videoPath: lesson.videoPath,
       isLearnerVisible: lesson.isLearnerVisible,
       readinessReasons: lesson.readinessReasons,
     );
@@ -2258,6 +2533,7 @@ class _LessonDraft {
   int durationMinutes;
   String body;
   String videoUrl;
+  String? videoPath;
   bool isLearnerVisible;
   List<String> readinessReasons;
 }

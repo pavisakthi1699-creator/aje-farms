@@ -300,10 +300,9 @@ class AppNavigator {
 
   static CommunityPost? _findCommunityPost(
       BuildContext context, String postId) {
-    final posts = [
-      ...context.session.state.localPosts,
-      ...context.dependencies.communityRepository.posts,
-    ];
+    final posts = context.session.state.communityPostsMergedWith(
+      context.dependencies.communityRepository.posts,
+    );
     for (final post in posts) {
       if (post.id == postId) {
         return post;

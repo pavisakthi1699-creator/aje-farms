@@ -52,6 +52,29 @@ class AppDependencies {
     this.refreshListenable,
   });
 
+  AppDependencies copyWith({
+    AdminService? adminService,
+    CommunityService? communityService,
+    CommunityRepository? communityRepository,
+    Future<void> Function()? refreshCatalog,
+  }) {
+    return AppDependencies(
+      learningRepository: learningRepository,
+      communityRepository: communityRepository ?? this.communityRepository,
+      subscriptionRepository: subscriptionRepository,
+      mwalimuAiService: mwalimuAiService,
+      authService: authService,
+      catalogService: catalogService,
+      adminService: adminService ?? this.adminService,
+      communityService: communityService ?? this.communityService,
+      learningProgressService: learningProgressService,
+      notificationService: notificationService,
+      paymentService: paymentService,
+      refreshCatalog: refreshCatalog ?? this.refreshCatalog,
+      refreshListenable: refreshListenable,
+    );
+  }
+
   factory AppDependencies.demo() {
     const repository = DemoAppRepository();
     return const AppDependencies(

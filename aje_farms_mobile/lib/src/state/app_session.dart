@@ -48,6 +48,20 @@ class AppSessionState {
   bool get hasActiveSubscription => subscriptionPlan != null;
   bool get isAdmin => role == 'admin';
 
+  /// The community feed: locally submitted posts first, then the server feed.
+  ///
+  /// A post that the server feed already carries is served from the server copy
+  /// only. The local copy exists to bridge the gap between submitting a post
+  /// and the next catalog refresh; keeping both showed the post twice, and the
+  /// stale local copy was the one missing the uploaded photo.
+  List<CommunityPost> communityPostsMergedWith(List<CommunityPost> feedPosts) {
+    final feedIds = feedPosts.map((post) => post.id).toSet();
+    return [
+      ...localPosts.where((post) => !feedIds.contains(post.id)),
+      ...feedPosts,
+    ];
+  }
+
   AppSessionState copyWith({
     bool? hasStarted,
     bool? isGuest,
@@ -534,6 +548,10 @@ CommunityPost _postFromJson(Map<String, dynamic> json) {
         .map(_replyFromJson)
         .toList(),
     relatedTopic: json['relatedTopic'] as String?,
+    // Persisting `imageUrl` matters: without it a restored post kept
+    // `hasImage: true` with no URL and rendered the grey placeholder, which
+    // read as the uploaded photo disappearing.
+    imageUrl: json['imageUrl'] as String?,
     hasImage: json['hasImage'] as bool? ?? false,
     isExpert: json['isExpert'] as bool? ?? false,
     isUrgent: json['isUrgent'] as bool? ?? false,
@@ -552,6 +570,7 @@ Map<String, dynamic> _postToJson(CommunityPost post) {
     'tags': post.tags,
     'replies': post.replies.map(_replyToJson).toList(),
     'relatedTopic': post.relatedTopic,
+    'imageUrl': post.imageUrl,
     'hasImage': post.hasImage,
     'isExpert': post.isExpert,
     'isUrgent': post.isUrgent,

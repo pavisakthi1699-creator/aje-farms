@@ -303,9 +303,17 @@ class _AdminAccessDiagnosticsCardState
   String? _error;
   bool _loading = true;
 
+  bool _didRequestInitialLoad = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // `_load` reads `context.dependencies`, an InheritedWidget lookup that
+    // Flutter forbids before initState completes. Running it from initState
+    // threw on every mount and the generic catch below turned that into a
+    // permanent "Imeshindikana kusoma hali ya admin."
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
     _load();
   }
 

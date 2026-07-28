@@ -11,9 +11,12 @@ import {
   createId,
   documentsFromCourses,
   extensionForImageContentType,
+  extensionForVideoContentType,
   hashOtp,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
+  lessonVideosBucket,
+  lessonVideosPrefix,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizePhoneNumber,
@@ -437,6 +440,16 @@ export class PostgresStore {
                lr.created_at
              LIMIT 1
            ) AS video_url,
+           (
+             SELECT lr.storage_path
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+             ORDER BY
+               CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+               lr.created_at
+             LIMIT 1
+           ) AS video_storage_path,
            EXISTS (
              SELECT 1
              FROM lesson_resources lr
@@ -520,6 +533,7 @@ export class PostgresStore {
               durationMinutes:
                 lesson.durationMinutes ?? durationFromMeta(lesson.meta),
               videoUrl: lesson.resourceUrl ?? null,
+              videoPath: lesson.videoPath ?? null,
             })),
           },
         );
@@ -614,6 +628,7 @@ export class PostgresStore {
             durationMinutes:
               lesson.durationMinutes ?? durationFromMeta(lesson.meta),
             videoUrl: lesson.resourceUrl ?? null,
+            videoPath: lesson.videoPath ?? null,
           })),
         },
       );
@@ -777,6 +792,7 @@ export class PostgresStore {
         meta: lesson.meta,
         description: lesson.body,
         resourceUrl: lesson.videoUrl || undefined,
+        videoPath: lesson.videoPath || undefined,
         isPremium: false,
         isCompleted: false,
       })),
@@ -807,12 +823,17 @@ export class PostgresStore {
         if (!curriculum.createIfMissing) {
           throw new Error('Course was not found in the live content catalog.');
         }
+        // import_source is deliberately passed as a bare literal. The live
+        // courses.import_source is a text column and no import_source enum
+        // type exists, so casting it made every new-course insert fail with
+        // 'type "import_source" does not exist'. An uncast literal coerces to
+        // whichever type the column actually has.
         const insertedCourse = await client.query(
           `INSERT INTO courses
              (code, title_sw, description_sw, delivery_type, status,
               import_source, source_link_status, sort_order)
            VALUES ($1, $2, $3, $4, 'draft'::content_status,
-                   'manual'::import_source,
+                   'manual',
                    'pending_review'::source_link_status,
                    COALESCE((SELECT MAX(sort_order) + 1 FROM courses), 0))
            RETURNING id, status::text AS status, updated_at`,
@@ -891,7 +912,17 @@ export class PostgresStore {
                CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
                lr.created_at
              LIMIT 1
-           ) AS video_url
+           ) AS video_url,
+           (
+             SELECT lr.storage_path
+             FROM lesson_resources lr
+             WHERE lr.lesson_id = l.id
+               AND lr.resource_type = 'video'
+             ORDER BY
+               CASE WHEN lr.status = 'published' THEN 0 ELSE 1 END,
+               lr.created_at
+             LIMIT 1
+           ) AS video_storage_path
          FROM lessons l
          JOIN course_modules m ON m.id = l.module_id
          WHERE m.course_id = $1`,
@@ -981,14 +1012,21 @@ export class PostgresStore {
           if (lessonId) {
             const existingLesson = existingLessonsById.get(lessonId);
             const requestedBody = lesson.body || null;
-            const requestedVideoUrl = (lesson.videoUrl ?? '').trim() || null;
+            const uploadedVideoPath = (lesson.videoPath ?? '').trim() || null;
+            const requestedVideoUrl = uploadedVideoPath
+                ? null
+                : (lesson.videoUrl ?? '').trim() || null;
             const lessonContentChanged =
               (existingLesson?.body_sw ?? null) !== requestedBody ||
               existingLesson?.lesson_type !== lessonType;
+            // A newly uploaded or re-pointed video sends the lesson back
+            // through source review, exactly like edited body text.
             const videoChanged =
               lessonType === 'video' &&
-              requestedVideoUrl != null &&
-              (existingLesson?.video_url ?? null) !== requestedVideoUrl;
+              (uploadedVideoPath != null || requestedVideoUrl != null) &&
+              ((existingLesson?.video_url ?? null) !== requestedVideoUrl ||
+                (existingLesson?.video_storage_path ?? null) !==
+                  uploadedVideoPath);
             const requiresReview = lessonContentChanged || videoChanged;
             await client.query(
               `UPDATE lessons
@@ -1045,17 +1083,29 @@ export class PostgresStore {
           }
           keptLessonIds.add(lessonId);
 
-          if (lessonType === 'video' && (lesson.videoUrl ?? '').trim()) {
+          // A lesson video arrives either as an uploaded object key
+          // (`videoPath`, stored in the private bucket and signed at playback)
+          // or as a pasted external link (`videoUrl`). An upload wins when both
+          // are present, and setting one clears the other so the two sources
+          // can never disagree.
+          const requestedVideoPath = (lesson.videoPath ?? '').trim() || null;
+          const requestedVideoUrl = requestedVideoPath
+              ? null
+              : (lesson.videoUrl ?? '').trim() || null;
+          if (lessonType === 'video' && (requestedVideoPath || requestedVideoUrl)) {
             const existingLesson = existingLessonsById.get(lessonId);
             const videoChanged =
               existingLesson != null &&
-              (existingLesson.video_url ?? null) !== lesson.videoUrl.trim();
+              ((existingLesson.video_url ?? null) !== requestedVideoUrl ||
+                (existingLesson.video_storage_path ?? null) !==
+                  requestedVideoPath);
             const existingResource = await client.query(
               `UPDATE lesson_resources
                SET external_url = $2,
-                   title_sw = $3,
+                   storage_path = $3,
+                   title_sw = $4,
                    status = CASE
-                     WHEN $4 THEN 'draft'::content_status
+                     WHEN $5 THEN 'draft'::content_status
                      ELSE status
                    END,
                    updated_at = NOW()
@@ -1069,14 +1119,26 @@ export class PostgresStore {
                  LIMIT 1
                )
                RETURNING id`,
-              [lessonId, lesson.videoUrl.trim(), lesson.title, videoChanged],
+              [
+                lessonId,
+                requestedVideoUrl,
+                requestedVideoPath,
+                lesson.title,
+                videoChanged,
+              ],
             );
             if (existingResource.rows.length === 0) {
               await client.query(
                 `INSERT INTO lesson_resources
-                   (lesson_id, resource_type, external_url, title_sw, status)
-                 VALUES ($1, 'video', $2, $3, 'draft'::content_status)`,
-                [lessonId, lesson.videoUrl.trim(), lesson.title],
+                   (lesson_id, resource_type, external_url, storage_path,
+                    title_sw, status)
+                 VALUES ($1, 'video', $2, $3, $4, 'draft'::content_status)`,
+                [
+                  lessonId,
+                  requestedVideoUrl,
+                  requestedVideoPath,
+                  lesson.title,
+                ],
               );
             }
           }
@@ -2075,6 +2137,41 @@ export class PostgresStore {
     return imagePath;
   }
 
+  // Mints a short-lived Supabase signed upload URL so the admin app can send a
+  // lesson video straight to storage. Proxying the file through this API would
+  // buffer 100MB in memory per upload; the token is scoped to one object key
+  // and expires on its own.
+  async createLessonVideoUploadUrl({ contentType }) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return null;
+    const extension = extensionForVideoContentType(contentType);
+    if (!extension) return null;
+
+    const videoPath = `${lessonVideosPrefix}/${createId('vid')}.${extension}`;
+    const response = await fetch(
+      `${supabaseUrl}/storage/v1/object/upload/sign/${lessonVideosBucket}/${encodeStoragePath(videoPath)}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 3600 }),
+      },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const signedPath = payload.url ?? payload.signedURL ?? payload.signedUrl;
+    if (!signedPath) return null;
+    return {
+      videoPath,
+      uploadUrl: resolveSupabaseSignedUrl(supabaseUrl, signedPath),
+    };
+  }
+
   async communityPostAuthorPhone(postId) {
     const result = await this.pool.query(
       `SELECT author_phone FROM community_posts WHERE id = $1`,
@@ -2541,7 +2638,10 @@ function contentCourseToCurriculum(row) {
       lessons: (payload.lessons ?? []).map((lesson) => {
         const isVideo = lesson.type === 'video';
         const hasContent = isVideo
-          ? Boolean((lesson.resourceUrl ?? '').trim())
+          ? Boolean(
+              (lesson.resourceUrl ?? '').trim() ||
+                (lesson.videoPath ?? '').trim(),
+            )
           : Boolean((lesson.description ?? '').trim());
         const reasons = [];
         if (!isApproved) reasons.push('Kozi bado haijaidhinishwa.');
@@ -2562,6 +2662,7 @@ function contentCourseToCurriculum(row) {
           body: lesson.description ?? '',
           durationMinutes: null,
           videoUrl: lesson.resourceUrl ?? null,
+          videoPath: lesson.videoPath ?? null,
           readiness: { visible: reasons.length === 0, reasons },
         };
       }),
@@ -2613,6 +2714,7 @@ function structuredCourseCurriculumFromRows(rows) {
       body: row.lesson_body ?? '',
       durationMinutes: row.duration_minutes ?? null,
       videoUrl: row.video_url ?? null,
+      videoPath: row.video_storage_path ?? null,
       readiness: { visible: reasons.length === 0, reasons },
     });
   }
@@ -2717,6 +2819,7 @@ function structuredContentCourseRecords(rows) {
         description: row.lesson_body ?? '',
         durationMinutes: row.duration_minutes ?? null,
         resourceUrl: row.video_url ?? null,
+        videoPath: row.video_storage_path ?? null,
         readiness: {
           visible: readinessReasons.length === 0,
           reasons: readinessReasons,
@@ -2762,6 +2865,7 @@ function contentCourseRecordFromCurriculum(record) {
         description: lesson.body,
         durationMinutes: lesson.durationMinutes,
         resourceUrl: lesson.videoUrl,
+        videoPath: lesson.videoPath,
         readiness: lesson.readiness,
         isPremium: false,
         isCompleted: false,

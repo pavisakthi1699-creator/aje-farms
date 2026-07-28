@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -16,12 +17,17 @@ class BackendAdminService implements AdminService {
     required Uri baseUrl,
     http.Client? client,
     this.timeout = const Duration(seconds: 20),
+    this.videoUploadTimeout = const Duration(minutes: 10),
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client();
 
   final Uri _baseUrl;
   final http.Client _client;
   final Duration timeout;
+
+  /// Videos are large and admins are often on mobile data, so the upload gets
+  /// far longer than an ordinary API call.
+  final Duration videoUploadTimeout;
 
   @override
   Future<List<AdminContentCourseRecord>> listContentCourses() async {
@@ -109,6 +115,52 @@ class BackendAdminService implements AdminService {
       courseUpdatedAt: parsedUpdatedAt,
       contentReady: payload['contentReady'] == true,
     );
+  }
+
+  @override
+  Future<String> uploadLessonVideo({
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lesson-videos/upload-url',
+      {'contentType': contentType},
+    );
+    final uploadUrl = payload['uploadUrl'];
+    final videoPath = payload['videoPath'];
+    if (uploadUrl is! String || videoPath is! String) {
+      throw const AdminException(
+        'Admin service returned an invalid video upload target.',
+      );
+    }
+
+    // The signed URL carries its own token, so this request deliberately
+    // carries no session header — and it must not, since it goes to storage
+    // rather than to our API.
+    final http.Response response;
+    try {
+      response = await _client
+          .put(
+            Uri.parse(uploadUrl),
+            headers: {'Content-Type': contentType},
+            body: bytes,
+          )
+          .timeout(videoUploadTimeout);
+    } on TimeoutException {
+      throw const AdminException(
+        'Kupakia video kumechukua muda mrefu. Jaribu tena kwa mtandao bora.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Imeshindikana kupakia video. Angalia mtandao wako.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const AdminException(
+        'Imeshindikana kupakia video. Jaribu tena.',
+      );
+    }
+    return videoPath;
   }
 
   @override
@@ -364,6 +416,7 @@ Lesson _lessonFromJson(Map<String, dynamic> json) {
     durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
     sourceTitle: json['sourceTitle'] as String?,
     resourceUrl: json['resourceUrl'] as String?,
+    videoPath: json['videoPath'] as String?,
     isLearnerVisible: readiness?['visible'] as bool? ?? true,
     readinessReasons:
         (readiness?['reasons'] as List<dynamic>? ?? const <dynamic>[])
@@ -402,6 +455,9 @@ CommunityPost _communityPostFromJson(Map<String, dynamic> json) {
         .map(_communityReplyFromJson)
         .toList(),
     relatedTopic: json['relatedTopic'] as String?,
+    // Without this a reported post rendered the grey placeholder instead of
+    // the photo the moderator is being asked to judge.
+    imageUrl: json['imageUrl'] as String?,
     hasImage: json['hasImage'] as bool? ?? false,
     isExpert: json['isExpert'] as bool? ?? false,
     isUrgent: json['isUrgent'] as bool? ?? false,
@@ -445,6 +501,7 @@ Map<String, dynamic> _lessonToJson(Lesson lesson) {
       'durationMinutes': lesson.durationMinutes,
     if (lesson.sourceTitle != null) 'sourceTitle': lesson.sourceTitle,
     if (lesson.resourceUrl != null) 'resourceUrl': lesson.resourceUrl,
+    if (lesson.videoPath != null) 'videoPath': lesson.videoPath,
     'isPremium': lesson.isPremium,
     'isCompleted': lesson.isCompleted,
   };
