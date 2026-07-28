@@ -440,7 +440,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         if (!mounted) return;
         showErrorSnack(
           context,
-          'Video ni kubwa kuliko MB 50. Punguza ubora kisha jaribu tena.',
+          'Video ni kubwa kuliko MB 200. Punguza ubora kisha jaribu tena.',
         );
         return;
       }
@@ -1096,12 +1096,12 @@ String? Function(String?) _requiredField(String message) {
   return (value) => value == null || value.trim().isEmpty ? message : null;
 }
 
-/// The bucket's own limit is 100MB, but Supabase also enforces a project-wide
-/// global upload size cap (measured at ~50MiB on this project and only
-/// changeable from the Supabase dashboard, not from bucket config) that binds
-/// first. Checking against the tighter limit here avoids uploading most of an
-/// oversized file only to have it rejected at the very end.
-const _maxVideoBytes = 50 * 1024 * 1024;
+/// Matches the bucket's file_size_limit and the project's dashboard-only
+/// Global file size limit (Project Settings > Storage), which must be raised
+/// to the same value or this check passes locally and still fails on upload.
+/// Checking here avoids uploading most of an oversized file only to have it
+/// rejected at the very end.
+const _maxVideoBytes = 200 * 1024 * 1024;
 
 String? _contentTypeForVideo(XFile file) {
   final declared = file.mimeType?.toLowerCase();

@@ -17,7 +17,7 @@ class BackendAdminService implements AdminService {
     required Uri baseUrl,
     http.Client? client,
     this.timeout = const Duration(seconds: 20),
-    this.videoUploadTimeout = const Duration(minutes: 10),
+    this.videoUploadTimeout = const Duration(minutes: 20),
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client();
 
