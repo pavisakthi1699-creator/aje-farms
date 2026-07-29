@@ -36,6 +36,15 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="ajefarms" android:host="app"/>
             </intent-filter>
+            <!-- Supabase Auth email links (password reset, email confirmation)
+                 redirect here after verification. Configure this exact URL as
+                 a Redirect URL in the Supabase Auth dashboard. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="ajefarms" android:host="login-callback"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -21,20 +21,21 @@ void main() {
       client: MockClient((request) async {
         captured = request;
         return http.Response(
-          '{"total":1,"users":[{"id":"user-1","phoneNumber":"+255700111222","displayName":"Asha","preferredLocation":"Morogoro","role":"learner","subscriptionPlan":"Wiki 1","subscriptionStartedAt":"2026-07-01T10:00:00.000Z","createdAt":"2026-07-01T09:00:00.000Z","updatedAt":"2026-07-01T10:00:00.000Z","learningProgressCount":2,"paymentTransactionsCount":1,"notificationCount":3,"communityPostsCount":1}]}',
+          '{"total":1,"users":[{"id":"user-1","email":"farmer@aje.test","accountStatus":"active","displayName":"Asha","preferredLocation":"Morogoro","role":"learner","subscriptionPlan":"Wiki 1","subscriptionStartedAt":"2026-07-01T10:00:00.000Z","createdAt":"2026-07-01T09:00:00.000Z","updatedAt":"2026-07-01T10:00:00.000Z","learningProgressCount":2,"paymentTransactionsCount":1,"notificationCount":3,"communityPostsCount":1}]}',
           200,
         );
       }),
     );
 
     final page =
-        await service.listUsers(search: '255700', limit: 10, offset: 0);
+        await service.listUsers(search: 'farmer', limit: 10, offset: 0);
 
     expect(page.total, 1);
-    expect(page.users.single.phoneNumber, '+255700111222');
+    expect(page.users.single.email, 'farmer@aje.test');
+    expect(page.users.single.accountStatus, 'active');
     expect(page.users.single.learningProgressCount, 2);
     expect(captured.headers['Authorization'], 'Bearer token-admin');
-    expect(captured.url.queryParameters['search'], '255700');
+    expect(captured.url.queryParameters['search'], 'farmer');
   });
 
   test('throws typed exception when admin backend returns error', () async {

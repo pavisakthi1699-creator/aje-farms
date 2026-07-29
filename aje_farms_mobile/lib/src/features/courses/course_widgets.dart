@@ -532,11 +532,9 @@ class LessonPreviewSheet extends StatelessWidget {
                 final learningProgressService =
                     context.dependencies.learningProgressService;
                 await session.markLessonCompleted(lessonProgressKey);
-                final phoneNumber = session.phoneNumber;
-                if (phoneNumber != null && session.isSignedIn) {
+                if (session.isSignedIn) {
                   try {
                     await learningProgressService.markLessonCompleted(
-                      phoneNumber: phoneNumber,
                       courseId: courseId,
                       lessonId: lessonId,
                     );

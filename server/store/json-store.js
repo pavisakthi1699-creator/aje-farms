@@ -7,14 +7,11 @@ import {
   approvedCoursesFromCatalog,
   createId,
   documentsFromCourses,
-  hashOtp,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
   normalizeApprovedCourse,
   normalizeContentDocument,
-  normalizePhoneNumber,
-  otpTtlMs,
-  verifyOtpHash,
+  normalizeEmail,
 } from './utils.js';
 import {
   createSessionToken,
@@ -47,9 +44,278 @@ export class JsonStore {
       courses: this.approvedContentCourses(),
       documents: this.approvedContentDocuments(),
       problemCategories: this.catalog.problemCategories,
-      plans: this.catalog.plans,
+      plans: this.activePlans(),
       communityPosts: this.community.communityPosts(),
     };
+  }
+
+  activePlans() {
+    return this.state.plans
+      .filter((plan) => plan.enabled)
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((plan) => ({
+        id: plan.id,
+        title: plan.title,
+        subtitle: plan.subtitle,
+        price: `TZS ${plan.priceTzs.toLocaleString('en-US')}`,
+        priceTzs: plan.priceTzs,
+        durationDays: plan.durationDays,
+        icon: plan.icon,
+        recommended: plan.recommended,
+      }));
+  }
+
+  async getPlan(planId) {
+    return this.state.plans.find((plan) => plan.id === planId) ?? null;
+  }
+
+  // Staff pick a plan id; the price and duration always come from here, never
+  // from request input.
+  async recordPaymentRecord({
+    userId,
+    planId,
+    method,
+    amountTzs,
+    currency = 'TZS',
+    reference = null,
+    note = null,
+    recordedByUserId,
+  }) {
+    const plan = await this.getPlan(planId);
+    if (!plan || !plan.enabled) return null;
+    if (
+      reference &&
+      this.state.paymentRecords.some((item) => item.reference === reference)
+    ) {
+      const conflict = new Error('A payment with this reference already exists.');
+      conflict.code = 'DUPLICATE_REFERENCE';
+      throw conflict;
+    }
+    const now = new Date().toISOString();
+    const record = {
+      id: createId('payrec'),
+      userId,
+      planId,
+      method,
+      amountTzs,
+      currency,
+      reference,
+      note,
+      status: 'pending',
+      recordedBy: recordedByUserId,
+      approvedBy: null,
+      approvedAt: null,
+      reversedBy: null,
+      reversedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.paymentRecords.push(record);
+    this.#saveAll();
+    return record;
+  }
+
+  async getPaymentRecord(paymentRecordId) {
+    return (
+      this.state.paymentRecords.find((item) => item.id === paymentRecordId) ??
+      null
+    );
+  }
+
+  // For the staff review queue: joins in the learner's email/display name so
+  // the UI doesn't need a second lookup per row.
+  async paymentRecordsForAdmin({ status, userId, limit = 50, offset = 0 } = {}) {
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const filtered = this.state.paymentRecords
+      .filter((item) => (status ? item.status === status : true))
+      .filter((item) => (userId ? item.userId === userId : true))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    const usersById = new Map(this.state.users.map((user) => [user.id, user]));
+    const records = filtered.slice(safeOffset, safeOffset + safeLimit).map((item) => {
+      const user = usersById.get(item.userId);
+      return {
+        ...item,
+        userEmail: user?.email ?? null,
+        userDisplayName: user?.displayName ?? null,
+      };
+    });
+    return { records, total: filtered.length };
+  }
+
+  // Idempotent: re-approving an already-approved record is a safe no-op — it
+  // returns the existing record and entitlement rather than minting a second
+  // grant of access. Not transactional in the JSON store (single in-process
+  // writer, no concurrent clients), unlike the Postgres store's version.
+  async approvePaymentRecord({ paymentRecordId, approvedByUserId, reason = null }) {
+    const record = await this.getPaymentRecord(paymentRecordId);
+    if (!record) return null;
+    if (record.status !== 'pending') {
+      return {
+        paymentRecord: record,
+        entitlement:
+          this.state.entitlements.find(
+            (item) => item.paymentRecordId === record.id,
+          ) ?? null,
+      };
+    }
+
+    const plan = await this.getPlan(record.planId);
+    const now = new Date();
+    const nowIso = now.toISOString();
+    record.status = 'approved';
+    record.approvedBy = approvedByUserId;
+    record.approvedAt = nowIso;
+    record.updatedAt = nowIso;
+
+    const entitlement = {
+      id: createId('ent'),
+      userId: record.userId,
+      planId: record.planId,
+      paymentRecordId: record.id,
+      status: 'active',
+      grantedAt: nowIso,
+      expiresAt: new Date(
+        now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000,
+      ).toISOString(),
+      revokedAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    this.state.entitlements.push(entitlement);
+
+    const user = await this.getUser(record.userId);
+    if (user) {
+      user.accountStatus = 'active';
+      user.subscriptionPlan = plan.title;
+      user.subscriptionStartedAt = nowIso;
+      user.updatedAt = nowIso;
+    }
+
+    this.#appendAuditEvent({
+      actorUserId: approvedByUserId,
+      action: 'payment_approved',
+      targetType: 'payment_record',
+      targetId: record.id,
+      previousStatus: 'pending',
+      newStatus: 'approved',
+      reason,
+    });
+
+    this.#saveAll();
+    return { paymentRecord: record, entitlement };
+  }
+
+  // Idempotent for the same reason as approvePaymentRecord: reversing an
+  // already-reversed record returns the current state rather than erroring
+  // or double-writing history.
+  async reversePaymentRecord({ paymentRecordId, actorUserId, reason = null }) {
+    const record = await this.getPaymentRecord(paymentRecordId);
+    if (!record) return null;
+    if (record.status !== 'approved') {
+      return { paymentRecord: record, entitlement: null };
+    }
+
+    const nowIso = new Date().toISOString();
+    record.status = 'reversed';
+    record.reversedBy = actorUserId;
+    record.reversedAt = nowIso;
+    record.updatedAt = nowIso;
+
+    const entitlement = this.state.entitlements.find(
+      (item) => item.paymentRecordId === record.id,
+    );
+    if (entitlement && entitlement.status === 'active') {
+      entitlement.status = 'revoked';
+      entitlement.revokedAt = nowIso;
+      entitlement.updatedAt = nowIso;
+    }
+
+    const user = await this.getUser(record.userId);
+    if (user) {
+      // A learner can in principle hold more than one entitlement (e.g. two
+      // approvals in quick succession); reversing one must not silently keep
+      // showing its plan as active once it's the only one left standing.
+      const remaining = this.state.entitlements.find(
+        (item) => item.userId === user.id && item.status === 'active',
+      );
+      if (remaining) {
+        const remainingPlan = await this.getPlan(remaining.planId);
+        user.accountStatus = 'active';
+        user.subscriptionPlan = remainingPlan?.title ?? null;
+        user.subscriptionStartedAt = remaining.grantedAt;
+      } else {
+        user.accountStatus = 'suspended';
+        user.subscriptionPlan = null;
+        user.subscriptionStartedAt = null;
+      }
+      user.updatedAt = nowIso;
+    }
+
+    this.#appendAuditEvent({
+      actorUserId,
+      action: 'payment_reversed',
+      targetType: 'payment_record',
+      targetId: record.id,
+      previousStatus: 'approved',
+      newStatus: 'reversed',
+      reason,
+    });
+
+    this.#saveAll();
+    return { paymentRecord: record, entitlement: entitlement ?? null };
+  }
+
+  async entitlementsForUser(userId) {
+    return this.state.entitlements.filter((item) => item.userId === userId);
+  }
+
+  async hasActiveEntitlement(userId) {
+    const now = Date.now();
+    return this.state.entitlements.some(
+      (item) =>
+        item.userId === userId &&
+        item.status === 'active' &&
+        Date.parse(item.expiresAt) > now,
+    );
+  }
+
+  async auditEventsFor({ targetType, targetId }) {
+    // Reversing insertion order rather than sorting by the millisecond-
+    // precision createdAt string: two events (e.g. approve then reverse)
+    // can land in the same millisecond, and a timestamp-string sort has no
+    // way to break that tie correctly. Array push order already is true
+    // chronological order and needs no tiebreak.
+    return this.state.auditEvents
+      .filter(
+        (item) => item.targetType === targetType && item.targetId === targetId,
+      )
+      .reverse();
+  }
+
+  #appendAuditEvent({
+    actorUserId,
+    action,
+    targetType,
+    targetId,
+    previousStatus = null,
+    newStatus = null,
+    reason = null,
+    metadata = {},
+  }) {
+    this.state.auditEvents.push({
+      id: createId('audit'),
+      actorUserId,
+      action,
+      targetType,
+      targetId,
+      previousStatus,
+      newStatus,
+      reason,
+      metadata,
+      createdAt: new Date().toISOString(),
+    });
   }
 
   approvedContentCourses() {
@@ -117,22 +383,57 @@ export class JsonStore {
     return record;
   }
 
-  async getUser(phoneNumber) {
+  async getUser(userId) {
+    return this.state.users.find((user) => user.id === userId);
+  }
+
+  async getUserByAuthUserId(authUserId) {
+    if (!authUserId) return undefined;
+    return this.state.users.find((user) => user.authUserId === authUserId);
+  }
+
+  async getUserByEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return undefined;
     return this.state.users.find(
-      (user) => user.phoneNumber === normalizePhoneNumber(phoneNumber),
+      (user) => normalizeEmail(user.email) === normalizedEmail,
     );
   }
 
-  async ensureUser(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const existing = await this.getUser(normalizedPhone);
-    if (existing) return existing;
+  // Called on every authenticated request with claims taken from the verified
+  // Supabase JWT, never from request input. An account created before
+  // Supabase Auth existed is matched by email and keeps its existing `id`, so
+  // every row that already points at that id (progress, community posts,
+  // moderation history) stays attached.
+  async linkOrCreateUserForAuth({ authUserId, email }) {
+    const normalizedEmail = normalizeEmail(email);
+    const linked = await this.getUserByAuthUserId(authUserId);
+    if (linked) {
+      if (normalizedEmail && linked.email !== normalizedEmail) {
+        linked.email = normalizedEmail;
+        linked.updatedAt = new Date().toISOString();
+        this.#saveAll();
+      }
+      return linked;
+    }
+
+    const existing = await this.getUserByEmail(normalizedEmail);
+    if (existing) {
+      existing.authUserId = authUserId;
+      existing.email = normalizedEmail;
+      existing.updatedAt = new Date().toISOString();
+      this.#saveAll();
+      return existing;
+    }
 
     const now = new Date().toISOString();
     const user = {
       id: createId('user'),
-      phoneNumber: normalizedPhone,
+      authUserId,
+      email: normalizedEmail,
+      phoneNumber: null,
       role: 'learner',
+      accountStatus: 'pending_activation',
       subscriptionPlan: null,
       subscriptionStartedAt: null,
       createdAt: now,
@@ -143,17 +444,28 @@ export class JsonStore {
     return user;
   }
 
-  async activateSubscription({ phoneNumber, planTitle }) {
-    const user = await this.ensureUser(phoneNumber);
+  async setAccountStatus({ userId, accountStatus }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+    user.accountStatus = accountStatus;
+    user.updatedAt = new Date().toISOString();
+    this.#saveAll();
+    return user;
+  }
+
+  async activateSubscription({ userId, planTitle }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
     user.subscriptionPlan = planTitle;
     user.subscriptionStartedAt = new Date().toISOString();
+    user.accountStatus = 'active';
     user.updatedAt = user.subscriptionStartedAt;
     this.#saveAll();
     return user;
   }
 
-  async cancelSubscription(phoneNumber) {
-    const user = await this.getUser(phoneNumber);
+  async cancelSubscription(userId) {
+    const user = await this.getUser(userId);
     if (!user) return null;
     user.subscriptionPlan = null;
     user.subscriptionStartedAt = null;
@@ -162,8 +474,9 @@ export class JsonStore {
     return user;
   }
 
-  async updateUserProfile(phoneNumber, { displayName, preferredLocation }) {
-    const user = await this.ensureUser(phoneNumber);
+  async updateUserProfile(userId, { displayName, preferredLocation }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
     if (displayName !== undefined) {
       const trimmed = typeof displayName === 'string' ? displayName.trim() : '';
       user.displayName = trimmed.length > 0 ? trimmed : null;
@@ -182,29 +495,30 @@ export class JsonStore {
     const query = String(search).trim().toLowerCase();
     const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
     const safeOffset = Math.max(0, Number(offset) || 0);
-    const activityByPhone = new Map();
-    const track = (phoneNumber, key) => {
-      const current = activityByPhone.get(phoneNumber) ?? {
+    const activityByUser = new Map();
+    const track = (userId, key) => {
+      if (!userId) return;
+      const current = activityByUser.get(userId) ?? {
         learningProgressCount: 0,
         paymentTransactionsCount: 0,
         notificationCount: 0,
         communityPostsCount: 0,
       };
       current[key] += 1;
-      activityByPhone.set(phoneNumber, current);
+      activityByUser.set(userId, current);
     };
     for (const item of this.state.learningProgress) {
-      track(item.phoneNumber, 'learningProgressCount');
+      track(item.userId, 'learningProgressCount');
     }
     for (const item of this.state.paymentTransactions) {
-      track(item.phoneNumber, 'paymentTransactionsCount');
+      track(item.userId, 'paymentTransactionsCount');
     }
     for (const item of this.state.notifications) {
-      track(item.phoneNumber, 'notificationCount');
+      track(item.userId, 'notificationCount');
     }
     for (const post of this.community.state.communityPosts) {
-      if (typeof post.authorPhone === 'string' && post.authorPhone) {
-        track(post.authorPhone, 'communityPostsCount');
+      if (typeof post.authorUserId === 'string' && post.authorUserId) {
+        track(post.authorUserId, 'communityPostsCount');
       }
     }
 
@@ -212,7 +526,7 @@ export class JsonStore {
       .filter((user) => {
         if (!query) return true;
         return (
-          String(user.phoneNumber).toLowerCase().includes(query) ||
+          String(user.email ?? '').toLowerCase().includes(query) ||
           String(user.displayName ?? '')
             .toLowerCase()
             .includes(query)
@@ -225,7 +539,7 @@ export class JsonStore {
       });
 
     const paged = sorted.slice(safeOffset, safeOffset + safeLimit).map((user) => {
-      const activity = activityByPhone.get(user.phoneNumber) ?? {
+      const activity = activityByUser.get(user.id) ?? {
         learningProgressCount: 0,
         paymentTransactionsCount: 0,
         notificationCount: 0,
@@ -233,10 +547,11 @@ export class JsonStore {
       };
       return {
         id: user.id,
-        phoneNumber: user.phoneNumber,
+        email: user.email ?? null,
         displayName: user.displayName ?? null,
         preferredLocation: user.preferredLocation ?? null,
         role: user.role ?? 'learner',
+        accountStatus: user.accountStatus ?? 'pending_activation',
         subscriptionPlan: user.subscriptionPlan ?? null,
         subscriptionStartedAt: user.subscriptionStartedAt ?? null,
         createdAt: user.createdAt,
@@ -248,13 +563,10 @@ export class JsonStore {
     return { users: paged, total: sorted.length };
   }
 
-  async notificationSettings(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async notificationSettings(userId) {
     return (
-      this.state.notificationSettings.find(
-        (item) => item.phoneNumber === normalizedPhone,
-      ) ?? {
-        phoneNumber: normalizedPhone,
+      this.state.notificationSettings.find((item) => item.userId === userId) ?? {
+        userId,
         enabled: true,
         communityReplies: true,
         moderationUpdates: true,
@@ -263,9 +575,8 @@ export class JsonStore {
     );
   }
 
-  async updateNotificationSettings({ phoneNumber, settings }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const current = await this.notificationSettings(normalizedPhone);
+  async updateNotificationSettings({ userId, settings }) {
+    const current = await this.notificationSettings(userId);
     const next = {
       ...current,
       enabled:
@@ -285,22 +596,19 @@ export class JsonStore {
       updatedAt: new Date().toISOString(),
     };
     this.state.notificationSettings =
-      this.state.notificationSettings.filter(
-        (item) => item.phoneNumber !== normalizedPhone,
-      );
+      this.state.notificationSettings.filter((item) => item.userId !== userId);
     this.state.notificationSettings.push(next);
     this.#saveAll();
     return next;
   }
 
-  async registerNotificationDevice({ phoneNumber, token, platform }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async registerNotificationDevice({ userId, token, platform }) {
     const now = new Date().toISOString();
     const existing = this.state.notificationDevices.find(
       (item) => item.token === token,
     );
     if (existing) {
-      existing.phoneNumber = normalizedPhone;
+      existing.userId = userId;
       existing.platform = platform;
       existing.updatedAt = now;
       this.#saveAll();
@@ -308,7 +616,7 @@ export class JsonStore {
     }
     const device = {
       id: createId('device'),
-      phoneNumber: normalizedPhone,
+      userId,
       token,
       platform,
       createdAt: now,
@@ -319,28 +627,24 @@ export class JsonStore {
     return device;
   }
 
-  async notificationDevices(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    return this.state.notificationDevices.filter(
-      (item) => item.phoneNumber === normalizedPhone,
-    );
+  async notificationDevices(userId) {
+    return this.state.notificationDevices.filter((item) => item.userId === userId);
   }
 
-  async notificationsFor(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async notificationsFor(userId) {
     return this.state.notifications
-      .filter((item) => item.phoneNumber === normalizedPhone)
+      .filter((item) => item.userId === userId)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
-  async createNotification({ phoneNumber, type, title, body, data = {} }) {
-    const settings = await this.notificationSettings(phoneNumber);
+  async createNotification({ userId, type, title, body, data = {} }) {
+    const settings = await this.notificationSettings(userId);
     if (!settings.enabled) return null;
     if (type === 'community_reply' && !settings.communityReplies) return null;
     if (type === 'moderation_update' && !settings.moderationUpdates) return null;
     const notification = {
       id: createId('notification'),
-      phoneNumber: normalizePhoneNumber(phoneNumber),
+      userId,
       type,
       title,
       body,
@@ -353,11 +657,9 @@ export class JsonStore {
     return notification;
   }
 
-  async markNotificationRead({ phoneNumber, notificationId }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async markNotificationRead({ userId, notificationId }) {
     const notification = this.state.notifications.find(
-      (item) =>
-        item.id === notificationId && item.phoneNumber === normalizedPhone,
+      (item) => item.id === notificationId && item.userId === userId,
     );
     if (!notification) return null;
     notification.readAt = notification.readAt ?? new Date().toISOString();
@@ -365,15 +667,11 @@ export class JsonStore {
     return notification;
   }
 
-  async learningProgress(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    return this.state.learningProgress.filter(
-      (item) => item.phoneNumber === normalizedPhone,
-    );
+  async learningProgress(userId) {
+    return this.state.learningProgress.filter((item) => item.userId === userId);
   }
 
-  async markLessonCompleted({ phoneNumber, courseId, lessonId }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async markLessonCompleted({ userId, courseId, lessonId }) {
     if (
       !hasApprovedLessonInCourses(
         this.approvedContentCourses(),
@@ -383,17 +681,16 @@ export class JsonStore {
     ) {
       return null;
     }
-    await this.ensureUser(normalizedPhone);
     const existing = this.state.learningProgress.find((item) => {
       return (
-        item.phoneNumber === normalizedPhone &&
+        item.userId === userId &&
         item.courseId === courseId &&
         item.lessonId === lessonId
       );
     });
     if (existing) return existing;
     const progress = {
-      phoneNumber: normalizedPhone,
+      userId,
       courseId,
       lessonId,
       completedAt: new Date().toISOString(),
@@ -405,65 +702,6 @@ export class JsonStore {
 
   communityPosts() {
     return this.community.communityPosts();
-  }
-
-  async otpRequestDelaySeconds(phoneNumber, cooldownMs = 60 * 1000) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const now = Date.now();
-    const latestChallenge = this.state.otpChallenges
-      .filter((item) => item.phoneNumber === normalizedPhone)
-      .map((item) => ({
-        ...item,
-        createdAt: item.createdAt ?? item.expiresAt - otpTtlMs,
-      }))
-      .sort((left, right) => right.createdAt - left.createdAt)[0];
-    if (!latestChallenge) return 0;
-    const nextAllowedAt = latestChallenge.createdAt + cooldownMs;
-    return Math.max(0, Math.ceil((nextAllowedAt - now) / 1000));
-  }
-
-  async createOtpChallenge({ phoneNumber, otp, deliveryProvider }) {
-    const now = Date.now();
-    const challenge = {
-      id: createId('otp'),
-      phoneNumber: normalizePhoneNumber(phoneNumber),
-      otpHash: hashOtp(otp),
-      createdAt: now,
-      expiresAt: now + otpTtlMs,
-      deliveryProvider,
-    };
-    this.state.otpChallenges = this.state.otpChallenges.filter(
-      (item) => item.expiresAt >= Date.now(),
-    );
-    this.state.otpChallenges.push(challenge);
-    this.#saveAll();
-    return challenge;
-  }
-
-  async consumeOtpChallenge({ challengeId, phoneNumber, otp }) {
-    const challenge = this.state.otpChallenges.find(
-      (item) => item.id === challengeId,
-    );
-    if (!challenge) return { status: 'missing' };
-    if (challenge.expiresAt < Date.now()) {
-      this.state.otpChallenges = this.state.otpChallenges.filter(
-        (item) => item.id !== challengeId,
-      );
-      this.#saveAll();
-      return { status: 'expired' };
-    }
-    const otpHash = challenge.otpHash ?? hashOtp(challenge.otp ?? '');
-    if (
-      challenge.phoneNumber !== phoneNumber ||
-      !verifyOtpHash(otp, otpHash)
-    ) {
-      return { status: 'invalid' };
-    }
-    this.state.otpChallenges = this.state.otpChallenges.filter(
-      (item) => item.id !== challengeId,
-    );
-    this.#saveAll();
-    return { status: 'verified' };
   }
 
   async createPaymentTransaction(transaction) {
@@ -482,7 +720,7 @@ export class JsonStore {
     if (transaction.status === 'paid') return transaction;
 
     const user = await this.activateSubscription({
-      phoneNumber: transaction.phoneNumber,
+      userId: transaction.userId,
       planTitle: transaction.planTitle,
     });
     transaction.status = 'paid';
@@ -515,8 +753,8 @@ export class JsonStore {
     return this.community.addCommunityReply(payload);
   }
 
-  communityPostAuthorPhone(postId) {
-    return this.community.communityPostAuthorPhone(postId);
+  communityPostAuthorUserId(postId) {
+    return this.community.communityPostAuthorUserId(postId);
   }
 
   reportCommunityPost(postId) {
@@ -531,13 +769,16 @@ export class JsonStore {
     return this.community.resolveCommunityReport(payload);
   }
 
-  async createAuthSession(phoneNumber) {
+  // Only used by the NODE_ENV=development dev-session issuer (see auth.js) so
+  // local dev and the server test suite can authenticate without a real
+  // Supabase Auth token. Production sessions come from Supabase JWTs and
+  // never touch this table.
+  async createAuthSession(userId) {
     await this.#purgeExpiredAuthSessions();
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const token = createSessionToken();
     const session = {
       token,
-      phoneNumber: normalizedPhone,
+      userId,
       createdAt: new Date().toISOString(),
       expiresAt: sessionExpiresAt(),
     };
@@ -550,7 +791,7 @@ export class JsonStore {
     await this.#purgeExpiredAuthSessions();
     const session = this.state.authSessions.find((item) => item.token === token);
     if (!session || isSessionExpired(session.expiresAt)) return null;
-    return { phoneNumber: session.phoneNumber };
+    return { userId: session.userId };
   }
 
   async #purgeExpiredAuthSessions() {
@@ -632,7 +873,6 @@ export class JsonStore {
       communityPosts: this.community.state.communityPosts,
       reportedPostIds: this.community.state.reportedPostIds,
       users: this.state.users,
-      otpChallenges: this.state.otpChallenges,
       paymentTransactions: this.state.paymentTransactions,
       authSessions: this.state.authSessions,
       learningProgress: this.state.learningProgress,
@@ -641,6 +881,10 @@ export class JsonStore {
       notifications: this.state.notifications,
       contentCourses: this.state.contentCourses,
       contentDocuments: this.state.contentDocuments,
+      plans: this.state.plans,
+      paymentRecords: this.state.paymentRecords,
+      entitlements: this.state.entitlements,
+      auditEvents: this.state.auditEvents,
     };
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const tmpPath = `${this.filePath}.tmp`;
@@ -649,10 +893,47 @@ export class JsonStore {
   }
 }
 
+// Mirrors the `plans` seed in server/store/schema.sql so the JSON store
+// (local dev, tests) and Postgres store expose identical plan ids/prices.
+const PLAN_SEED = [
+  {
+    id: 'wiki-1',
+    title: 'Wiki 1',
+    subtitle: 'Ufikiaji wa haraka',
+    priceTzs: 3000,
+    durationDays: 7,
+    icon: 'calendar_month',
+    recommended: false,
+    enabled: true,
+    sortOrder: 1,
+  },
+  {
+    id: 'mwezi-1',
+    title: 'Mwezi 1',
+    subtitle: 'Thamani bora zaidi',
+    priceTzs: 10000,
+    durationDays: 30,
+    icon: 'star',
+    recommended: true,
+    enabled: true,
+    sortOrder: 2,
+  },
+  {
+    id: 'mwaka-1',
+    title: 'Mwaka 1',
+    subtitle: 'Okoa TZS 20,000',
+    priceTzs: 100000,
+    durationDays: 365,
+    icon: 'trending_up',
+    recommended: false,
+    enabled: true,
+    sortOrder: 3,
+  },
+];
+
 function initialMutableState() {
   return {
     users: [],
-    otpChallenges: [],
     paymentTransactions: [],
     authSessions: [],
     learningProgress: [],
@@ -661,6 +942,10 @@ function initialMutableState() {
     notifications: [],
     contentCourses: [],
     contentDocuments: [],
+    plans: PLAN_SEED.map((plan) => ({ ...plan })),
+    paymentRecords: [],
+    entitlements: [],
+    auditEvents: [],
   };
 }
 
@@ -668,9 +953,6 @@ function normalizeMutableState(raw) {
   const seed = initialMutableState();
   return {
     users: Array.isArray(raw.users) ? raw.users : seed.users,
-    otpChallenges: Array.isArray(raw.otpChallenges)
-      ? raw.otpChallenges
-      : seed.otpChallenges,
     paymentTransactions: Array.isArray(raw.paymentTransactions)
       ? raw.paymentTransactions
       : seed.paymentTransactions,
@@ -695,6 +977,18 @@ function normalizeMutableState(raw) {
     contentDocuments: Array.isArray(raw.contentDocuments)
       ? raw.contentDocuments
       : seed.contentDocuments,
+    plans: Array.isArray(raw.plans) && raw.plans.length > 0
+      ? raw.plans
+      : seed.plans,
+    paymentRecords: Array.isArray(raw.paymentRecords)
+      ? raw.paymentRecords
+      : seed.paymentRecords,
+    entitlements: Array.isArray(raw.entitlements)
+      ? raw.entitlements
+      : seed.entitlements,
+    auditEvents: Array.isArray(raw.auditEvents)
+      ? raw.auditEvents
+      : seed.auditEvents,
   };
 }
 

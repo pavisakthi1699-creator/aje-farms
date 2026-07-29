@@ -43,20 +43,10 @@ class AppNotification {
 }
 
 abstract interface class NotificationService {
-  Future<NotificationInbox> inbox(String phoneNumber);
-  Future<NotificationSettings> updateSettings({
-    required String phoneNumber,
-    required bool enabled,
-  });
-  Future<void> registerDevice({
-    required String phoneNumber,
-    required String token,
-    required String platform,
-  });
-  Future<void> markRead({
-    required String phoneNumber,
-    required String notificationId,
-  });
+  Future<NotificationInbox> inbox();
+  Future<NotificationSettings> updateSettings({required bool enabled});
+  Future<void> registerDevice({required String token, required String platform});
+  Future<void> markRead({required String notificationId});
 }
 
 class NotificationException implements Exception {

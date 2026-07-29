@@ -15,18 +15,14 @@ class NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final phoneNumber = context.session.phoneNumber;
-    if (phoneNumber != null && context.session.isSignedIn) {
-      _inboxFuture ??= context.dependencies.notificationService.inbox(
-        phoneNumber,
-      );
+    if (context.session.isSignedIn) {
+      _inboxFuture ??= context.dependencies.notificationService.inbox();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final phoneNumber = context.session.phoneNumber;
-    final isSignedIn = phoneNumber != null && context.session.isSignedIn;
+    final isSignedIn = context.session.isSignedIn;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Arifa')),
@@ -94,10 +90,7 @@ class NotificationsScreenState extends State<NotificationsScreen> {
                                   : TextButton(
                                       onPressed: () {
                                         AppFeedback.tap();
-                                        _markRead(
-                                          phoneNumber,
-                                          notification.id,
-                                        );
+                                        _markRead(notification.id);
                                       },
                                       child: const Text('Soma'),
                                     ),
@@ -125,15 +118,13 @@ class NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Future<void> _markRead(String phoneNumber, String notificationId) async {
+  Future<void> _markRead(String notificationId) async {
     await context.dependencies.notificationService.markRead(
-      phoneNumber: phoneNumber,
       notificationId: notificationId,
     );
     if (!mounted) return;
     setState(() {
-      _inboxFuture =
-          context.dependencies.notificationService.inbox(phoneNumber);
+      _inboxFuture = context.dependencies.notificationService.inbox();
     });
   }
 

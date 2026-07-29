@@ -234,7 +234,7 @@ Lesson? _heroLesson(BuildContext context, Course course) {
 }
 
 void _openLessonPreview(BuildContext context, Course course, Lesson lesson) {
-  if (lesson.isPremium && !context.session.hasActiveSubscription) {
+  if (lesson.isPremium && !context.session.hasActiveAccess) {
     AppNavigator.pushPaywall(context);
     return;
   }

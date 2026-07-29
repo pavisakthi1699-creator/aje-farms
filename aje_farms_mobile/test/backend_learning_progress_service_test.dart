@@ -19,7 +19,7 @@ void main() {
         expect(request.method, 'GET');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/progress',
+          'http://localhost:3000/api/users/me/progress',
         );
         expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response(
@@ -29,7 +29,7 @@ void main() {
       }),
     );
 
-    final lessons = await service.completedLessons('+255712345678');
+    final lessons = await service.completedLessons();
 
     expect(lessons, {'pasheni:maandalizi-ya-shamba'});
   });
@@ -42,20 +42,19 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/progress/lessons',
+          'http://localhost:3000/api/users/me/progress/lessons',
         );
         expect(request.headers['Authorization'], 'Bearer token-abc');
         expect(request.body, contains('"courseId":"pasheni"'));
         expect(request.body, contains('"lessonId":"maandalizi-ya-shamba"'));
         return http.Response(
-          '{"phoneNumber":"+255712345678","courseId":"pasheni","lessonId":"maandalizi-ya-shamba","completedAt":"2026-07-06T10:00:00.000Z"}',
+          '{"userId":"user-1","courseId":"pasheni","lessonId":"maandalizi-ya-shamba","completedAt":"2026-07-06T10:00:00.000Z"}',
           200,
         );
       }),
     );
 
     await service.markLessonCompleted(
-      phoneNumber: '+255712345678',
       courseId: 'pasheni',
       lessonId: 'maandalizi-ya-shamba',
     );
@@ -70,7 +69,7 @@ void main() {
     );
 
     expect(
-      () => service.completedLessons('+255712345678'),
+      () => service.completedLessons(),
       throwsA(isA<LearningProgressException>()),
     );
   });

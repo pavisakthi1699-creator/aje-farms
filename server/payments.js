@@ -7,7 +7,7 @@ class DevelopmentPaymentProvider {
 
   isProductionReady = false;
 
-  startCheckout({ transactionId, planTitle, price, method, phoneNumber }) {
+  startCheckout({ transactionId, planTitle, price, method }) {
     const autoConfirmAt = new Date(Date.now() + 3000).toISOString();
     return {
       provider: 'development',
@@ -15,7 +15,6 @@ class DevelopmentPaymentProvider {
       status: 'pending',
       message: `Ombi la malipo ${price} kwa ${planTitle} limetumwa kupitia ${method}.`,
       checkoutInstructions:
-        `Thibitisha malipo kwenye simu ${phoneNumber}. ` +
         'Tutawasha kifurushi baada ya uthibitisho wa mtoa huduma.',
       autoConfirmAt,
     };

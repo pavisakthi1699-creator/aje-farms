@@ -44,6 +44,43 @@ abstract interface class AdminService {
     int limit = 50,
     int offset = 0,
   });
+
+  /// The server-owned plan catalog — staff pick a plan id here, never type a
+  /// price. See server/store/schema.sql `plans` table.
+  Future<List<AdminPlan>> listPlans();
+
+  Future<AdminPaymentsPage> listPayments({
+    String? status,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  /// Records a cash/bank-transfer payment. This alone does not grant access
+  /// — [approvePayment] does that.
+  Future<AdminPaymentRecord> recordPayment({
+    required String userId,
+    required String planId,
+    required String method,
+    required int amountTzs,
+    String? reference,
+    String? note,
+  });
+
+  /// Idempotent on the server: approving an already-approved record returns
+  /// the existing entitlement rather than minting a second one.
+  Future<AdminPaymentRecord> approvePayment(String paymentRecordId, {String? reason});
+
+  Future<AdminPaymentRecord> reversePayment(String paymentRecordId, {String? reason});
+
+  Future<List<AdminAuditEvent>> paymentAuditEvents(String paymentRecordId);
+}
+
+class AdminPaymentsPage {
+  const AdminPaymentsPage({required this.total, required this.records});
+
+  final int total;
+  final List<AdminPaymentRecord> records;
 }
 
 class AdminException implements Exception {

@@ -216,7 +216,7 @@ Future<void> _pumpAdminContent(
   AdminService adminService,
 ) async {
   final session = AppSessionController();
-  await session.signInWithPhone('+255799000111', role: 'admin');
+  await session.signInWithEmail('admin@aje.test', role: 'admin');
   final dependencies =
       AppDependencies.demo().copyWith(adminService: adminService);
 
@@ -351,4 +351,50 @@ class _RecordingAdminService implements AdminService {
     int offset = 0,
   }) async =>
       const AdminUsersPage(total: 0, users: []);
+
+  @override
+  Future<List<AdminPlan>> listPlans() async => const [];
+
+  @override
+  Future<AdminPaymentsPage> listPayments({
+    String? status,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async =>
+      const AdminPaymentsPage(total: 0, records: []);
+
+  @override
+  Future<AdminPaymentRecord> recordPayment({
+    required String userId,
+    required String planId,
+    required String method,
+    required int amountTzs,
+    String? reference,
+    String? note,
+  }) async {
+    throw const AdminException('not used');
+  }
+
+  @override
+  Future<AdminPaymentRecord> approvePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    throw const AdminException('not used');
+  }
+
+  @override
+  Future<AdminPaymentRecord> reversePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    throw const AdminException('not used');
+  }
+
+  @override
+  Future<List<AdminAuditEvent>> paymentAuditEvents(
+    String paymentRecordId,
+  ) async =>
+      const [];
 }

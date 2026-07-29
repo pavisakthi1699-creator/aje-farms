@@ -11,7 +11,7 @@ extension DashboardGreeting on AppSessionState {
     if (location != null && location.isNotEmpty) {
       return 'Karibu, mkulima wa $location';
     }
-    if (!isGuest && phoneNumber != null) {
+    if (!isGuest && email != null) {
       return 'Karibu tena';
     }
     return 'Karibu, Mkulima';

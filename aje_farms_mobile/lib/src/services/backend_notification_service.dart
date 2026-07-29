@@ -19,12 +19,10 @@ class BackendNotificationService implements NotificationService {
   final Duration timeout;
 
   @override
-  Future<NotificationInbox> inbox(String phoneNumber) async {
+  Future<NotificationInbox> inbox() async {
     final response = await _client
         .get(
-          _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/notifications',
-          ),
+          _baseUrl.resolve('/api/users/me/notifications'),
           headers: await _headers(),
         )
         .timeout(timeout);
@@ -39,14 +37,11 @@ class BackendNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> markRead({
-    required String phoneNumber,
-    required String notificationId,
-  }) async {
+  Future<void> markRead({required String notificationId}) async {
     final response = await _client
         .post(
           _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/notifications/${Uri.encodeComponent(notificationId)}/read',
+            '/api/users/me/notifications/${Uri.encodeComponent(notificationId)}/read',
           ),
           headers: await _headers(),
           body: '{}',
@@ -56,15 +51,10 @@ class BackendNotificationService implements NotificationService {
   }
 
   @override
-  Future<NotificationSettings> updateSettings({
-    required String phoneNumber,
-    required bool enabled,
-  }) async {
+  Future<NotificationSettings> updateSettings({required bool enabled}) async {
     final response = await _client
         .put(
-          _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/notifications/settings',
-          ),
+          _baseUrl.resolve('/api/users/me/notifications/settings'),
           headers: await _headers(),
           body: jsonEncode({'enabled': enabled}),
         )
@@ -75,15 +65,12 @@ class BackendNotificationService implements NotificationService {
 
   @override
   Future<void> registerDevice({
-    required String phoneNumber,
     required String token,
     required String platform,
   }) async {
     final response = await _client
         .post(
-          _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/notifications/devices',
-          ),
+          _baseUrl.resolve('/api/users/me/notifications/devices'),
           headers: await _headers(),
           body: jsonEncode({
             'token': token,

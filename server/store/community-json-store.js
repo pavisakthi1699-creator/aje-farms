@@ -30,7 +30,7 @@ export class CommunityJsonStore {
 
   createCommunityPost({
     author,
-    authorPhone,
+    authorUserId,
     content,
     location,
     tags,
@@ -43,7 +43,7 @@ export class CommunityJsonStore {
     const post = {
       id: createId('post'),
       author: author.trim(),
-      authorPhone: authorPhone ?? null,
+      authorUserId: authorUserId ?? null,
       location: location.trim(),
       time: 'Sasa hivi',
       content: content.trim(),
@@ -71,15 +71,15 @@ export class CommunityJsonStore {
     return null;
   }
 
-  communityPostAuthorPhone(postId) {
+  communityPostAuthorUserId(postId) {
     const post = this.state.communityPosts.find((item) => item.id === postId);
-    return post?.authorPhone ?? null;
+    return post?.authorUserId ?? null;
   }
 
-  addCommunityReply({ postId, author, authorPhone, body, isExpert = false }) {
+  addCommunityReply({ postId, author, authorUserId, body, isExpert = false }) {
     const reply = {
       author: author.trim(),
-      authorPhone: authorPhone ?? null,
+      authorUserId: authorUserId ?? null,
       body: body.trim(),
       time: 'Sasa hivi',
       isExpert,
@@ -116,13 +116,13 @@ export class CommunityJsonStore {
       .filter(Boolean);
   }
 
-  resolveCommunityReport({ postId, action, moderatorPhoneNumber }) {
+  resolveCommunityReport({ postId, action, moderatorUserId }) {
     const post = this.state.communityPosts.find((item) => item.id === postId);
     if (!post) return null;
     if (action === 'hide') {
       post.moderationStatus = 'hidden';
       post.moderatedAt = new Date().toISOString();
-      post.moderatedBy = moderatorPhoneNumber;
+      post.moderatedBy = moderatorUserId;
     }
     this.state.reportedPostIds = this.state.reportedPostIds.filter(
       (item) => item !== postId,
@@ -160,16 +160,16 @@ export class CommunityJsonStore {
   }
 }
 
-// `authorPhone` and `moderatedBy` hold phone numbers and must not reach the
-// unauthenticated `/api/community/posts` response.
+// `authorUserId` and `moderatedBy` hold internal user ids and must not reach
+// the unauthenticated `/api/community/posts` response.
 function toPublicReply(reply) {
-  const { authorPhone: _authorPhone, ...rest } = reply;
+  const { authorUserId: _authorUserId, ...rest } = reply;
   return rest;
 }
 
 function toPublicPost(post) {
   const {
-    authorPhone: _authorPhone,
+    authorUserId: _authorUserId,
     moderatedAt: _moderatedAt,
     moderatedBy: _moderatedBy,
     imagePath,

@@ -4,7 +4,7 @@ class LocalNotificationService implements NotificationService {
   const LocalNotificationService();
 
   @override
-  Future<NotificationInbox> inbox(String phoneNumber) async {
+  Future<NotificationInbox> inbox() async {
     return const NotificationInbox(
       settings: NotificationSettings(
         enabled: true,
@@ -17,16 +17,10 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> markRead({
-    required String phoneNumber,
-    required String notificationId,
-  }) async {}
+  Future<void> markRead({required String notificationId}) async {}
 
   @override
-  Future<NotificationSettings> updateSettings({
-    required String phoneNumber,
-    required bool enabled,
-  }) async {
+  Future<NotificationSettings> updateSettings({required bool enabled}) async {
     return NotificationSettings(
       enabled: enabled,
       communityReplies: true,
@@ -37,7 +31,6 @@ class LocalNotificationService implements NotificationService {
 
   @override
   Future<void> registerDevice({
-    required String phoneNumber,
     required String token,
     required String platform,
   }) async {}

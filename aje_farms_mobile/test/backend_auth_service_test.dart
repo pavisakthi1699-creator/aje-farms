@@ -6,101 +6,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+// signUp/signIn/signOut/sendPasswordResetEmail/updatePassword call the
+// Supabase Flutter SDK directly rather than the AJE backend, so they aren't
+// covered by this MockClient-based harness — that's Supabase's own tested
+// code path. What's tested here is everything BackendAuthService still owns:
+// reading the resulting profile/role/accountStatus from the AJE backend.
 void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
-  test('requests an OTP challenge from backend', () async {
-    late http.Request capturedRequest;
+  test('loads the current user session with bearer token', () async {
+    await BackendSessionStorage.writeToken('token-abc');
     final service = BackendAuthService(
       baseUrl: Uri.parse('http://localhost:3000'),
       client: MockClient((request) async {
-        capturedRequest = request;
+        expect(request.url.toString(), 'http://localhost:3000/api/users/me');
+        expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response(
-          '{"challengeId":"abc","message":"OTP imetumwa","debugOtp":"1234"}',
+          '{"user":{"id":"user-1","email":"farmer@aje.test","role":"learner","accountStatus":"active","subscriptionPlan":"Wiki 1","subscriptionStartedAt":"2026-07-02T10:00:00.000Z"}}',
           200,
         );
       }),
     );
 
-    final challenge = await service.requestOtp('+255 712345678');
+    final session = await service.getSession();
 
-    expect(challenge.challengeId, 'abc');
-    expect(challenge.message, 'OTP imetumwa');
-    expect(challenge.debugOtp, '1234');
-    expect(capturedRequest.url.toString(),
-        'http://localhost:3000/api/auth/request-otp');
-    expect(capturedRequest.body, contains('+255 712345678'));
-  });
-
-  test('verifies an OTP challenge with backend', () async {
-    final service = BackendAuthService(
-      baseUrl: Uri.parse('http://localhost:3000'),
-      client: MockClient((request) async {
-        expect(request.url.toString(),
-            'http://localhost:3000/api/auth/verify-otp');
-        expect(request.body, contains('"otp":"1234"'));
-        return http.Response(
-          '{"phoneNumber":"+255712345678","sessionToken":"token-abc","user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":"Mwezi 1","subscriptionStartedAt":"2026-07-02T10:00:00.000Z"}}',
-          200,
-        );
-      }),
-    );
-
-    final session = await service.verifyOtp(
-      phoneNumber: '+255 712345678',
-      otp: '1234',
-      challengeId: 'abc',
-    );
-
-    expect(session.phoneNumber, '+255712345678');
-    expect(session.sessionToken, 'token-abc');
+    expect(session.email, 'farmer@aje.test');
     expect(session.userId, 'user-1');
-    expect(session.role, 'learner');
-    expect(session.subscriptionPlan, 'Mwezi 1');
-    expect(session.hasActiveSubscription, isTrue);
-    expect(session.subscriptionStartedAt, isNotNull);
+    expect(session.subscriptionPlan, 'Wiki 1');
+    expect(session.hasActiveAccess, isTrue);
   });
 
   test('throws typed exception for backend auth errors', () {
     final service = BackendAuthService(
       baseUrl: Uri.parse('http://localhost:3000'),
       client: MockClient((_) async {
-        return http.Response('{"error":"OTP si sahihi"}', 401);
+        return http.Response('{"error":"Kikao kimeisha."}', 401);
       }),
     );
 
     expect(
-      () => service.requestOtp('+255 712345678'),
+      () => service.getSession(),
       throwsA(isA<AuthException>()),
     );
   });
 
-  test('loads a backend user session by phone with bearer token', () async {
-    await BackendSessionStorage.writeToken('token-abc');
-    final service = BackendAuthService(
-      baseUrl: Uri.parse('http://localhost:3000'),
-      client: MockClient((request) async {
-        expect(
-          request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678',
-        );
-        expect(request.headers['Authorization'], 'Bearer token-abc');
-        return http.Response(
-          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":"Wiki 1","subscriptionStartedAt":"2026-07-02T10:00:00.000Z"}}',
-          200,
-        );
-      }),
-    );
-
-    final session = await service.getSession('+255712345678');
-
-    expect(session.phoneNumber, '+255712345678');
-    expect(session.subscriptionPlan, 'Wiki 1');
-  });
-
-  test('updates backend profile by phone with bearer token', () async {
+  test('updates backend profile with bearer token', () async {
     await BackendSessionStorage.writeToken('token-abc');
     final service = BackendAuthService(
       baseUrl: Uri.parse('http://localhost:3000'),
@@ -108,18 +60,17 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/profile',
+          'http://localhost:3000/api/users/me/profile',
         );
         expect(request.body, contains('"displayName":"Asha"'));
         return http.Response(
-          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","displayName":"Asha","preferredLocation":"Morogoro","subscriptionPlan":null,"subscriptionStartedAt":null}}',
+          '{"user":{"id":"user-1","email":"farmer@aje.test","role":"learner","accountStatus":"active","displayName":"Asha","preferredLocation":"Morogoro","subscriptionPlan":null,"subscriptionStartedAt":null}}',
           200,
         );
       }),
     );
 
     final session = await service.updateProfile(
-      phoneNumber: '+255712345678',
       displayName: 'Asha',
       preferredLocation: 'Morogoro',
     );
@@ -128,7 +79,7 @@ void main() {
     expect(session.preferredLocation, 'Morogoro');
   });
 
-  test('cancels backend subscription by phone with bearer token', () async {
+  test('cancels backend subscription with bearer token', () async {
     await BackendSessionStorage.writeToken('token-abc');
     final service = BackendAuthService(
       baseUrl: Uri.parse('http://localhost:3000'),
@@ -136,19 +87,19 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/subscription/cancel',
+          'http://localhost:3000/api/users/me/subscription/cancel',
         );
         expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response(
-          '{"user":{"id":"user-1","phoneNumber":"+255712345678","role":"learner","subscriptionPlan":null,"subscriptionStartedAt":null}}',
+          '{"user":{"id":"user-1","email":"farmer@aje.test","role":"learner","accountStatus":"active","subscriptionPlan":null,"subscriptionStartedAt":null}}',
           200,
         );
       }),
     );
 
-    final session = await service.cancelSubscription('+255712345678');
+    final session = await service.cancelSubscription();
 
-    expect(session.phoneNumber, '+255712345678');
+    expect(session.email, 'farmer@aje.test');
     expect(session.subscriptionPlan, isNull);
   });
 
@@ -161,7 +112,7 @@ void main() {
         expect(request.url.toString(), 'http://localhost:3000/api/auth/whoami');
         expect(request.headers['Authorization'], 'Bearer token-admin');
         return http.Response(
-          '{"phoneNumber":"+255799000111","role":"admin","hasAdminAccess":true,"allowlistedAdmin":true,"source":"phone_allowlist"}',
+          '{"user":{"email":"admin@aje.test"},"role":"admin","hasAdminAccess":true,"allowlistedAdmin":true,"source":"email_allowlist"}',
           200,
         );
       }),
@@ -169,10 +120,10 @@ void main() {
 
     final diagnostics = await service.getAdminAccessDiagnostics();
 
-    expect(diagnostics.phoneNumber, '+255799000111');
+    expect(diagnostics.email, 'admin@aje.test');
     expect(diagnostics.role, 'admin');
     expect(diagnostics.hasAdminAccess, isTrue);
     expect(diagnostics.allowlistedAdmin, isTrue);
-    expect(diagnostics.source, 'phone_allowlist');
+    expect(diagnostics.source, 'email_allowlist');
   });
 }

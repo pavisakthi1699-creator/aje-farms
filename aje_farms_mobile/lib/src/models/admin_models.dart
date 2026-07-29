@@ -83,7 +83,8 @@ class AdminModerationReport {
 class AdminUserSummary {
   const AdminUserSummary({
     required this.id,
-    required this.phoneNumber,
+    required this.email,
+    required this.accountStatus,
     required this.displayName,
     required this.preferredLocation,
     required this.role,
@@ -98,7 +99,10 @@ class AdminUserSummary {
   });
 
   final String id;
-  final String phoneNumber;
+  final String? email;
+
+  /// 'pending_activation' | 'active' | 'suspended'.
+  final String accountStatus;
   final String? displayName;
   final String? preferredLocation;
   final String role;
@@ -110,6 +114,75 @@ class AdminUserSummary {
   final int paymentTransactionsCount;
   final int notificationCount;
   final int communityPostsCount;
+}
+
+class AdminPlan {
+  const AdminPlan({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.price,
+    required this.priceTzs,
+    required this.durationDays,
+    required this.recommended,
+  });
+
+  final String id;
+  final String title;
+  final String? subtitle;
+  final String price;
+  final int priceTzs;
+  final int durationDays;
+  final bool recommended;
+}
+
+/// 'pending' | 'approved' | 'reversed'. See server/store/schema.sql.
+class AdminPaymentRecord {
+  const AdminPaymentRecord({
+    required this.id,
+    required this.userId,
+    required this.userEmail,
+    required this.planId,
+    required this.method,
+    required this.amountTzs,
+    required this.currency,
+    required this.reference,
+    required this.note,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String? userEmail;
+  final String planId;
+  final String method;
+  final int amountTzs;
+  final String currency;
+  final String? reference;
+  final String? note;
+  final String status;
+  final DateTime createdAt;
+}
+
+class AdminAuditEvent {
+  const AdminAuditEvent({
+    required this.id,
+    required this.actorUserId,
+    required this.action,
+    required this.previousStatus,
+    required this.newStatus,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String? actorUserId;
+  final String action;
+  final String? previousStatus;
+  final String? newStatus;
+  final String? reason;
+  final DateTime createdAt;
 }
 
 class AdminUsersPage {

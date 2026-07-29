@@ -10,12 +10,12 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.session;
     final displayName = session.state.displayName;
-    final phoneLabel = displayName ?? session.phoneNumber ?? 'Mgeni';
+    final phoneLabel = displayName ?? session.email ?? 'Mgeni';
     final memberLabel = session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni';
     final subscriptionPlan = session.state.subscriptionPlan;
     final avatarLabel = _profileInitials(
       displayName: displayName,
-      phoneNumber: session.phoneNumber,
+      email: session.email,
       signedIn: session.isSignedIn,
     );
 
@@ -56,9 +56,9 @@ class ProfileScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                         textAlign: TextAlign.center,
                       ),
-                      if (displayName != null && session.phoneNumber != null)
+                      if (displayName != null && session.email != null)
                         Text(
-                          session.phoneNumber!,
+                          session.email!,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: context.colors.muted,
@@ -149,7 +149,7 @@ class ProfileScreen extends StatelessWidget {
                             AppNavigator.pushPaywall(context);
                           },
                           icon: const Icon(Icons.workspace_premium),
-                          label: const Text('Lipia Kifurushi Sasa'),
+                          label: const Text('Angalia Hali ya Uanachama'),
                         ),
                       )
                     else
@@ -169,11 +169,10 @@ class ProfileScreen extends StatelessWidget {
                               isDestructive: true,
                             );
                             if (!confirmed || !context.mounted) return;
-                            final phoneNumber = session.phoneNumber;
-                            if (phoneNumber != null) {
+                            if (session.isSignedIn) {
                               try {
                                 await context.dependencies.authService
-                                    .cancelSubscription(phoneNumber);
+                                    .cancelSubscription();
                               } on AuthException catch (error) {
                                 if (!context.mounted) return;
                                 showErrorSnack(context, error.message);
@@ -254,16 +253,16 @@ class ProfileScreen extends StatelessWidget {
               onPressed: () async {
                 AppFeedback.tap();
                 // Signing out drops the stored session; on a shared phone an
-                // accidental tap here means re-doing SMS verification.
+                // accidental tap here means signing in again with a password.
                 final confirmed = await confirmAction(
                   context,
                   title: 'Ondoka kwenye akaunti?',
-                  message:
-                      'Utahitaji kuthibitisha namba yako kwa OTP tena ili kuingia.',
+                  message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.',
                   confirmLabel: 'Ondoka',
                   isDestructive: true,
                 );
                 if (!confirmed || !context.mounted) return;
+                await context.dependencies.authService.signOut();
                 await session.signOut();
                 if (!context.mounted) return;
                 AppNavigator.replaceWithOnboarding(context);
@@ -394,7 +393,7 @@ class _AdminAccessDiagnosticsCardState
               )
             else if (diagnostics != null) ...[
               Text(
-                'Namba: ${diagnostics.phoneNumber}',
+                'Barua pepe: ${diagnostics.email}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -442,7 +441,7 @@ class _AdminAccessDiagnosticsCardState
 
 String _profileInitials({
   required String? displayName,
-  required String? phoneNumber,
+  required String? email,
   required bool signedIn,
 }) {
   final name = displayName?.trim();
@@ -454,9 +453,9 @@ String _profileInitials({
     }
     return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
-  final phone = phoneNumber?.trim();
-  if (phone != null && phone.length >= 2) {
-    return phone.substring(phone.length - 2);
+  final address = email?.trim();
+  if (address != null && address.isNotEmpty) {
+    return address.substring(0, address.length >= 2 ? 2 : 1).toUpperCase();
   }
   return signedIn ? 'MF' : 'AJE';
 }
@@ -647,10 +646,9 @@ class SettingsScreenState extends State<SettingsScreen> {
     final session = context.session;
     final displayName = _displayNameController.text.trim();
     final location = _locationController.text.trim();
-    if (session.isSignedIn && session.phoneNumber != null) {
+    if (session.isSignedIn) {
       try {
         final profile = await context.dependencies.authService.updateProfile(
-          phoneNumber: session.phoneNumber!,
           displayName: displayName,
           preferredLocation: location,
         );

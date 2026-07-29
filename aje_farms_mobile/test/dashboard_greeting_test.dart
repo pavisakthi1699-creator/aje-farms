@@ -11,7 +11,7 @@ void main() {
   test('signed-in greeting welcomes returning farmer', () {
     const state = AppSessionState(
       hasStarted: true,
-      phoneNumber: '+255712345678',
+      email: 'farmer@aje.test',
     );
     expect(state.dashboardGreeting, 'Karibu tena');
   });
@@ -19,7 +19,7 @@ void main() {
   test('location greeting names the farmer region', () {
     const state = AppSessionState(
       hasStarted: true,
-      phoneNumber: '+255712345678',
+      email: 'farmer@aje.test',
       preferredLocation: 'Morogoro',
     );
     expect(state.dashboardGreeting, 'Karibu, mkulima wa Morogoro');
@@ -28,7 +28,7 @@ void main() {
   test('display name takes priority over location', () {
     const state = AppSessionState(
       hasStarted: true,
-      phoneNumber: '+255712345678',
+      email: 'farmer@aje.test',
       displayName: 'Asha',
       preferredLocation: 'Morogoro',
     );

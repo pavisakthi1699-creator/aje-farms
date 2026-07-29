@@ -166,83 +166,77 @@ void main() {
     );
   }
 
+  // The email/password + forgot-password form doesn't fit the default
+  // 800x600 test surface, so the submit button never becomes hit-testable.
+  void useTallViewport(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  }
+
   group('auth inline validation', () {
-    testWidgets('rejects a short phone number inline rather than via snack bar',
+    testWidgets('rejects an invalid email inline rather than via snack bar',
         (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(wrapAuth());
 
-      await tester.enterText(find.byType(EditableText).first, '12');
-      await tester.tap(find.text('Tuma OTP'));
+      await tester.enterText(find.byType(EditableText).first, 'not-an-email');
+      await tester.ensureVisible(find.text('Ingia Sasa'));
+      await tester.tap(find.text('Ingia Sasa'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Namba ya simu inahitaji tarakimu 9 au zaidi.'),
-        findsOneWidget,
-      );
-      // No OTP field should have appeared, i.e. the request was not sent.
-      expect(find.byType(EditableText), findsOneWidget);
+      expect(find.text('Weka barua pepe sahihi.'), findsOneWidget);
+      // No navigation should have happened, i.e. sign-in was not attempted.
+      expect(find.byType(AuthScreen), findsOneWidget);
     });
 
-    testWidgets('rejects non-numeric input', (tester) async {
+    testWidgets('rejects a short password', (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(wrapAuth());
 
-      await tester.enterText(find.byType(EditableText).first, '7123abcde');
-      await tester.tap(find.text('Tuma OTP'));
+      await tester.enterText(find.byType(EditableText).at(0), 'mkulima@aje.test');
+      await tester.enterText(find.byType(EditableText).at(1), '123');
+      await tester.ensureVisible(find.text('Ingia Sasa'));
+      await tester.tap(find.text('Ingia Sasa'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Tumia tarakimu tu, bila nafasi au alama.'),
+        find.text('Nenosiri linahitajika kuwa na angalau tarakimu 6.'),
         findsOneWidget,
       );
     });
 
     testWidgets('clears the inline error once the user edits the field',
         (tester) async {
+      useTallViewport(tester);
       await tester.pumpWidget(wrapAuth());
 
-      await tester.enterText(find.byType(EditableText).first, '12');
-      await tester.tap(find.text('Tuma OTP'));
+      await tester.enterText(find.byType(EditableText).first, 'not-an-email');
+      await tester.ensureVisible(find.text('Ingia Sasa'));
+      await tester.tap(find.text('Ingia Sasa'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Namba ya simu inahitaji tarakimu 9 au zaidi.'),
-        findsOneWidget,
-      );
+      expect(find.text('Weka barua pepe sahihi.'), findsOneWidget);
 
-      await tester.enterText(find.byType(EditableText).first, '712345678');
+      await tester.enterText(find.byType(EditableText).first, 'mkulima@aje.test');
       // InputDecorator fades the error out, so settle past the animation.
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Namba ya simu inahitaji tarakimu 9 au zaidi.'),
-        findsNothing,
-      );
+      expect(find.text('Weka barua pepe sahihi.'), findsNothing);
     });
 
-    testWidgets('offers resend on cooldown after a successful OTP request',
+    testWidgets('offers a forgot-password affordance in sign-in mode',
         (tester) async {
       await tester.pumpWidget(wrapAuth());
 
-      await tester.enterText(find.byType(EditableText).first, '712345678');
-      await tester.tap(find.text('Tuma OTP'));
-      await tester.pumpAndSettle();
-
-      // Cooldown matches the server-side 60s per-number rate limit.
-      expect(find.text('Tuma tena baada ya sekunde 60'), findsOneWidget);
-      final resend = tester.widget<TextButton>(
-        find.ancestor(
-          of: find.text('Tuma tena baada ya sekunde 60'),
-          matching: find.byType(TextButton),
-        ),
-      );
-      expect(resend.onPressed, isNull);
+      expect(find.text('Umesahau nenosiri?'), findsOneWidget);
     });
 
-    testWidgets('phone and OTP fields declare autofill hints', (tester) async {
+    testWidgets('email and password fields declare autofill hints',
+        (tester) async {
       await tester.pumpWidget(wrapAuth());
-
-      await tester.enterText(find.byType(EditableText).first, '712345678');
-      await tester.tap(find.text('Tuma OTP'));
-      await tester.pumpAndSettle();
 
       final hints = tester
           .widgetList<TextField>(find.byType(TextField))
@@ -251,9 +245,8 @@ void main() {
           .expand((hint) => hint)
           .toList();
 
-      expect(hints, contains(AutofillHints.telephoneNumber));
-      // Lets the platform auto-populate the code straight from the SMS.
-      expect(hints, contains(AutofillHints.oneTimeCode));
+      expect(hints, contains(AutofillHints.email));
+      expect(hints, contains(AutofillHints.password));
     });
   });
 
@@ -274,7 +267,7 @@ void main() {
     testWidgets('sign out asks first and stays signed in when cancelled',
         (tester) async {
       final session = AppSessionController();
-      await session.signInWithPhone('+255700111222', role: 'learner');
+      await session.signInWithEmail('learner@aje.test', role: 'learner');
       await openProfile(tester, session);
 
       await tester.scrollUntilVisible(
@@ -296,7 +289,7 @@ void main() {
 
     testWidgets('sign out proceeds when confirmed', (tester) async {
       final session = AppSessionController();
-      await session.signInWithPhone('+255700111222', role: 'learner');
+      await session.signInWithEmail('learner@aje.test', role: 'learner');
       await openProfile(tester, session);
 
       await tester.scrollUntilVisible(
@@ -322,7 +315,7 @@ void main() {
       required AdminService adminService,
     }) async {
       final session = AppSessionController();
-      await session.signInWithPhone('+255799000111', role: 'admin');
+      await session.signInWithEmail('admin@aje.test', role: 'admin');
 
       final demo = AppDependencies.demo();
       await tester.pumpWidget(

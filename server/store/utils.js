@@ -1,7 +1,5 @@
 import crypto from 'node:crypto';
 
-export const otpTtlMs = 10 * 60 * 1000;
-
 export function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -129,19 +127,28 @@ export function normalizePhoneNumber(value) {
   return `+${digits}`;
 }
 
-function otpPepper() {
+// Email is the sign-in identifier, so it is compared case-insensitively and
+// stored in the same normalized form the unique index uses (lower(email)).
+// Returns null rather than '' so it maps cleanly onto a nullable column.
+export function normalizeEmail(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function displayNamePepper() {
   return process.env.AJE_OTP_PEPPER ?? 'aje-farms-dev-otp-pepper';
 }
 
 // Community posts are served by an unauthenticated endpoint, so the stored
-// author label must never be a phone number. Falls back to a stable
-// pseudonymous handle when the user has not set a display name.
-export function communityDisplayName(user, phoneNumber) {
+// author label must never reveal the user's internal id. Falls back to a
+// stable pseudonymous handle when the user has not set a display name.
+export function communityDisplayName(user, userId) {
   const displayName = String(user?.displayName ?? '').trim();
   if (displayName) return displayName;
   const suffix = crypto
     .createHash('sha256')
-    .update(`${normalizePhoneNumber(phoneNumber)}:${otpPepper()}`)
+    .update(`${userId}:${displayNamePepper()}`)
     .digest('hex')
     .slice(0, 4);
   return `Mkulima ${suffix}`;
@@ -227,25 +234,13 @@ export function isValidLessonVideoPath(videoPath) {
   );
 }
 
-export function hashOtp(otp) {
-  return crypto
-    .createHash('sha256')
-    .update(`${otp}:${otpPepper()}`)
-    .digest('hex');
-}
-
-export function verifyOtpHash(otp, otpHash) {
-  const candidate = hashOtp(otp);
-  const left = Buffer.from(candidate, 'utf8');
-  const right = Buffer.from(otpHash, 'utf8');
-  if (left.length !== right.length) return false;
-  return crypto.timingSafeEqual(left, right);
-}
-
 export function userFromRow(row) {
   return {
     id: row.id,
-    phoneNumber: row.phone_number,
+    phoneNumber: row.phone_number ?? null,
+    email: row.email ?? null,
+    authUserId: row.auth_user_id ?? null,
+    accountStatus: row.account_status,
     role: row.role,
     subscriptionPlan: row.subscription_plan,
     subscriptionStartedAt: row.subscription_started_at
@@ -264,7 +259,7 @@ export function paymentFromRow(row) {
     planTitle: row.plan_title,
     price: row.price,
     method: row.method,
-    phoneNumber: row.phone_number,
+    userId: row.user_id,
     status: row.status,
     message: row.message,
     receiptNumber: row.receipt_number,

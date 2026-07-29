@@ -40,7 +40,7 @@ void main() {
 
   test('a submitted post keeps its image URL across a restart', () async {
     final session = AppSessionController();
-    await session.signInWithPhone('+255700000001');
+    await session.signInWithEmail('farmer@aje.test');
     await session.addCommunityPostRecord(post);
 
     final restored = AppSessionController();
@@ -53,7 +53,7 @@ void main() {
 
   test('a local post is dropped once the server feed carries it', () async {
     final session = AppSessionController();
-    await session.signInWithPhone('+255700000001');
+    await session.signInWithEmail('farmer@aje.test');
     await session.addCommunityPostRecord(post);
 
     final merged = session.state.communityPostsMergedWith([post]);
@@ -68,7 +68,7 @@ void main() {
 
   test('a local post still shows before the server feed catches up', () async {
     final session = AppSessionController();
-    await session.signInWithPhone('+255700000001');
+    await session.signInWithEmail('farmer@aje.test');
     await session.addCommunityPostRecord(post);
 
     final merged = session.state.communityPostsMergedWith(const []);

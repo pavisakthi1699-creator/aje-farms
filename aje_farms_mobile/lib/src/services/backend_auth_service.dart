@@ -2,10 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 import 'auth_service.dart';
 import 'backend_session_storage.dart';
 
+/// Identity itself (sign up, sign in, sign out, password reset) is handled
+/// entirely by Supabase Auth via the `supabase_flutter` SDK. Everything else
+/// — role, account status, subscription, profile — is server-owned data read
+/// from the AJE backend, authenticated with the Supabase access token (see
+/// [BackendSessionStorage]).
 class BackendAuthService implements AuthService {
   BackendAuthService({
     required Uri baseUrl,
@@ -18,47 +24,65 @@ class BackendAuthService implements AuthService {
   final http.Client _client;
   final Duration timeout;
 
-  @override
-  Future<OtpChallenge> requestOtp(String phoneNumber) async {
-    final response = await _post('/api/auth/request-otp', {
-      'phoneNumber': phoneNumber,
-    });
+  supabase.GoTrueClient get _auth => supabase.Supabase.instance.client.auth;
 
-    return OtpChallenge(
-      challengeId: response['challengeId'] as String,
-      message: response['message'] as String,
-      debugOtp: response['debugOtp'] as String?,
-    );
+  @override
+  bool get hasLocalSession => _auth.currentSession != null;
+
+  @override
+  Future<void> signUp({required String email, required String password}) async {
+    try {
+      await _auth.signUp(email: email, password: password);
+    } on supabase.AuthException catch (error) {
+      throw AuthException(_friendlyAuthError(error));
+    }
   }
 
   @override
-  Future<AuthSession> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    required String challengeId,
-  }) async {
-    final response = await _post('/api/auth/verify-otp', {
-      'phoneNumber': phoneNumber,
-      'otp': otp,
-      'challengeId': challengeId,
-    });
+  Future<void> signIn({required String email, required String password}) async {
+    try {
+      await _auth.signInWithPassword(email: email, password: password);
+    } on supabase.AuthException catch (error) {
+      throw AuthException(_friendlyAuthError(error));
+    }
+  }
 
+  @override
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'ajefarms://login-callback',
+      );
+    } on supabase.AuthException catch (error) {
+      throw AuthException(_friendlyAuthError(error));
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _auth.updateUser(supabase.UserAttributes(password: newPassword));
+    } on supabase.AuthException catch (error) {
+      throw AuthException(_friendlyAuthError(error));
+    }
+  }
+
+  @override
+  Future<AuthSession> getSession() async {
+    final response = await _get('/api/users/me', authenticated: true);
     return _sessionFromResponse(response);
   }
 
   @override
-  Future<AuthSession> getSession(String phoneNumber) async {
-    final response = await _get(
-      '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}',
-      authenticated: true,
-    );
-    return _sessionFromResponse(response);
-  }
-
-  @override
-  Future<AuthSession> cancelSubscription(String phoneNumber) async {
+  Future<AuthSession> cancelSubscription() async {
     final response = await _post(
-      '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/subscription/cancel',
+      '/api/users/me/subscription/cancel',
       const {},
       authenticated: true,
     );
@@ -67,12 +91,11 @@ class BackendAuthService implements AuthService {
 
   @override
   Future<AuthSession> updateProfile({
-    required String phoneNumber,
     String? displayName,
     String? preferredLocation,
   }) async {
     final response = await _post(
-      '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/profile',
+      '/api/users/me/profile',
       {
         if (displayName != null) 'displayName': displayName,
         if (preferredLocation != null) 'preferredLocation': preferredLocation,
@@ -85,8 +108,10 @@ class BackendAuthService implements AuthService {
   @override
   Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() async {
     final response = await _get('/api/auth/whoami', authenticated: true);
+    final user = response['user'];
     return AdminAccessDiagnostics(
-      phoneNumber: response['phoneNumber'] as String,
+      email: (user is Map<String, dynamic> ? user['email'] as String? : null) ??
+          '',
       role: response['role'] as String? ?? 'learner',
       hasAdminAccess: response['hasAdminAccess'] as bool? ?? false,
       allowlistedAdmin: response['allowlistedAdmin'] as bool? ?? false,
@@ -154,26 +179,46 @@ class BackendAuthService implements AuthService {
 
 AuthSession _sessionFromResponse(Map<String, dynamic> response) {
   final user = response['user'];
-  if (user is Map<String, dynamic>) {
-    return AuthSession(
-      phoneNumber: (response['phoneNumber'] as String?) ??
-          (user['phoneNumber'] as String),
-      userId: user['id'] as String?,
-      role: user['role'] as String?,
-      subscriptionPlan: user['subscriptionPlan'] as String?,
-      subscriptionStartedAt: _dateTimeFromJson(user['subscriptionStartedAt']),
-      sessionToken: response['sessionToken'] as String?,
-      displayName: user['displayName'] as String?,
-      preferredLocation: user['preferredLocation'] as String?,
-    );
+  if (user is! Map<String, dynamic>) {
+    throw const AuthException('Auth service returned an invalid response.');
   }
-
   return AuthSession(
-    phoneNumber: response['phoneNumber'] as String,
-    sessionToken: response['sessionToken'] as String?,
+    email: user['email'] as String? ?? '',
+    userId: user['id'] as String?,
+    role: user['role'] as String?,
+    accountStatus:
+        (response['accountStatus'] ?? user['accountStatus']) as String?,
+    subscriptionPlan: user['subscriptionPlan'] as String?,
+    subscriptionStartedAt: _dateTimeFromJson(user['subscriptionStartedAt']),
+    displayName: user['displayName'] as String?,
+    preferredLocation: user['preferredLocation'] as String?,
   );
 }
 
 DateTime? _dateTimeFromJson(Object? value) {
   return value is String ? DateTime.tryParse(value) : null;
+}
+
+/// Supabase's own error messages are in English and sometimes overly
+/// technical; translate the common ones so the auth screen reads in Swahili
+/// like the rest of the app.
+String _friendlyAuthError(supabase.AuthException error) {
+  final message = error.message.toLowerCase();
+  if (message.contains('invalid login credentials')) {
+    return 'Barua pepe au nenosiri si sahihi.';
+  }
+  if (message.contains('user already registered') ||
+      message.contains('already registered')) {
+    return 'Akaunti ya barua pepe hii tayari ipo. Jaribu kuingia.';
+  }
+  if (message.contains('password should be at least')) {
+    return 'Nenosiri linahitajika kuwa na angalau tarakimu 6.';
+  }
+  if (message.contains('email not confirmed')) {
+    return 'Thibitisha barua pepe yako kabla ya kuingia. Angalia inbox yako.';
+  }
+  if (message.contains('rate limit')) {
+    return 'Majaribio mengi. Subiri kidogo kabla ya kujaribu tena.';
+  }
+  return error.message;
 }

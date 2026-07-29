@@ -18,18 +18,38 @@ Postgres/Supabase.
 - **The admin dashboard lives only in Flutter**
   (`lib/src/features/admin/admin_dashboard_screen.dart`), reached from Profile
   when `session.isAdmin`.
+- **Identity is email/password via Supabase Auth, not phone/OTP.** The Flutter
+  client calls the Supabase SDK directly for sign-up/sign-in/sign-out/password
+  reset (`BackendAuthService`); the AJE API only verifies the resulting
+  Supabase JWT (`server/auth.js`, `requireAuthSession`) and owns
+  role/accountStatus/profile. `phone_number` is now optional contact info on
+  `users`, never the identity key. In `NODE_ENV=development` only, a
+  `POST /api/auth/dev-session` bypass exists for local/test sign-in without a
+  real Supabase project.
 - **Admin access has two sources:** a stored `users.role = 'admin'`, or the
-  `AJE_ADMIN_PHONE_NUMBERS` env allowlist. See `server/auth.js`. There is no
-  API endpoint that writes `users.role`.
-- **Community `author` is a public display label, never a phone number.**
+  `AJE_ADMIN_EMAILS` env allowlist. See `server/auth.js`. There is no API
+  endpoint that writes `users.role`.
+- **Paid access is staff-approved, not self-service.** There is no in-app
+  checkout. Staff record a cash/bank-transfer payment against a server-owned
+  plan id (`plans` table) from the admin dashboard's "Malipo" tab, then
+  approve it — only approval creates an `entitlements` row, which is the only
+  thing `hasActiveAccess`/`accountStatus` gate on. Every approval/reversal
+  writes an immutable `audit_events` row. See `server/store/schema.sql` and
+  `POST /api/admin/payments*`. The Flutter paywall screen (`PaywallScreen`)
+  shows status and a refresh button only — never payment instructions or bank
+  details, per Google Play policy for digital access.
+- **Community `author` is a public display label, never an internal id.**
   `/api/community/posts` is unauthenticated. Authorship is derived server-side
-  from the session into the private `author_phone` column. See
+  from the session into the private `author_user_id` column. See
   `communityDisplayName` in `server/store/utils.js`.
-- **Subscription plans come from the server** (`server/catalog.js`), not the
-  Flutter constants in `demo_app_repository.dart` — those are only an offline
-  seed. Price changes ship without an APK rebuild.
-- **`AJE_API_BASE_URL` is a compile-time constant** (`--dart-define`). Pointing
-  the app at a different backend requires a rebuild.
+- **Subscription plans come from the server** (`plans` table via
+  `GET /api/admin/plans` / `catalogSnapshot().plans`), not the Flutter
+  constants in `demo_app_repository.dart` — those are only an offline seed.
+  Price changes ship without an APK rebuild.
+- **`AJE_API_BASE_URL` and Supabase project config are compile-time
+  constants** (`--dart-define`; see `lib/main.dart` for the Supabase
+  URL/publishable-key defaults). Pointing the app at a different backend or
+  Supabase project requires a rebuild.
 
 ## Commands
 
@@ -53,14 +73,18 @@ cd aje_farms_mobile && flutter run --debug --dart-define=AJE_API_BASE_URL=http:/
 
 ## Gotchas
 
-- `.env` holds live Africa's Talking credentials. Any local run that exercises
-  OTP must set `AJE_SMS_PROVIDER=development`, or it sends **real SMS**.
-- OTP requests are rate limited to one per phone number per 60s.
-- `debugOtp` is only returned when `NODE_ENV=development` or
-  `AJE_ENABLE_DEBUG_OTP=true`, and only by the development SMS sender.
+- Auth verification always calls Supabase (`SUPABASE_URL` /
+  `SUPABASE_SERVICE_ROLE_KEY` must be set), regardless of `AJE_STORE` — the
+  Postgres/JSON store choice is independent of where identity is verified.
+- The `POST /api/auth/dev-session` bypass is gated on `NODE_ENV=development`
+  or `AJE_ENABLE_DEBUG_OTP=true`; release preflight blocks the latter.
 - Video and PDF endpoints require a session. External viewers cannot send an
   `Authorization` header, so clients resolve `/api/lessons/:id/video-url` over
   an authenticated call and then open the returned URL.
+- Supabase Auth's Redirect URLs allowlist (dashboard → Authentication → URL
+  Configuration) must include `ajefarms://login-callback`, or password-reset
+  links silently fall back to the default Site URL instead of deep-linking
+  into the app.
 
 ## Skill routing
 

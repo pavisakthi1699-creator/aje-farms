@@ -235,6 +235,107 @@ class BackendAdminService implements AdminService {
     );
   }
 
+  @override
+  Future<List<AdminPlan>> listPlans() async {
+    final payload = await _get('/api/admin/plans');
+    final rows = (payload['plans'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_adminPlanFromJson).toList();
+  }
+
+  @override
+  Future<AdminPaymentsPage> listPayments({
+    String? status,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final query = <String, String>{
+      if (status != null) 'status': status,
+      if (userId != null) 'userId': userId,
+      'limit': '$limit',
+      'offset': '$offset',
+    };
+    final uri = _baseUrl
+        .resolve('/api/admin/payments')
+        .replace(queryParameters: query);
+    final payload = await _request(uri, method: _HttpMethod.get);
+    final rows = (payload['records'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return AdminPaymentsPage(
+      total: (payload['total'] as num?)?.toInt() ?? 0,
+      records: rows.map(_adminPaymentRecordFromJson).toList(),
+    );
+  }
+
+  @override
+  Future<AdminPaymentRecord> recordPayment({
+    required String userId,
+    required String planId,
+    required String method,
+    required int amountTzs,
+    String? reference,
+    String? note,
+  }) async {
+    final payload = await _post('/api/admin/payments', {
+      'userId': userId,
+      'planId': planId,
+      'method': method,
+      'amountTzs': amountTzs,
+      if (reference != null) 'reference': reference,
+      if (note != null) 'note': note,
+    });
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException('Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<AdminPaymentRecord> approvePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    final payload = await _post(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/approve',
+      {if (reason != null) 'reason': reason},
+    );
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException('Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<AdminPaymentRecord> reversePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    final payload = await _post(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/reverse',
+      {if (reason != null) 'reason': reason},
+    );
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException('Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<List<AdminAuditEvent>> paymentAuditEvents(
+    String paymentRecordId,
+  ) async {
+    final payload = await _get(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/audit',
+    );
+    final rows = (payload['events'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_adminAuditEventFromJson).toList();
+  }
+
   Future<Map<String, dynamic>> _get(String path) async {
     return _request(_baseUrl.resolve(path), method: _HttpMethod.get);
   }
@@ -366,7 +467,8 @@ AdminModerationReport _moderationReportFromJson(Map<String, dynamic> json) {
 AdminUserSummary _adminUserFromJson(Map<String, dynamic> json) {
   return AdminUserSummary(
     id: json['id'] as String,
-    phoneNumber: json['phoneNumber'] as String,
+    email: json['email'] as String?,
+    accountStatus: json['accountStatus'] as String? ?? 'pending_activation',
     displayName: json['displayName'] as String?,
     preferredLocation: json['preferredLocation'] as String?,
     role: json['role'] as String? ?? 'learner',
@@ -382,6 +484,46 @@ AdminUserSummary _adminUserFromJson(Map<String, dynamic> json) {
         (json['paymentTransactionsCount'] as num?)?.toInt() ?? 0,
     notificationCount: (json['notificationCount'] as num?)?.toInt() ?? 0,
     communityPostsCount: (json['communityPostsCount'] as num?)?.toInt() ?? 0,
+  );
+}
+
+AdminPlan _adminPlanFromJson(Map<String, dynamic> json) {
+  return AdminPlan(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    subtitle: json['subtitle'] as String?,
+    price: json['price'] as String,
+    priceTzs: (json['priceTzs'] as num).toInt(),
+    durationDays: (json['durationDays'] as num).toInt(),
+    recommended: json['recommended'] as bool? ?? false,
+  );
+}
+
+AdminPaymentRecord _adminPaymentRecordFromJson(Map<String, dynamic> json) {
+  return AdminPaymentRecord(
+    id: json['id'] as String,
+    userId: json['userId'] as String,
+    userEmail: json['userEmail'] as String?,
+    planId: json['planId'] as String,
+    method: json['method'] as String,
+    amountTzs: (json['amountTzs'] as num).toInt(),
+    currency: json['currency'] as String? ?? 'TZS',
+    reference: json['reference'] as String?,
+    note: json['note'] as String?,
+    status: json['status'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
+}
+
+AdminAuditEvent _adminAuditEventFromJson(Map<String, dynamic> json) {
+  return AdminAuditEvent(
+    id: json['id'] as String,
+    actorUserId: json['actorUserId'] as String?,
+    action: json['action'] as String,
+    previousStatus: json['previousStatus'] as String?,
+    newStatus: json['newStatus'] as String?,
+    reason: json['reason'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
   );
 }
 

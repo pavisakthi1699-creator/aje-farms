@@ -195,7 +195,7 @@ void main() {
     expect(find.text('Jamii'), findsOneWidget);
   });
 
-  testWidgets('selects a plan and completes demo mobile money checkout',
+  testWidgets('awaiting-activation screen shows status and available plans',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       AppDependenciesScope(
@@ -207,36 +207,20 @@ void main() {
       ),
     );
 
+    // No payment method chips, bank details, or "Lipa" button — activation
+    // happens outside the app, per Google Play policy for digital access.
+    expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
     expect(find.text('Ufikiaji wa Mwalimu AI'), findsOneWidget);
+    expect(find.text('Onyesha Hali Upya'), findsOneWidget);
+    expect(find.text('Wasiliana na Timu ya AJE'), findsOneWidget);
 
-    await tester.ensureVisible(find.byKey(const ValueKey('plan-Wiki 1')));
+    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('plan-Wiki 1')));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).first, const Offset(0, -420));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('payment-method-Tigo')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '0712345678');
-
-    await tester.ensureVisible(find.text('Wiki 1 kupitia Tigo'));
-    expect(find.text('Wiki 1 kupitia Tigo'), findsOneWidget);
-    expect(find.text('TZS 3,000'), findsWidgets);
-
-    await tester.ensureVisible(find.text('Lipa TZS 3,000'));
-    await tester.tap(find.text('Lipa TZS 3,000'));
-    await tester.pump();
-
-    expect(find.text('Inasubiri uthibitisho...'), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 900));
-
-    expect(find.text('Malipo Yamefanikiwa!'), findsOneWidget);
-    expect(
-        find.textContaining('Wiki 1 imewashwa kupitia Tigo'), findsOneWidget);
+    expect(find.text('Wiki 1'), findsOneWidget);
+    expect(find.text('TZS 3,000'), findsOneWidget);
   });
 
-  testWidgets('auth demo flow sends OTP and continues',
+  testWidgets('auth demo flow signs in with email and password',
       (WidgetTester tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(buildDemoApp());
@@ -248,20 +232,16 @@ void main() {
 
     expect(find.text('Karibu tena'), findsOneWidget);
 
-    await tester.enterText(find.byType(EditableText).first, '712345678');
-    await tester.ensureVisible(find.text('Tuma OTP'));
-    await tester.tap(find.text('Tuma OTP'));
+    await tester.enterText(
+      find.byType(EditableText).at(0),
+      'mkulima@demo.aje',
+    );
+    await tester.enterText(find.byType(EditableText).at(1), 'password123');
+    await tester.ensureVisible(find.text('Ingia Sasa'));
+    await tester.tap(find.text('Ingia Sasa'));
     await tester.pumpAndSettle();
 
-    expect(find.text('OTP'), findsOneWidget);
-
-    await tester.enterText(find.byType(EditableText).last, '1234');
-    await tester.ensureVisible(find.text('Endelea'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Endelea'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Karibu tena'), findsOneWidget);
+    expect(find.byType(MainShell), findsOneWidget);
   });
 
   testWidgets('creates a local community post', (WidgetTester tester) async {

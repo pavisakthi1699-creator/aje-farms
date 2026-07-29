@@ -21,7 +21,6 @@ export 'features/home/dashboard_screen.dart';
 export 'features/home/home_widgets.dart';
 export 'features/notifications/notifications_screen.dart';
 export 'features/onboarding/onboarding_screen.dart';
-export 'features/paywall/payment_badge.dart';
 export 'features/paywall/paywall_screen.dart';
 export 'features/paywall/paywall_widgets.dart';
 export 'features/problem/problem_screen.dart';

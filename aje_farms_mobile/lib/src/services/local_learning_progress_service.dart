@@ -4,13 +4,12 @@ class LocalLearningProgressService implements LearningProgressService {
   const LocalLearningProgressService();
 
   @override
-  Future<Set<String>> completedLessons(String phoneNumber) async {
+  Future<Set<String>> completedLessons() async {
     return {};
   }
 
   @override
   Future<void> markLessonCompleted({
-    required String phoneNumber,
     required String courseId,
     required String lessonId,
   }) async {}

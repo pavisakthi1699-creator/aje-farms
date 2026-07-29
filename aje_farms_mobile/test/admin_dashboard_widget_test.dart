@@ -14,7 +14,7 @@ void main() {
 
   testWidgets('profile hides admin dashboard entry for non-admin', (tester) async {
     final session = AppSessionController();
-    await session.signInWithPhone('+255700111222', role: 'learner');
+    await session.signInWithEmail('learner@aje.test', role: 'learner');
 
     await tester.pumpWidget(
       AjeFarmsApp(
@@ -33,7 +33,7 @@ void main() {
   testWidgets('profile shows admin dashboard entry for admin and opens it',
       (tester) async {
     final session = AppSessionController();
-    await session.signInWithPhone('+255799000111', role: 'admin');
+    await session.signInWithEmail('admin@aje.test', role: 'admin');
 
     await tester.pumpWidget(
       AjeFarmsApp(

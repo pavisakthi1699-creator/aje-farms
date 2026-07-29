@@ -9,6 +9,7 @@ import express from 'express';
 import { registerApiRoutes } from '../api.js';
 
 const databaseUrl = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+const ADMIN_EMAIL = 'admin@ajefarms.test';
 
 function createTempCommunityFile() {
   const filePath = path.join(
@@ -29,7 +30,7 @@ async function withPostgresServer(run) {
   process.env.AJE_COMMUNITY_DATA_FILE = communityFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
-  process.env.AJE_ADMIN_PHONE_NUMBERS = '+255799000111';
+  process.env.AJE_ADMIN_EMAILS = ADMIN_EMAIL;
   process.env.NODE_ENV = 'development';
 
   const app = express();
@@ -73,26 +74,24 @@ async function getJson(baseUrl, path, headers = {}) {
   return { response, payload };
 }
 
+// Stands in for the Flutter client signing in with Supabase Auth: hits the
+// NODE_ENV=development-only dev-session issuer (see api.js) rather than a
+// real Supabase Auth token.
+async function signIn(baseUrl, email) {
+  const { response, payload } = await postJson(baseUrl, '/api/auth/dev-session', {
+    email,
+  });
+  assert.equal(response.status, 200);
+  return { user: payload.user, sessionToken: payload.sessionToken };
+}
+
 test(
   'postgres auth and subscription flow survives store reset',
   { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
   async () => {
     await withPostgresServer(async (baseUrl) => {
-      const phoneNumber = '+255712340001';
-      const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-        phoneNumber,
-      });
-      assert.equal(otpRequest.response.status, 200);
+      const { sessionToken: token } = await signIn(baseUrl, 'learner@aje.test');
 
-      const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-        phoneNumber,
-        otp: otpRequest.payload.debugOtp,
-        challengeId: otpRequest.payload.challengeId,
-      });
-      assert.equal(verify.response.status, 200);
-      assert.ok(typeof verify.payload.sessionToken === 'string');
-
-      const token = verify.payload.sessionToken;
       const checkout = await postJson(
         baseUrl,
         '/api/payments/checkout',
@@ -100,7 +99,6 @@ test(
           planTitle: 'Wiki 1',
           price: 'TSh 2,000',
           method: 'M-Pesa',
-          phoneNumber,
         },
         { Authorization: `Bearer ${token}` },
       );
@@ -117,11 +115,9 @@ test(
       );
       assert.equal(paid.response.status, 200);
 
-      const profile = await getJson(
-        baseUrl,
-        `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
-        { Authorization: `Bearer ${token}` },
-      );
+      const profile = await getJson(baseUrl, '/api/users/me', {
+        Authorization: `Bearer ${token}`,
+      });
       assert.equal(profile.response.status, 200);
       assert.equal(profile.payload.user.subscriptionPlan, 'Wiki 1');
     });
@@ -129,23 +125,12 @@ test(
 );
 
 test(
-  'postgres admin phone allowlist maps session user role to admin',
+  'postgres admin email allowlist maps session user role to admin',
   { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
   async () => {
     await withPostgresServer(async (baseUrl) => {
-      const adminPhone = '+255799000111';
-      const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-        phoneNumber: adminPhone,
-      });
-      assert.equal(otpRequest.response.status, 200);
-
-      const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-        phoneNumber: adminPhone,
-        otp: otpRequest.payload.debugOtp,
-        challengeId: otpRequest.payload.challengeId,
-      });
-      assert.equal(verify.response.status, 200);
-      assert.equal(verify.payload.user.role, 'admin');
+      const { user } = await signIn(baseUrl, ADMIN_EMAIL);
+      assert.equal(user.role, 'admin');
     });
   },
 );

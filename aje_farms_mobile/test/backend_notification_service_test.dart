@@ -19,7 +19,7 @@ void main() {
         expect(request.method, 'GET');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/notifications',
+          'http://localhost:3000/api/users/me/notifications',
         );
         expect(request.headers['Authorization'], 'Bearer token-abc');
         return http.Response(
@@ -29,7 +29,7 @@ void main() {
       }),
     );
 
-    final inbox = await service.inbox('+255712345678');
+    final inbox = await service.inbox();
 
     expect(inbox.settings.learningReminders, isFalse);
     expect(inbox.notifications.single.title, 'Jibu jipya');
@@ -44,7 +44,7 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/notifications/n-1/read',
+          'http://localhost:3000/api/users/me/notifications/n-1/read',
         );
         return http.Response(
           '{"notification":{"id":"n-1","type":"community_reply","title":"Jibu jipya","body":"Mtaalamu amejibu.","createdAt":"2026-07-06T10:00:00.000Z","readAt":"2026-07-06T10:01:00.000Z"}}',
@@ -53,10 +53,7 @@ void main() {
       }),
     );
 
-    await service.markRead(
-      phoneNumber: '+255712345678',
-      notificationId: 'n-1',
-    );
+    await service.markRead(notificationId: 'n-1');
   });
 
   test('registers notification device token with backend', () async {
@@ -67,7 +64,7 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'http://localhost:3000/api/users/by-phone/%2B255712345678/notifications/devices',
+          'http://localhost:3000/api/users/me/notifications/devices',
         );
         expect(request.headers['Authorization'], 'Bearer token-abc');
         expect(request.body, '{"token":"fcm-token-1","platform":"android"}');
@@ -78,11 +75,7 @@ void main() {
       }),
     );
 
-    await service.registerDevice(
-      phoneNumber: '+255712345678',
-      token: 'fcm-token-1',
-      platform: 'android',
-    );
+    await service.registerDevice(token: 'fcm-token-1', platform: 'android');
   });
 
   test('throws typed exception for backend notification errors', () {
@@ -94,7 +87,7 @@ void main() {
     );
 
     expect(
-      () => service.inbox('+255712345678'),
+      () => service.inbox(),
       throwsA(isA<NotificationException>()),
     );
   });

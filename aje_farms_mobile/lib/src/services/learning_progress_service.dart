@@ -1,8 +1,7 @@
 abstract interface class LearningProgressService {
-  Future<Set<String>> completedLessons(String phoneNumber);
+  Future<Set<String>> completedLessons();
 
   Future<void> markLessonCompleted({
-    required String phoneNumber,
     required String courseId,
     required String lessonId,
   });

@@ -2,29 +2,34 @@ import express from 'express';
 
 import { catalog } from './catalog.js';
 import {
-  isAllowlistedAdminPhone,
+  isAllowlistedAdminEmail,
   userHasAdminAccess,
   userWithEffectiveRole,
   requireAdminSession,
-  requireAuthPhoneMatch,
   requireAuthSession,
 } from './auth.js';
 import { chatWithMwalimuServer } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
-import { createOtpCode, createOtpSender } from './sms.js';
-import { createStore, normalizePhoneNumber, resolveStoreConfig } from './store.js';
+import { createStore, resolveStoreConfig } from './store.js';
 import {
   communityDisplayName,
   isValidCommunityImagePath,
   isValidLessonVideoPath,
   normalizeApprovedCourse,
   normalizeContentDocument,
+  normalizeEmail,
 } from './store/utils.js';
+
+function devModeEnabled() {
+  return (
+    process.env.NODE_ENV === 'development' ||
+    process.env.AJE_ENABLE_DEBUG_OTP === 'true'
+  );
+}
 
 export async function registerApiRoutes(app) {
   const store = await createStore(catalog);
-  const otpSender = createOtpSender();
   const paymentProvider = createPaymentProvider();
   const notificationProvider = createNotificationProvider();
 
@@ -43,9 +48,11 @@ export async function registerApiRoutes(app) {
           !['postgres', 'supabase'].includes(storeConfig.mode) ||
           Boolean(storeConfig.databaseUrl),
       },
-      sms: {
-        provider: otpSender.name,
-        ready: !isProduction || otpSender.isProductionReady,
+      auth: {
+        provider: 'supabase',
+        ready:
+          !isProduction ||
+          Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
       },
       payments: {
         provider: paymentProvider.name,
@@ -279,7 +286,7 @@ export async function registerApiRoutes(app) {
         return;
       }
       try {
-        const reviewer = await store.getUser(req.authPhoneNumber);
+        const reviewer = await store.getUser(req.userId);
         const result = await store.approveLessonSource({
           lessonId: req.params.lessonId,
           sourceSegmentId,
@@ -361,170 +368,272 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  // The plan catalog staff pick from when recording a payment — never a
+  // free-typed price. See server/store/schema.sql for the `plans` table.
+  app.get(
+    '/api/admin/plans',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ plans: await store.activePlans() });
+    },
+  );
+
+  app.get(
+    '/api/admin/payments',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const status =
+        typeof req.query.status === 'string' ? req.query.status : undefined;
+      if (status && !['pending', 'approved', 'reversed'].includes(status)) {
+        res.status(400).json({ error: 'Invalid status filter.' });
+        return;
+      }
+      const userId =
+        typeof req.query.userId === 'string' ? req.query.userId : undefined;
+      const limit =
+        typeof req.query.limit === 'string'
+          ? Number.parseInt(req.query.limit, 10)
+          : undefined;
+      const offset =
+        typeof req.query.offset === 'string'
+          ? Number.parseInt(req.query.offset, 10)
+          : undefined;
+      const result = await store.paymentRecordsForAdmin({
+        status,
+        userId,
+        limit,
+        offset,
+      });
+      res.json(result);
+    },
+  );
+
+  app.get(
+    '/api/admin/payments/:paymentRecordId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const record = await store.getPaymentRecord(req.params.paymentRecordId);
+      if (!record) {
+        res.status(404).json({ error: 'Payment record haijapatikana.' });
+        return;
+      }
+      res.json({ paymentRecord: record });
+    },
+  );
+
+  // Records a cash/bank-transfer payment against a real plan id. This never
+  // grants access by itself — only POST .../approve does that.
+  app.post(
+    '/api/admin/payments',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const { userId, planId, method, amountTzs, currency, reference, note } =
+        req.body ?? {};
+      if (
+        typeof userId !== 'string' ||
+        userId.trim() === '' ||
+        typeof planId !== 'string' ||
+        planId.trim() === '' ||
+        (method !== 'cash' && method !== 'bank_transfer') ||
+        !Number.isInteger(amountTzs) ||
+        amountTzs < 0
+      ) {
+        res.status(400).json({ error: 'Payment details are invalid.' });
+        return;
+      }
+      const learner = await store.getUser(userId);
+      if (!learner) {
+        res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+        return;
+      }
+      try {
+        const record = await store.recordPaymentRecord({
+          userId,
+          planId,
+          method,
+          amountTzs,
+          currency: typeof currency === 'string' && currency ? currency : undefined,
+          reference:
+            typeof reference === 'string' && reference.trim()
+              ? reference.trim()
+              : null,
+          note: typeof note === 'string' && note.trim() ? note.trim() : null,
+          recordedByUserId: req.userId,
+        });
+        if (!record) {
+          res.status(400).json({ error: 'Plan haijapatikana au imezimwa.' });
+          return;
+        }
+        res.json({ paymentRecord: record });
+      } catch (error) {
+        if (error?.code === 'DUPLICATE_REFERENCE') {
+          res.status(409).json({ error: error.message });
+          return;
+        }
+        throw error;
+      }
+    },
+  );
+
+  // Transactional and idempotent (see PostgresStore#approvePaymentRecord):
+  // pressing approve twice never grants a second entitlement.
+  app.post(
+    '/api/admin/payments/:paymentRecordId/approve',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const reason =
+        typeof req.body?.reason === 'string' && req.body.reason.trim()
+          ? req.body.reason.trim()
+          : null;
+      const result = await store.approvePaymentRecord({
+        paymentRecordId: req.params.paymentRecordId,
+        approvedByUserId: req.userId,
+        reason,
+      });
+      if (!result) {
+        res.status(404).json({ error: 'Payment record haijapatikana.' });
+        return;
+      }
+      res.json(result);
+    },
+  );
+
+  app.post(
+    '/api/admin/payments/:paymentRecordId/reverse',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const reason =
+        typeof req.body?.reason === 'string' && req.body.reason.trim()
+          ? req.body.reason.trim()
+          : null;
+      const result = await store.reversePaymentRecord({
+        paymentRecordId: req.params.paymentRecordId,
+        actorUserId: req.userId,
+        reason,
+      });
+      if (!result) {
+        res.status(404).json({ error: 'Payment record haijapatikana.' });
+        return;
+      }
+      res.json(result);
+    },
+  );
+
+  app.get(
+    '/api/admin/payments/:paymentRecordId/audit',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const events = await store.auditEventsFor({
+        targetType: 'payment_record',
+        targetId: req.params.paymentRecordId,
+      });
+      res.json({ events });
+    },
+  );
+
   app.get('/api/community/posts', async (_req, res) => {
     res.json({ posts: await store.communityPosts() });
   });
 
-  app.post('/api/auth/request-otp', async (req, res) => {
-    const { phoneNumber } = req.body;
-
-    if (typeof phoneNumber !== 'string' || phoneNumber.trim().length < 9) {
-      res.status(400).json({ error: 'Phone number is required.' });
+  // Development/test only: Flutter authenticates via Supabase Auth directly
+  // and never calls this. It exists so local dev and `npm run test:server`
+  // can obtain a session without a real Supabase project configured — see
+  // requireAuthSession in auth.js, which accepts either kind of token.
+  app.post('/api/auth/dev-session', async (req, res) => {
+    if (!devModeEnabled()) {
+      res.status(404).json({ error: 'Not found.' });
       return;
     }
-
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const retryAfterSeconds = await store.otpRequestDelaySeconds(
-      normalizedPhone,
-    );
-    if (retryAfterSeconds > 0) {
-      res.status(429).json({
-        error: `Subiri sekunde ${retryAfterSeconds} kabla ya kutuma OTP tena.`,
-        retryAfterSeconds,
-      });
+    const email = normalizeEmail(req.body?.email);
+    if (!email) {
+      res.status(400).json({ error: 'Email is required.' });
       return;
     }
-
-    const otp = createOtpCode();
-    let delivery;
-    try {
-      delivery = await otpSender.sendOtp({
-        phoneNumber: normalizedPhone,
-        otp,
-      });
-    } catch (error) {
-      console.error('OTP delivery failed:', error);
-      res.status(502).json({
-        error: 'Imeshindikana kutuma OTP. Jaribu tena baadae.',
-      });
-      return;
-    }
-
-    const challenge = await store.createOtpChallenge({
-      phoneNumber: normalizedPhone,
-      otp: delivery.challengeOtp ?? otp,
-      deliveryProvider: delivery.provider,
+    const user = await store.linkOrCreateUserForAuth({
+      authUserId: `dev-${email}`,
+      email,
     });
-
+    const authSession = await store.createAuthSession(user.id);
     res.json({
-      challengeId: challenge.id,
-      message:
-        delivery.provider === 'manual'
-          ? 'Tumia OTP ya majaribio uliyopewa.'
-          : `OTP imetumwa kwa ${normalizedPhone}.`,
-      debugOtp: delivery.debugOtp,
-      retryAfterSeconds: 60,
-    });
-  });
-
-  app.post('/api/auth/verify-otp', async (req, res) => {
-    const { phoneNumber, otp, challengeId } = req.body;
-    const normalizedPhone =
-      typeof phoneNumber === 'string' ? normalizePhoneNumber(phoneNumber) : '';
-    const result =
-      typeof challengeId === 'string'
-        ? await store.consumeOtpChallenge({
-            challengeId,
-            phoneNumber: normalizedPhone,
-            otp,
-          })
-        : { status: 'missing' };
-
-    if (result.status === 'missing' || result.status === 'expired') {
-      res.status(400).json({ error: 'OTP imeisha muda wake. Tuma tena.' });
-      return;
-    }
-    if (result.status === 'invalid') {
-      res.status(401).json({ error: 'OTP si sahihi. Jaribu tena.' });
-      return;
-    }
-
-    const user = userWithEffectiveRole(
-      await store.ensureUser(normalizedPhone),
-      normalizedPhone,
-    );
-    const authSession = await store.createAuthSession(normalizedPhone);
-    res.json({
-      phoneNumber: user.phoneNumber,
-      user,
+      user: userWithEffectiveRole(user, user.email),
       sessionToken: authSession.token,
     });
   });
 
   app.get('/api/auth/whoami', requireAuthSession(store), async (req, res) => {
-    const user = await store.getUser(req.authPhoneNumber);
+    const user = await store.getUser(req.userId);
     if (!user) {
       res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
       return;
     }
-    const allowlistedAdmin = isAllowlistedAdminPhone(req.authPhoneNumber);
-    const effectiveUser = userWithEffectiveRole(user, req.authPhoneNumber);
+    const allowlistedAdmin = isAllowlistedAdminEmail(user.email);
+    const effectiveUser = userWithEffectiveRole(user, user.email);
     res.json({
-      phoneNumber: effectiveUser.phoneNumber,
+      user: effectiveUser,
+      accountStatus: user.accountStatus,
       role: effectiveUser.role,
-      hasAdminAccess: userHasAdminAccess(user, req.authPhoneNumber),
+      hasAdminAccess: userHasAdminAccess(user, user.email),
       allowlistedAdmin,
       source: allowlistedAdmin
-        ? 'phone_allowlist'
+        ? 'email_allowlist'
         : user.role === 'admin'
           ? 'stored_role'
           : 'learner',
     });
   });
 
-  app.get(
-    '/api/users/by-phone/:phoneNumber',
+  app.get('/api/users/me', requireAuthSession(store), async (req, res) => {
+    const user = await store.getUser(req.userId);
+    if (!user) {
+      res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+      return;
+    }
+    res.json({
+      user: userWithEffectiveRole(user, user.email),
+    });
+  });
+
+  app.post(
+    '/api/users/me/profile',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
-      const user = await store.getUser(req.params.phoneNumber);
+      const user = await store.updateUserProfile(req.userId, {
+        displayName: req.body?.displayName,
+        preferredLocation: req.body?.preferredLocation,
+      });
+      res.json({
+        user: userWithEffectiveRole(user, user?.email),
+      });
+    },
+  );
+
+  app.post(
+    '/api/users/me/subscription/cancel',
+    requireAuthSession(store),
+    async (req, res) => {
+      const user = await store.cancelSubscription(req.userId);
       if (!user) {
         res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
         return;
       }
       res.json({
-        user: userWithEffectiveRole(user, req.authPhoneNumber),
+        user: userWithEffectiveRole(user, user.email),
       });
-    },
-  );
-
-  app.post(
-    '/api/users/by-phone/:phoneNumber/profile',
-    requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
-    async (req, res) => {
-      const user = await store.updateUserProfile(req.params.phoneNumber, {
-        displayName: req.body?.displayName,
-        preferredLocation: req.body?.preferredLocation,
-      });
-    res.json({
-      user: userWithEffectiveRole(user, req.authPhoneNumber),
-    });
-    },
-  );
-
-  app.post(
-    '/api/users/by-phone/:phoneNumber/subscription/cancel',
-    requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
-    async (req, res) => {
-      const user = await store.cancelSubscription(req.params.phoneNumber);
-      if (!user) {
-        res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
-        return;
-      }
-    res.json({
-      user: userWithEffectiveRole(user, req.authPhoneNumber),
-    });
     },
   );
 
   app.get(
-    '/api/users/by-phone/:phoneNumber/progress',
+    '/api/users/me/progress',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
-      const progress = await store.learningProgress(req.params.phoneNumber);
+      const progress = await store.learningProgress(req.userId);
       res.json({
         completedLessons: progress.map(
           (item) => `${item.courseId}:${item.lessonId}`,
@@ -535,25 +644,23 @@ export async function registerApiRoutes(app) {
   );
 
   app.get(
-    '/api/users/by-phone/:phoneNumber/notifications',
+    '/api/users/me/notifications',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
       res.json({
-        settings: await store.notificationSettings(req.params.phoneNumber),
-        notifications: await store.notificationsFor(req.params.phoneNumber),
+        settings: await store.notificationSettings(req.userId),
+        notifications: await store.notificationsFor(req.userId),
       });
     },
   );
 
   app.put(
-    '/api/users/by-phone/:phoneNumber/notifications/settings',
+    '/api/users/me/notifications/settings',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
       res.json({
         settings: await store.updateNotificationSettings({
-          phoneNumber: req.params.phoneNumber,
+          userId: req.userId,
           settings: req.body,
         }),
       });
@@ -561,9 +668,8 @@ export async function registerApiRoutes(app) {
   );
 
   app.post(
-    '/api/users/by-phone/:phoneNumber/notifications/devices',
+    '/api/users/me/notifications/devices',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
       const { token, platform } = req.body;
       if (typeof token !== 'string' || typeof platform !== 'string') {
@@ -572,7 +678,7 @@ export async function registerApiRoutes(app) {
       }
       res.json({
         device: await store.registerNotificationDevice({
-          phoneNumber: req.params.phoneNumber,
+          userId: req.userId,
           token,
           platform,
         }),
@@ -581,12 +687,11 @@ export async function registerApiRoutes(app) {
   );
 
   app.post(
-    '/api/users/by-phone/:phoneNumber/notifications/:notificationId/read',
+    '/api/users/me/notifications/:notificationId/read',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
       const notification = await store.markNotificationRead({
-        phoneNumber: req.params.phoneNumber,
+        userId: req.userId,
         notificationId: req.params.notificationId,
       });
       if (!notification) {
@@ -598,9 +703,8 @@ export async function registerApiRoutes(app) {
   );
 
   app.post(
-    '/api/users/by-phone/:phoneNumber/progress/lessons',
+    '/api/users/me/progress/lessons',
     requireAuthSession(store),
-    requireAuthPhoneMatch('phoneNumber'),
     async (req, res) => {
       const { courseId, lessonId } = req.body;
       if (typeof courseId !== 'string' || typeof lessonId !== 'string') {
@@ -608,7 +712,7 @@ export async function registerApiRoutes(app) {
         return;
       }
       const progress = await store.markLessonCompleted({
-        phoneNumber: req.params.phoneNumber,
+        userId: req.userId,
         courseId,
         lessonId,
       });
@@ -624,38 +728,31 @@ export async function registerApiRoutes(app) {
     '/api/payments/checkout',
     requireAuthSession(store),
     async (req, res) => {
-      const { planTitle, price, method, phoneNumber } = req.body;
+      const { planTitle, price, method } = req.body;
 
       if (
         typeof planTitle !== 'string' ||
         typeof price !== 'string' ||
-        typeof method !== 'string' ||
-        typeof phoneNumber !== 'string' ||
-        phoneNumber.trim().length < 9
+        typeof method !== 'string'
       ) {
         res.status(400).json({ error: 'Payment details are required.' });
         return;
       }
 
       const id = `pay-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const normalizedPhone = normalizePhoneNumber(phoneNumber);
-      if (normalizedPhone !== req.authPhoneNumber) {
-        res.status(403).json({ error: 'Huna ruhusa kwa akaunti hii.' });
-        return;
-      }
       const providerCheckout = paymentProvider.startCheckout({
         transactionId: id,
         planTitle,
         price,
         method,
-        phoneNumber: normalizedPhone,
+        userId: req.userId,
       });
       const transaction = {
         id,
         planTitle,
         price,
         method,
-        phoneNumber: normalizedPhone,
+        userId: req.userId,
         status: providerCheckout.status,
         message: providerCheckout.message,
         receiptNumber: null,
@@ -681,7 +778,7 @@ export async function registerApiRoutes(app) {
         res.status(404).json({ error: 'Muamala haujapatikana.' });
         return;
       }
-      if (transaction.phoneNumber !== req.authPhoneNumber) {
+      if (transaction.userId !== req.userId) {
         res.status(403).json({ error: 'Huna ruhusa kwa muamala huu.' });
         return;
       }
@@ -765,18 +862,18 @@ export async function registerApiRoutes(app) {
       }
 
       // `author` is deliberately ignored if supplied: authorship comes from the
-      // session so it cannot be spoofed, and so a phone number never lands in
-      // the publicly readable author label.
-      const user = await store.getUser(req.authPhoneNumber);
+      // session so it cannot be spoofed, and so the internal user id never
+      // lands in the publicly readable author label.
+      const user = await store.getUser(req.userId);
       res.json(
         await store.createCommunityPost({
-          author: communityDisplayName(user, req.authPhoneNumber),
-          authorPhone: req.authPhoneNumber,
+          author: communityDisplayName(user, req.userId),
+          authorUserId: req.userId,
           content,
           location,
           tags,
           imagePath: imagePath ?? null,
-          isExpert: userHasAdminAccess(user, req.authPhoneNumber),
+          isExpert: userHasAdminAccess(user, user?.email),
         }),
       );
     },
@@ -794,25 +891,25 @@ export async function registerApiRoutes(app) {
       }
 
       // As with posts, a client-supplied `author` is ignored.
-      const user = await store.getUser(req.authPhoneNumber);
-      const author = communityDisplayName(user, req.authPhoneNumber);
+      const user = await store.getUser(req.userId);
+      const author = communityDisplayName(user, req.userId);
       res.json(
         await store.addCommunityReply({
           postId: req.params.postId,
           author,
-          authorPhone: req.authPhoneNumber,
+          authorUserId: req.userId,
           body,
-          isExpert: userHasAdminAccess(user, req.authPhoneNumber),
+          isExpert: userHasAdminAccess(user, user?.email),
         }),
       );
-      const authorPhone = await store.communityPostAuthorPhone(
+      const authorUserId = await store.communityPostAuthorUserId(
         req.params.postId,
       );
-      if (authorPhone && authorPhone !== req.authPhoneNumber) {
+      if (authorUserId && authorUserId !== req.userId) {
         await createAndDispatchNotification({
           store,
           notificationProvider,
-          phoneNumber: authorPhone,
+          userId: authorUserId,
           type: 'community_reply',
           title: 'Jibu jipya kwenye jamii',
           body: `${author} amejibu post yako.`,
@@ -856,20 +953,20 @@ export async function registerApiRoutes(app) {
       const post = await store.resolveCommunityReport({
         postId: req.params.postId,
         action,
-        moderatorPhoneNumber: req.authPhoneNumber,
+        moderatorUserId: req.userId,
       });
       if (!post) {
         res.status(404).json({ error: 'Post haijapatikana.' });
         return;
       }
-      const authorPhone = await store.communityPostAuthorPhone(
+      const authorUserId = await store.communityPostAuthorUserId(
         req.params.postId,
       );
-      if (authorPhone) {
+      if (authorUserId) {
         await createAndDispatchNotification({
           store,
           notificationProvider,
-          phoneNumber: authorPhone,
+          userId: authorUserId,
           type: 'moderation_update',
           title: action === 'hide' ? 'Post imefichwa' : 'Ripoti imepitiwa',
           body:
@@ -924,14 +1021,14 @@ function isAuthorizedDevelopmentWebhook(req) {
 export async function createAndDispatchNotification({
   store,
   notificationProvider,
-  phoneNumber,
+  userId,
   type,
   title,
   body,
   data,
 }) {
   const notification = await store.createNotification({
-    phoneNumber,
+    userId,
     type,
     title,
     body,
@@ -941,7 +1038,7 @@ export async function createAndDispatchNotification({
   try {
     await notificationProvider.send(
       notification,
-      await store.notificationDevices(phoneNumber),
+      await store.notificationDevices(userId),
     );
   } catch (error) {
     console.error(

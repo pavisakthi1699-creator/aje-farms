@@ -19,12 +19,10 @@ class BackendLearningProgressService implements LearningProgressService {
   final Duration timeout;
 
   @override
-  Future<Set<String>> completedLessons(String phoneNumber) async {
+  Future<Set<String>> completedLessons() async {
     final response = await _client
         .get(
-          _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/progress',
-          ),
+          _baseUrl.resolve('/api/users/me/progress'),
           headers: await _headers(),
         )
         .timeout(timeout);
@@ -36,15 +34,12 @@ class BackendLearningProgressService implements LearningProgressService {
 
   @override
   Future<void> markLessonCompleted({
-    required String phoneNumber,
     required String courseId,
     required String lessonId,
   }) async {
     final response = await _client
         .post(
-          _baseUrl.resolve(
-            '/api/users/by-phone/${Uri.encodeComponent(phoneNumber)}/progress/lessons',
-          ),
+          _baseUrl.resolve('/api/users/me/progress/lessons'),
           headers: await _headers(),
           body: jsonEncode({
             'courseId': courseId,

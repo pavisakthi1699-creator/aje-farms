@@ -93,4 +93,109 @@ class LocalAdminService implements AdminService {
   }) async {
     return const AdminUsersPage(total: 0, users: []);
   }
+
+  @override
+  Future<List<AdminPlan>> listPlans() async {
+    return const [
+      AdminPlan(
+        id: 'wiki-1',
+        title: 'Wiki 1',
+        subtitle: 'Ufikiaji wa haraka',
+        price: 'TZS 3,000',
+        priceTzs: 3000,
+        durationDays: 7,
+        recommended: false,
+      ),
+      AdminPlan(
+        id: 'mwezi-1',
+        title: 'Mwezi 1',
+        subtitle: 'Thamani bora zaidi',
+        price: 'TZS 10,000',
+        priceTzs: 10000,
+        durationDays: 30,
+        recommended: true,
+      ),
+    ];
+  }
+
+  @override
+  Future<AdminPaymentsPage> listPayments({
+    String? status,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return const AdminPaymentsPage(total: 0, records: []);
+  }
+
+  @override
+  Future<AdminPaymentRecord> recordPayment({
+    required String userId,
+    required String planId,
+    required String method,
+    required int amountTzs,
+    String? reference,
+    String? note,
+  }) async {
+    return AdminPaymentRecord(
+      id: 'demo-payment',
+      userId: userId,
+      userEmail: null,
+      planId: planId,
+      method: method,
+      amountTzs: amountTzs,
+      currency: 'TZS',
+      reference: reference,
+      note: note,
+      status: 'pending',
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<AdminPaymentRecord> approvePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    return AdminPaymentRecord(
+      id: paymentRecordId,
+      userId: 'demo-user',
+      userEmail: null,
+      planId: 'wiki-1',
+      method: 'cash',
+      amountTzs: 3000,
+      currency: 'TZS',
+      reference: null,
+      note: null,
+      status: 'approved',
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<AdminPaymentRecord> reversePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    return AdminPaymentRecord(
+      id: paymentRecordId,
+      userId: 'demo-user',
+      userEmail: null,
+      planId: 'wiki-1',
+      method: 'cash',
+      amountTzs: 3000,
+      currency: 'TZS',
+      reference: null,
+      note: null,
+      status: 'reversed',
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<List<AdminAuditEvent>> paymentAuditEvents(
+    String paymentRecordId,
+  ) async {
+    return const [];
+  }
 }

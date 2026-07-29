@@ -1,52 +1,58 @@
 import 'auth_service.dart';
 
+/// Offline demo stand-in: no real Supabase project, so sign-up/sign-in just
+/// accepts anything and simulates an already-active demo account.
 class LocalAuthService implements AuthService {
   const LocalAuthService();
 
-  static const _otp = '1234';
+  @override
+  bool get hasLocalSession => false;
 
   @override
-  Future<OtpChallenge> requestOtp(String phoneNumber) async {
+  Future<void> signUp({required String email, required String password}) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    return OtpChallenge(
-      challengeId: 'local-$phoneNumber',
-      message: 'OTP ya majaribio imetumwa kwa $phoneNumber.',
-      debugOtp: _otp,
+  }
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<AuthSession> getSession() async {
+    return const AuthSession(
+      email: 'mkulima@demo.aje',
+      accountStatus: 'active',
     );
   }
 
   @override
-  Future<AuthSession> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    required String challengeId,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    if (otp != _otp) {
-      throw const AuthException('OTP si sahihi. Jaribu tena.');
-    }
-    return AuthSession(phoneNumber: phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> getSession(String phoneNumber) async {
-    return AuthSession(phoneNumber: phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> cancelSubscription(String phoneNumber) async {
-    return AuthSession(phoneNumber: phoneNumber);
+  Future<AuthSession> cancelSubscription() async {
+    return const AuthSession(email: 'mkulima@demo.aje');
   }
 
   @override
   Future<AuthSession> updateProfile({
-    required String phoneNumber,
     String? displayName,
     String? preferredLocation,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     return AuthSession(
-      phoneNumber: phoneNumber,
+      email: 'mkulima@demo.aje',
+      accountStatus: 'active',
       displayName:
           displayName?.trim().isEmpty ?? true ? null : displayName?.trim(),
       preferredLocation: preferredLocation?.trim().isEmpty ?? true
@@ -58,7 +64,7 @@ class LocalAuthService implements AuthService {
   @override
   Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() async {
     return const AdminAccessDiagnostics(
-      phoneNumber: '+255000000000',
+      email: 'mkulima@demo.aje',
       role: 'learner',
       hasAdminAccess: false,
       allowlistedAdmin: false,

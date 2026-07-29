@@ -24,11 +24,12 @@ class AdminDashboardScreen extends StatelessWidget {
       );
     }
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Dashibodi ya Admin'),
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
               Tab(
                 text: 'Maandishi',
@@ -42,6 +43,10 @@ class AdminDashboardScreen extends StatelessWidget {
                 text: 'Watumiaji',
                 icon: Icon(Icons.people_outline, size: 20),
               ),
+              Tab(
+                text: 'Malipo',
+                icon: Icon(Icons.payments_outlined, size: 20),
+              ),
             ],
           ),
         ),
@@ -51,6 +56,7 @@ class AdminDashboardScreen extends StatelessWidget {
               _AdminContentTab(),
               _AdminModerationTab(),
               _AdminUsersTab(),
+              _AdminPaymentsTab(),
             ],
           ),
         ),
@@ -2046,8 +2052,8 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
         controller: _searchController,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          labelText: 'Tafuta kwa namba au jina',
-          hintText: 'Mfano: +2557… au Asha',
+          labelText: 'Tafuta kwa barua pepe au jina',
+          hintText: 'Mfano: asha@barua.com au Asha',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? IconButton(
@@ -2076,6 +2082,467 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
   }
 }
 
+/// Records cash/bank-transfer payments and approves/reverses them. This is
+/// deliberately the only place in the app that grants paid access — the
+/// learner-facing screens never accept a payment themselves (see
+/// PaywallScreen), matching the go-live design: sales happen through AJE's
+/// existing cash/bank-transfer process, and staff confirm it here.
+class _AdminPaymentsTab extends StatefulWidget {
+  const _AdminPaymentsTab();
+
+  @override
+  State<_AdminPaymentsTab> createState() => _AdminPaymentsTabState();
+}
+
+class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
+  final _searchController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _referenceController = TextEditingController();
+  final _noteController = TextEditingController();
+
+  bool _didRequestInitialLoad = false;
+  bool _loadingPlans = true;
+  bool _loadingPayments = true;
+  bool _searching = false;
+  bool _submitting = false;
+
+  List<AdminPlan> _plans = const [];
+  AdminPlan? _selectedPlan;
+  String _method = 'cash';
+  List<AdminUserSummary> _searchResults = const [];
+  AdminUserSummary? _selectedLearner;
+  AdminPaymentsPage _pendingPayments =
+      const AdminPaymentsPage(total: 0, records: []);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
+    _loadPlans();
+    _loadPendingPayments();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _amountController.dispose();
+    _referenceController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPlans() async {
+    setState(() => _loadingPlans = true);
+    try {
+      final plans = await context.dependencies.adminService.listPlans();
+      if (!mounted) return;
+      setState(() {
+        _plans = plans;
+        _selectedPlan ??= plans.isEmpty ? null : plans.first;
+        _amountController.text = _selectedPlan?.priceTzs.toString() ?? '';
+        _loadingPlans = false;
+      });
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingPlans = false);
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingPlans = false);
+      showErrorSnack(context, 'Imeshindikana kupakia vifurushi.');
+    }
+  }
+
+  Future<void> _loadPendingPayments() async {
+    setState(() => _loadingPayments = true);
+    try {
+      final page = await context.dependencies.adminService.listPayments(
+        status: 'pending',
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingPayments = page;
+        _loadingPayments = false;
+      });
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingPayments = false);
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingPayments = false);
+      showErrorSnack(context, 'Imeshindikana kupakia malipo yanayosubiri.');
+    }
+  }
+
+  Future<void> _searchLearner() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final page = await context.dependencies.adminService.listUsers(
+        search: query,
+        limit: 10,
+      );
+      if (!mounted) return;
+      setState(() {
+        _searchResults = page.users;
+        _searching = false;
+      });
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      setState(() => _searching = false);
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _searching = false);
+      showErrorSnack(context, 'Imeshindikana kutafuta mtumiaji.');
+    }
+  }
+
+  Future<void> _recordPayment() async {
+    final learner = _selectedLearner;
+    final plan = _selectedPlan;
+    final amount = int.tryParse(_amountController.text.trim());
+    if (learner == null) {
+      showSnack(context, 'Chagua mkulima kwanza.');
+      return;
+    }
+    if (plan == null) {
+      showSnack(context, 'Chagua kifurushi.');
+      return;
+    }
+    if (amount == null || amount < 0) {
+      showSnack(context, 'Weka kiasi sahihi cha malipo.');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await context.dependencies.adminService.recordPayment(
+        userId: learner.id,
+        planId: plan.id,
+        method: _method,
+        amountTzs: amount,
+        reference: _referenceController.text.trim().isEmpty
+            ? null
+            : _referenceController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+      );
+      if (!mounted) return;
+      AppFeedback.success();
+      showSuccessSnack(context, 'Malipo yamerekodiwa. Yanasubiri idhini.');
+      setState(() {
+        _selectedLearner = null;
+        _searchController.clear();
+        _searchResults = const [];
+        _referenceController.clear();
+        _noteController.clear();
+      });
+      await _loadPendingPayments();
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(context, 'Imeshindikana kurekodi malipo.');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _approve(AdminPaymentRecord record) async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Idhinisha malipo?',
+      message:
+          '${record.userEmail ?? record.userId} atapata ufikiaji mara moja.',
+      confirmLabel: 'Idhinisha',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await context.dependencies.adminService.approvePayment(record.id);
+      if (!mounted) return;
+      AppFeedback.success();
+      showSuccessSnack(context, 'Malipo yameidhinishwa.');
+      await _loadPendingPayments();
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(context, 'Imeshindikana kuidhinisha malipo.');
+    }
+  }
+
+  Future<void> _reverse(AdminPaymentRecord record) async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Rudisha nyuma malipo?',
+      message: 'Ufikiaji wa ${record.userEmail ?? record.userId} utasitishwa.',
+      confirmLabel: 'Rudisha Nyuma',
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await context.dependencies.adminService.reversePayment(record.id);
+      if (!mounted) return;
+      showSnack(context, 'Malipo yamerudishwa nyuma.');
+      await _loadPendingPayments();
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(context, 'Imeshindikana kurudisha malipo nyuma.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([_loadPlans(), _loadPendingPayments()]);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        children: [
+          Text(
+            'Rekodi Malipo Mapya',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_selectedLearner == null) ...[
+                    TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        labelText: 'Tafuta mkulima kwa barua pepe',
+                        hintText: 'Mfano: asha@barua.com',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searching
+                            ? const Padding(
+                                padding: EdgeInsets.all(AppSpacing.sm),
+                                child: SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                tooltip: 'Tafuta',
+                                icon: const Icon(Icons.arrow_forward),
+                                onPressed: _searchLearner,
+                              ),
+                      ),
+                      onSubmitted: (_) => _searchLearner(),
+                    ),
+                    if (_searchResults.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      for (final user in _searchResults)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(user.email ?? user.id),
+                          subtitle: Text(_accountStatusLabel(user.accountStatus)),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            AppFeedback.tap();
+                            setState(() {
+                              _selectedLearner = user;
+                              _searchResults = const [];
+                            });
+                          },
+                        ),
+                    ],
+                  ] else ...[
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.person),
+                      title: Text(_selectedLearner!.email ?? _selectedLearner!.id),
+                      subtitle: Text(
+                        _accountStatusLabel(_selectedLearner!.accountStatus),
+                      ),
+                      trailing: TextButton(
+                        onPressed: () =>
+                            setState(() => _selectedLearner = null),
+                        child: const Text('Badilisha'),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (_loadingPlans)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      DropdownButtonFormField<AdminPlan>(
+                        initialValue: _selectedPlan,
+                        decoration: const InputDecoration(
+                          labelText: 'Kifurushi',
+                        ),
+                        items: [
+                          for (final plan in _plans)
+                            DropdownMenuItem(
+                              value: plan,
+                              child: Text('${plan.title} — ${plan.price}'),
+                            ),
+                        ],
+                        onChanged: (plan) {
+                          setState(() {
+                            _selectedPlan = plan;
+                            _amountController.text =
+                                plan?.priceTzs.toString() ?? '';
+                          });
+                        },
+                      ),
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Fedha Taslimu'),
+                          selected: _method == 'cash',
+                          onSelected: (_) =>
+                              setState(() => _method = 'cash'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Uhamisho wa Benki'),
+                          selected: _method == 'bank_transfer',
+                          onSelected: (_) =>
+                              setState(() => _method = 'bank_transfer'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Kiasi (TZS)',
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _referenceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Namba ya risiti (hiari)',
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Maelezo (hiari)',
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _submitting
+                            ? null
+                            : () {
+                                AppFeedback.tap();
+                                _recordPayment();
+                              },
+                        icon: _submitting
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.add_card_outlined),
+                        label: const Text('Rekodi Malipo'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          _AdminSectionHeader(
+            title: 'Malipo Yanayosubiri',
+            count: _pendingPayments.total,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_loadingPayments)
+            const Center(child: CircularProgressIndicator())
+          else if (_pendingPayments.records.isEmpty)
+            const EmptyState(
+              icon: Icons.payments_outlined,
+              title: 'Hakuna malipo yanayosubiri',
+              body: 'Malipo mapya yataonekana hapa yakisubiri idhini.',
+            )
+          else
+            for (final record in _pendingPayments.records)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          record.userEmail ?? record.userId,
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          '${record.planId} · ${record.method == 'cash' ? 'Fedha Taslimu' : 'Uhamisho wa Benki'} · '
+                          '${record.currency} ${record.amountTzs}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: context.colors.muted,
+                              ),
+                        ),
+                        if (record.reference != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Risiti: ${record.reference}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _reverse(record),
+                                child: const Text('Rudisha Nyuma'),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => _approve(record),
+                                child: const Text('Idhinisha'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdminUserCard extends StatelessWidget {
   const _AdminUserCard({required this.user});
 
@@ -2085,7 +2552,7 @@ class _AdminUserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = (user.displayName?.trim().isNotEmpty ?? false)
         ? user.displayName!.trim()
-        : user.phoneNumber;
+        : (user.email ?? 'Mtumiaji');
     final roleLabel = user.role == 'admin' ? 'Admin' : 'Mkulima';
     final planLabel = user.subscriptionPlan ?? 'Hakuna kifurushi';
 
@@ -2119,9 +2586,10 @@ class _AdminUserCard extends StatelessWidget {
                             ),
                       ),
                       if (user.displayName != null &&
-                          user.displayName!.trim().isNotEmpty)
+                          user.displayName!.trim().isNotEmpty &&
+                          user.email != null)
                         Text(
-                          user.phoneNumber,
+                          user.email!,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: context.colors.muted,
@@ -2139,11 +2607,25 @@ class _AdminUserCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'Kifurushi: $planLabel',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.colors.muted,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Kifurushi: $planLabel',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.colors.muted,
+                        ),
                   ),
+                ),
+                Pill(
+                  label: _accountStatusLabel(user.accountStatus),
+                  color: user.accountStatus == 'active'
+                      ? context.colors.successSurface
+                      : user.accountStatus == 'suspended'
+                          ? context.colors.error.withValues(alpha: 0.12)
+                          : context.colors.surfacePeach,
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
             Wrap(
@@ -2217,6 +2699,14 @@ class _ActivityStat extends StatelessWidget {
       ),
     );
   }
+}
+
+String _accountStatusLabel(String accountStatus) {
+  return switch (accountStatus) {
+    'active' => 'Amewashwa',
+    'suspended' => 'Amesitishwa',
+    _ => 'Inasubiri',
+  };
 }
 
 String _initialsFor(String value) {

@@ -100,23 +100,22 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
 
   Future<void> _restoreAndSyncSession() async {
     await _sessionController.restore();
-    final phoneNumber = _sessionController.phoneNumber;
-    if (phoneNumber == null || _sessionController.state.isGuest) return;
+    // Supabase itself already restored its session (if any) before this app
+    // widget was built (see main.dart); this only needs to check whether one
+    // exists and, if so, refresh role/accountStatus/profile from the backend.
+    if (_sessionController.state.isGuest ||
+        !_dependencies.authService.hasLocalSession) {
+      return;
+    }
 
     try {
-      final session = await _dependencies.authService.getSession(phoneNumber);
-      await _sessionController.signInWithPhone(
-        session.phoneNumber,
-        sessionToken: session.sessionToken,
-        role: session.role,
-      );
-      await _sessionController.syncSubscriptionFromAuthSession(session);
+      final session = await _dependencies.authService.getSession();
+      await _sessionController.signInWithEmail(session.email, role: session.role);
+      await _sessionController.syncAccountStatusFromAuthSession(session);
       await _sessionController.syncRoleFromAuthSession(session);
       await _sessionController.syncProfileFromAuthSession(session);
       final completedLessons =
-          await _dependencies.learningProgressService.completedLessons(
-        session.phoneNumber,
-      );
+          await _dependencies.learningProgressService.completedLessons();
       await _sessionController.syncCompletedLessons(completedLessons);
     } on AuthException {
       // Keep the locally restored session usable when the backend is temporarily

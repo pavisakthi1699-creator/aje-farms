@@ -1,9 +1,8 @@
 // ignore_for_file: use_key_in_widget_constructors
 
-import 'dart:async';
-
 import "../../ui.dart";
-import '../../app/build_flags.dart';
+
+enum _AuthMode { signIn, signUp }
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -12,185 +11,155 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => AuthScreenState();
 }
 
-/// Server-side OTP rate limit is one request per phone number per 60s, so the
-/// resend affordance stays disabled for the same window.
-const Duration _otpResendCooldown = Duration(seconds: 60);
-
 class AuthScreenState extends State<AuthScreen> {
-  final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
-  final _phoneFocus = FocusNode();
-  final _otpFocus = FocusNode();
-  bool _otpSent = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  _AuthMode _mode = _AuthMode.signIn;
   bool _isLoading = false;
-  OtpChallenge? _challenge;
-  String? _phoneError;
-  String? _otpError;
-  Timer? _resendTimer;
-  int _resendSecondsLeft = 0;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
-    _resendTimer?.cancel();
-    _phoneController.dispose();
-    _otpController.dispose();
-    _phoneFocus.dispose();
-    _otpFocus.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
-  void _startResendCooldown() {
-    _resendTimer?.cancel();
-    setState(() => _resendSecondsLeft = _otpResendCooldown.inSeconds);
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() => _resendSecondsLeft -= 1);
-      if (_resendSecondsLeft <= 0) timer.cancel();
-    });
-  }
-
-  /// Returns the validation message for the current phone input, or null when
-  /// it is acceptable.
-  String? _validatePhone(String phone) {
-    if (phone.isEmpty) return 'Weka namba yako ya simu.';
-    if (phone.length < 9) {
-      return 'Namba ya simu inahitaji tarakimu 9 au zaidi.';
-    }
-    if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
-      return 'Tumia tarakimu tu, bila nafasi au alama.';
+  String? _validateEmail(String email) {
+    if (email.isEmpty) return 'Weka barua pepe yako.';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      return 'Weka barua pepe sahihi.';
     }
     return null;
   }
 
-  Future<void> _sendOtp() async {
-    final phone = _phoneController.text.trim();
-    final validationError = _validatePhone(phone);
-    if (validationError != null) {
-      // Inline beneath the field and focused, rather than a snack bar that
-      // disappears and leaves the user guessing which input was wrong.
-      setState(() => _phoneError = validationError);
-      _phoneFocus.requestFocus();
+  String? _validatePassword(String password) {
+    if (password.isEmpty) return 'Weka nenosiri lako.';
+    if (password.length < 6) {
+      return 'Nenosiri linahitajika kuwa na angalau tarakimu 6.';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final emailError = _validateEmail(email);
+    final passwordError = _validatePassword(password);
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+      });
+      if (emailError != null) {
+        _emailFocus.requestFocus();
+      } else {
+        _passwordFocus.requestFocus();
+      }
       return;
     }
     setState(() {
-      _phoneError = null;
+      _emailError = null;
+      _passwordError = null;
       _isLoading = true;
     });
+
+    final authService = context.dependencies.authService;
+    final learningProgressService = context.dependencies.learningProgressService;
+    final appSession = context.session;
     try {
-      final challenge =
-          await context.dependencies.authService.requestOtp('+255 $phone');
-      if (!mounted) return;
-      final isResend = _otpSent;
-      setState(() {
-        _challenge = challenge;
-        _otpSent = true;
-        _otpError = null;
-        _isLoading = false;
-      });
-      _startResendCooldown();
-      // Move focus to the code field so the user can type (or let the platform
-      // autofill the SMS code) without hunting for the next input.
-      if (!isResend) _otpFocus.requestFocus();
-      showSuccessSnack(context, challenge.message);
+      if (_mode == _AuthMode.signUp) {
+        await authService.signUp(email: email, password: password);
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        showSuccessSnack(
+          context,
+          'Akaunti imeundwa. Thibitisha barua pepe yako kisha ingia.',
+        );
+        setState(() => _mode = _AuthMode.signIn);
+        return;
+      }
+
+      await authService.signIn(email: email, password: password);
+      final session = await authService.getSession();
+      await appSession.signInWithEmail(session.email, role: session.role);
+      await appSession.syncAccountStatusFromAuthSession(session);
+      await appSession.syncProfileFromAuthSession(session);
+      try {
+        final completedLessons = await learningProgressService.completedLessons();
+        await appSession.syncCompletedLessons(completedLessons);
+      } on LearningProgressException {
+        // Progress sync should not block sign-in.
+      }
     } on AuthException catch (error) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      showErrorSnack(
-        context,
-        error.message,
-        actionLabel: 'Jaribu tena',
-        onAction: _sendOtp,
-      );
+      showErrorSnack(context, error.message);
+      return;
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       showErrorSnack(
         context,
-        'Imeshindikana kutuma OTP. Angalia mtandao wako.',
-        actionLabel: 'Jaribu tena',
-        onAction: _sendOtp,
+        _mode == _AuthMode.signUp
+            ? 'Imeshindikana kujisajili. Angalia mtandao wako.'
+            : 'Imeshindikana kuingia. Angalia mtandao wako.',
       );
-    }
-  }
-
-  Future<void> _continueToApp({bool requireOtp = true}) async {
-    final phone = '+255 ${_phoneController.text.trim()}';
-    final challenge = _challenge;
-    if (requireOtp && (challenge == null || !_otpSent)) {
-      await _sendOtp();
       return;
-    }
-    if (requireOtp && _otpController.text.trim().length < 4) {
-      setState(
-        () => _otpError = 'Weka OTP uliyoipokea kwa SMS ili kuendelea.',
-      );
-      _otpFocus.requestFocus();
-      return;
-    }
-    if (requireOtp) setState(() => _otpError = null);
-    final authService = context.dependencies.authService;
-    final learningProgressService =
-        context.dependencies.learningProgressService;
-    final appSession = context.session;
-    setState(() => _isLoading = true);
-    if (requireOtp) {
-      try {
-        final session = await authService.verifyOtp(
-          phoneNumber: phone,
-          otp: _otpController.text.trim(),
-          challengeId: challenge!.challengeId,
-        );
-        await appSession.signInWithPhone(
-          session.phoneNumber,
-          sessionToken: session.sessionToken,
-          role: session.role,
-        );
-        await appSession.syncSubscriptionFromAuthSession(session);
-        await appSession.syncRoleFromAuthSession(session);
-        await appSession.syncProfileFromAuthSession(session);
-        try {
-          final completedLessons =
-              await learningProgressService.completedLessons(
-            session.phoneNumber,
-          );
-          await appSession.syncCompletedLessons(completedLessons);
-        } on LearningProgressException {
-          // Progress sync should not block sign-in.
-        }
-      } on AuthException catch (error) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-          _otpError = error.message;
-        });
-        _otpFocus.requestFocus();
-        return;
-      } catch (_) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-          _otpError = 'Imeshindikana kuthibitisha OTP. Jaribu tena.';
-        });
-        _otpFocus.requestFocus();
-        return;
-      }
-    } else {
-      await appSession.startAsGuest();
     }
     if (!mounted) return;
     setState(() => _isLoading = false);
     AppNavigator.replaceWithMainShell(context);
   }
 
+  Future<void> _continueAsGuest() async {
+    setState(() => _isLoading = true);
+    await context.session.startAsGuest();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    AppNavigator.replaceWithMainShell(context);
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      setState(() => _emailError = emailError);
+      _emailFocus.requestFocus();
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await context.dependencies.authService.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      showSuccessSnack(
+        context,
+        'Tumeuma barua pepe yenye maelekezo ya kubadilisha nenosiri.',
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(
+        context,
+        'Imeshindikana kutuma barua pepe. Angalia mtandao wako.',
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isSignUp = _mode == _AuthMode.signUp;
     return Scaffold(
       appBar: AppBar(title: const Text('Ingia / Jisajili')),
-      // AutofillGroup is required for `autofillHints` to be honoured; without
-      // it the platform never offers the saved number or the SMS code.
       body: AutofillGroup(
         child: AppLayout(
           child: ListView(
@@ -199,103 +168,77 @@ class AuthScreenState extends State<AuthScreen> {
               const BrandHeader(),
               const SizedBox(height: AppSpacing.xxl),
               Text(
-                'Karibu tena',
+                isSignUp ? 'Fungua akaunti mpya' : 'Karibu tena',
                 style: Theme.of(context).textTheme.headlineLarge,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Tumia namba yako ya simu kupata mafunzo, kuhifadhi maendeleo yako, na kufungua msaada wa premium.',
+                'Tumia barua pepe na nenosiri kupata mafunzo, kuhifadhi maendeleo yako, na kufungua msaada wa premium.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              const SizedBox(height: AppSpacing.xxl),
-              Card(
-                color: context.colors.surfaceMuted,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: AppDecorations.pastelPanel(
-                            context, context.colors.surface),
-                        child: Icon(
-                          Icons.verified_user_outlined,
-                          color: context.colors.primary,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          'Tutahifadhi kikao chako kwenye kifaa hiki baada ya kuthibitisha namba yako kwa OTP.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
+              const SizedBox(height: AppSpacing.xl),
+              SegmentedButton<_AuthMode>(
+                segments: const [
+                  ButtonSegment(value: _AuthMode.signIn, label: Text('Ingia')),
+                  ButtonSegment(
+                    value: _AuthMode.signUp,
+                    label: Text('Jisajili'),
                   ),
-                ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: _isLoading
+                    ? null
+                    : (selection) {
+                        AppFeedback.selection();
+                        setState(() {
+                          _mode = selection.first;
+                          _emailError = null;
+                          _passwordError = null;
+                        });
+                      },
               ),
               const SizedBox(height: AppSpacing.xl),
               AppTextField(
-                controller: _phoneController,
-                focusNode: _phoneFocus,
-                labelText: 'Namba ya simu',
-                helperText: 'Mfano: 712345678',
-                prefixText: '+255 ',
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.telephoneNumber],
-                errorText: _phoneError,
-                // Clear the error as soon as the user starts correcting it.
+                controller: _emailController,
+                focusNode: _emailFocus,
+                labelText: 'Barua pepe',
+                helperText: 'Mfano: jina@barua.com',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                errorText: _emailError,
                 onChanged: (_) {
-                  if (_phoneError != null) setState(() => _phoneError = null);
+                  if (_emailError != null) setState(() => _emailError = null);
                 },
-                onSubmitted: (_) => _sendOtp(),
+                onSubmitted: (_) => _passwordFocus.requestFocus(),
               ),
-              if (_otpSent) ...[
-                const SizedBox(height: AppSpacing.lg),
-                AppTextField(
-                  controller: _otpController,
-                  focusNode: _otpFocus,
-                  labelText: 'OTP',
-                  helperText: 'Weka tarakimu 6 ulizopokea',
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  // Lets Android/iOS auto-fill the code straight from the SMS.
-                  autofillHints: const [AutofillHints.oneTimeCode],
-                  errorText: _otpError,
-                  onChanged: (_) {
-                    if (_otpError != null) setState(() => _otpError = null);
-                  },
-                  onSubmitted: (_) => _continueToApp(),
-                ),
+              const SizedBox(height: AppSpacing.lg),
+              AppTextField(
+                controller: _passwordController,
+                focusNode: _passwordFocus,
+                labelText: 'Nenosiri',
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                autofillHints: [
+                  isSignUp ? AutofillHints.newPassword : AutofillHints.password,
+                ],
+                errorText: _passwordError,
+                onChanged: (_) {
+                  if (_passwordError != null) {
+                    setState(() => _passwordError = null);
+                  }
+                },
+                onSubmitted: (_) => _submit(),
+              ),
+              if (!isSignUp) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _isLoading || _resendSecondsLeft > 0
-                        ? null
-                        : () {
-                            AppFeedback.tap();
-                            _sendOtp();
-                          },
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: Text(
-                      _resendSecondsLeft > 0
-                          ? 'Tuma tena baada ya sekunde $_resendSecondsLeft'
-                          : 'Tuma OTP tena',
-                    ),
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _forgotPassword,
+                    child: const Text('Umesahau nenosiri?'),
                   ),
                 ),
-                if (kInternalBuild && _challenge?.debugOtp != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'OTP ya majaribio: ${_challenge!.debugOtp}',
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ],
               ],
               const SizedBox(height: AppSpacing.xl),
               FilledButton.icon(
@@ -303,28 +246,19 @@ class AuthScreenState extends State<AuthScreen> {
                     ? null
                     : () {
                         AppFeedback.tap();
-                        if (_otpSent) {
-                          _continueToApp();
-                        } else {
-                          _sendOtp();
-                        }
+                        _submit();
                       },
                 icon: _isLoading
                     ? const SizedBox.square(
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Icon(_otpSent ? Icons.login : Icons.sms_outlined),
-                label: Text(_otpSent ? 'Endelea' : 'Tuma OTP'),
+                    : Icon(isSignUp ? Icons.person_add_outlined : Icons.login),
+                label: Text(isSignUp ? 'Jisajili Sasa' : 'Ingia Sasa'),
               ),
               const SizedBox(height: AppSpacing.md),
               TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        AppFeedback.tap();
-                        _continueToApp(requireOtp: false);
-                      },
+                onPressed: _isLoading ? null : _continueAsGuest,
                 child: const Text('Endelea kama mgeni'),
               ),
             ],

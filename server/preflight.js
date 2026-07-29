@@ -26,21 +26,24 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   }
   const databaseUrlName = storeMode === 'supabase' ? 'SUPABASE_DATABASE_URL' : 'DATABASE_URL';
   requireValue(blockers, databaseUrlName, env[databaseUrlName] ?? env.DATABASE_URL);
-  if (storeMode === 'supabase') {
-    requireValue(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
-    validateHttpsUrl(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
-    validateProductionHostname(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
-    requireValue(
-      blockers,
-      'SUPABASE_SERVICE_ROLE_KEY',
-      env.SUPABASE_SERVICE_ROLE_KEY,
-    );
-  }
+  // Required regardless of store mode: authenticated requests are verified
+  // against Supabase Auth (requireAuthSession in auth.js) independent of
+  // which backend holds application data.
+  requireValue(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+  validateHttpsUrl(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+  validateProductionHostname(blockers, 'SUPABASE_URL', env.SUPABASE_URL);
+  requireValue(
+    blockers,
+    'SUPABASE_SERVICE_ROLE_KEY',
+    env.SUPABASE_SERVICE_ROLE_KEY,
+  );
   requireValue(blockers, 'AJE_OTP_PEPPER', env.AJE_OTP_PEPPER, (value) => {
     return value.length < 32
       ? 'must be at least 32 characters for release.'
       : null;
   });
+  // Gates the dev-only /api/auth/dev-session bypass in api.js — must never
+  // be reachable in a release build.
   if (env.AJE_ENABLE_DEBUG_OTP === 'true') {
     blockers.push('AJE_ENABLE_DEBUG_OTP must not be true for release.');
   }
@@ -74,52 +77,8 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     );
   }
 
-  const smsProvider = String(env.AJE_SMS_PROVIDER ?? '').trim().toLowerCase();
-  if (smsProvider === 'africas_talking') {
-    if (
-      !hasAll(env, [
-        'AFRICASTALKING_USERNAME',
-        'AFRICASTALKING_API_KEY',
-      ])
-    ) {
-      blockers.push(
-        "Africa's Talking SMS provider requires AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY.",
-      );
-    }
-    const smsEnvironment = String(
-      env.AFRICASTALKING_ENVIRONMENT ?? 'production',
-    ).toLowerCase();
-    if (!['production', 'sandbox'].includes(smsEnvironment)) {
-      blockers.push(
-        'AFRICASTALKING_ENVIRONMENT must be "production" or "sandbox".',
-      );
-    }
-  } else if (smsProvider === 'manual') {
-    requireValue(
-      blockers,
-      'AJE_MANUAL_OTP_CODE',
-      env.AJE_MANUAL_OTP_CODE,
-      (value) => (/^\d{6}$/.test(value) ? null : 'must be exactly 6 digits.'),
-    );
-    requireValue(
-      blockers,
-      'AJE_MANUAL_OTP_PHONE_NUMBERS',
-      env.AJE_MANUAL_OTP_PHONE_NUMBERS,
-    );
-    warnings.push(
-      'Manual OTP is enabled for internal testing; switch to africas_talking before public launch.',
-    );
-  } else if (smsProvider && smsProvider !== 'development') {
-    blockers.push(
-      'AJE_SMS_PROVIDER must be "africas_talking", "manual", or "development".',
-    );
-  } else {
-    warnings.push(
-      "SMS OTP provider is not configured; set AJE_SMS_PROVIDER=africas_talking and Africa's Talking credentials for production login.",
-    );
-  }
-  if (!String(env.AJE_ADMIN_PHONE_NUMBERS ?? '').trim()) {
-    warnings.push('AJE_ADMIN_PHONE_NUMBERS is not set; moderation admin access must be managed through stored user roles.');
+  if (!String(env.AJE_ADMIN_EMAILS ?? '').trim()) {
+    warnings.push('AJE_ADMIN_EMAILS is not set; admin access must be managed through stored user roles.');
   }
   const pushProvider = String(env.AJE_PUSH_PROVIDER ?? 'development').toLowerCase();
   if (pushProvider === 'development') {
@@ -136,7 +95,6 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   if (!env.GEMINI_API_KEY || placeholderValues.has(env.GEMINI_API_KEY)) {
     warnings.push('GEMINI_API_KEY is missing; AI will use the approved knowledge-base fallback.');
   }
-  warnings.push('Payment provider is still the development adapter; keep real provider integration as the final payment slice.');
 
   return {
     ok: blockers.length === 0,

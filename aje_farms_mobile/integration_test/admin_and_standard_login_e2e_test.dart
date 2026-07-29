@@ -1,8 +1,25 @@
 import 'package:aje_farms_mobile/src/app.dart';
-import 'package:aje_farms_mobile/src/services/backend_session_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Requires two pre-seeded, email-confirmed Supabase Auth accounts on the
+// target project (set via --dart-define=AJE_API_BASE_URL=... against a
+// running backend pointed at that project):
+//   - AJE_E2E_STANDARD_EMAIL / AJE_E2E_STANDARD_PASSWORD: an ordinary learner
+//   - AJE_E2E_ADMIN_EMAIL / AJE_E2E_ADMIN_PASSWORD: an account whose email is
+//     in AJE_ADMIN_EMAILS on the backend
+// Unlike the old OTP flow, sign-in goes straight to Supabase Auth — there is
+// no debug bypass reachable from the Flutter client, so these accounts must
+// already exist and be confirmed before this test runs.
+const _standardEmail =
+    String.fromEnvironment('AJE_E2E_STANDARD_EMAIL', defaultValue: '');
+const _standardPassword =
+    String.fromEnvironment('AJE_E2E_STANDARD_PASSWORD', defaultValue: '');
+const _adminEmail =
+    String.fromEnvironment('AJE_E2E_ADMIN_EMAIL', defaultValue: '');
+const _adminPassword =
+    String.fromEnvironment('AJE_E2E_ADMIN_PASSWORD', defaultValue: '');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -10,21 +27,21 @@ void main() {
   testWidgets(
     'real auth: standard user blocked, admin user allowed dashboard',
     (tester) async {
+      expect(
+        _standardEmail.isNotEmpty && _adminEmail.isNotEmpty,
+        isTrue,
+        reason: 'Pass AJE_E2E_STANDARD_EMAIL/PASSWORD and '
+            'AJE_E2E_ADMIN_EMAIL/PASSWORD via --dart-define to run this test.',
+      );
+
       final preferences = await SharedPreferences.getInstance();
       await preferences.clear();
-      await BackendSessionStorage.writeToken(null);
 
       final dependencies = AppDependencies.production();
-      final authRecorder = _RecordingAuthService(dependencies.authService);
-      await tester.pumpWidget(AjeFarmsApp(
-        dependencies: _replaceAuthService(dependencies, authRecorder),
-      ));
+      await tester.pumpWidget(AjeFarmsApp(dependencies: dependencies));
       await tester.pumpAndSettle();
 
-      final suffix =
-          DateTime.now().millisecondsSinceEpoch.toString().substring(5, 11);
-      final standardPhone = '712$suffix';
-      await _loginWithOtp(tester, authRecorder, standardPhone);
+      await _login(tester, _standardEmail, _standardPassword);
       expect(find.byType(MainShell), findsOneWidget);
 
       await _openProfile(tester);
@@ -32,7 +49,7 @@ void main() {
       await _logout(tester);
       expect(find.byType(OnboardingScreen), findsOneWidget);
 
-      await _loginWithOtp(tester, authRecorder, '799000111');
+      await _login(tester, _adminEmail, _adminPassword);
       expect(find.byType(MainShell), findsOneWidget);
 
       await _openProfile(tester);
@@ -53,33 +70,22 @@ void main() {
   );
 }
 
-Future<void> _loginWithOtp(
+Future<void> _login(
   WidgetTester tester,
-  _RecordingAuthService authRecorder,
-  String localPhoneDigits,
+  String email,
+  String password,
 ) async {
   await tester.tap(find.text('Ingia / Jisajili'));
   await tester.pumpAndSettle();
 
-  await tester.enterText(find.byType(EditableText).first, localPhoneDigits);
-  await tester.ensureVisible(find.text('Tuma OTP'));
-  await tester.tap(find.text('Tuma OTP'));
-  await tester.pumpAndSettle(const Duration(seconds: 2));
-
-  final otp = authRecorder.latestChallenge?.debugOtp;
-  expect(
-    otp,
-    isNotNull,
-    reason: 'Backend did not return development OTP.',
-  );
-
-  await tester.enterText(find.byType(EditableText).last, otp!);
+  await tester.enterText(find.byType(EditableText).at(0), email);
+  await tester.enterText(find.byType(EditableText).at(1), password);
   await tester.scrollUntilVisible(
-    find.text('Endelea'),
+    find.text('Ingia'),
     220,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.tap(find.text('Endelea'));
+  await tester.tap(find.text('Ingia'));
   await tester.pumpAndSettle(const Duration(seconds: 2));
 }
 
@@ -92,79 +98,4 @@ Future<void> _logout(WidgetTester tester) async {
   await tester.scrollUntilVisible(find.text('Ondoka kwenye Akaunti'), 220);
   await tester.tap(find.text('Ondoka kwenye Akaunti'));
   await tester.pumpAndSettle();
-}
-
-AppDependencies _replaceAuthService(
-  AppDependencies dependencies,
-  AuthService authService,
-) {
-  return AppDependencies(
-    learningRepository: dependencies.learningRepository,
-    communityRepository: dependencies.communityRepository,
-    subscriptionRepository: dependencies.subscriptionRepository,
-    mwalimuAiService: dependencies.mwalimuAiService,
-    authService: authService,
-    catalogService: dependencies.catalogService,
-    adminService: dependencies.adminService,
-    communityService: dependencies.communityService,
-    learningProgressService: dependencies.learningProgressService,
-    notificationService: dependencies.notificationService,
-    paymentService: dependencies.paymentService,
-    refreshCatalog: dependencies.refreshCatalog,
-    refreshListenable: dependencies.refreshListenable,
-  );
-}
-
-class _RecordingAuthService implements AuthService {
-  _RecordingAuthService(this._delegate);
-
-  final AuthService _delegate;
-  OtpChallenge? latestChallenge;
-
-  @override
-  Future<OtpChallenge> requestOtp(String phoneNumber) async {
-    latestChallenge = await _delegate.requestOtp(phoneNumber);
-    return latestChallenge!;
-  }
-
-  @override
-  Future<AuthSession> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    required String challengeId,
-  }) {
-    return _delegate.verifyOtp(
-      phoneNumber: phoneNumber,
-      otp: otp,
-      challengeId: challengeId,
-    );
-  }
-
-  @override
-  Future<AuthSession> getSession(String phoneNumber) {
-    return _delegate.getSession(phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> cancelSubscription(String phoneNumber) {
-    return _delegate.cancelSubscription(phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> updateProfile({
-    required String phoneNumber,
-    String? displayName,
-    String? preferredLocation,
-  }) {
-    return _delegate.updateProfile(
-      phoneNumber: phoneNumber,
-      displayName: displayName,
-      preferredLocation: preferredLocation,
-    );
-  }
-
-  @override
-  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() {
-    return _delegate.getAdminAccessDiagnostics();
-  }
 }

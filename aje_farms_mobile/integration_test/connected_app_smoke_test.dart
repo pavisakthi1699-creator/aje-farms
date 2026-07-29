@@ -1,51 +1,47 @@
 import 'package:aje_farms_mobile/src/app.dart';
-import 'package:aje_farms_mobile/src/services/backend_session_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Requires a pre-seeded, email-confirmed Supabase Auth account on the target
+// project — see admin_and_standard_login_e2e_test.dart for why there's no
+// debug bypass to fall back on. This account should be `pending_activation`
+// (never had a payment approved) so the awaiting-activation screen is what's
+// under test, matching what a freshly signed-up learner actually sees.
+const _email = String.fromEnvironment('AJE_E2E_STANDARD_EMAIL', defaultValue: '');
+const _password =
+    String.fromEnvironment('AJE_E2E_STANDARD_PASSWORD', defaultValue: '');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('connected Android smoke: auth and payment', (tester) async {
+  testWidgets('connected Android smoke: sign in and awaiting activation',
+      (tester) async {
+    expect(
+      _email.isNotEmpty,
+      isTrue,
+      reason: 'Pass AJE_E2E_STANDARD_EMAIL/PASSWORD via --dart-define to '
+          'run this test.',
+    );
+
     final preferences = await SharedPreferences.getInstance();
     await preferences.clear();
-    await BackendSessionStorage.writeToken(null);
 
     final dependencies = AppDependencies.production();
-    final authRecorder = _RecordingAuthService(dependencies.authService);
-    await tester.pumpWidget(AjeFarmsApp(
-      dependencies: _replaceAuthService(dependencies, authRecorder),
-    ));
+    await tester.pumpWidget(AjeFarmsApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Ingia / Jisajili'));
     await tester.pumpAndSettle();
 
-    final suffix =
-        DateTime.now().millisecondsSinceEpoch.toString().substring(5, 11);
-    final phone = '712$suffix';
-    await tester.enterText(find.byType(EditableText).first, phone);
-    await tester.ensureVisible(find.text('Tuma OTP'));
-    await tester.tap(find.text('Tuma OTP'));
-    await tester.pumpAndSettle(const Duration(seconds: 2));
-
-    final otp = authRecorder.latestChallenge?.debugOtp;
-    expect(
-      otp,
-      isNotNull,
-      reason: 'Backend did not return a development OTP. Current texts: '
-          '${_screenTexts(tester).join(' | ')}',
-    );
-
-    await tester.enterText(find.byType(EditableText).last, otp!);
-    final continueButton = find.text('Endelea');
+    await tester.enterText(find.byType(EditableText).at(0), _email);
+    await tester.enterText(find.byType(EditableText).at(1), _password);
     await tester.scrollUntilVisible(
-      continueButton,
+      find.text('Ingia'),
       220,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(continueButton);
+    await tester.tap(find.text('Ingia'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(
@@ -60,28 +56,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Muda wa jaribio umeisha'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Lipa TZS 10,000'),
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.enterText(find.byType(TextField), phone);
-    await tester.tap(find.text('Lipa TZS 10,000'));
-    await tester.pump();
+    expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
+    await tester.tap(find.text('Onyesha Hali Upya'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('Inasubiri uthibitisho...'), findsOneWidget);
-    for (var i = 0; i < 12; i += 1) {
-      await tester.pump(const Duration(seconds: 1));
-      if (find.text('Malipo Yamefanikiwa!').evaluate().isNotEmpty) {
-        break;
-      }
-    }
-
-    expect(find.text('Malipo Yamefanikiwa!'), findsOneWidget);
-    expect(find.textContaining('Mwezi 1 imewashwa'), findsOneWidget);
-
-    await tester.tap(find.text('Rudi Nyumbani'));
+    Navigator.of(shellContext).pop();
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
@@ -100,79 +79,4 @@ List<String> _screenTexts(WidgetTester tester) {
       .map((element) => tester.widget<Text>(find.byWidget(element.widget)).data)
       .whereType<String>()
       .toList();
-}
-
-AppDependencies _replaceAuthService(
-  AppDependencies dependencies,
-  AuthService authService,
-) {
-  return AppDependencies(
-    learningRepository: dependencies.learningRepository,
-    communityRepository: dependencies.communityRepository,
-    subscriptionRepository: dependencies.subscriptionRepository,
-    mwalimuAiService: dependencies.mwalimuAiService,
-    authService: authService,
-    catalogService: dependencies.catalogService,
-    adminService: dependencies.adminService,
-    communityService: dependencies.communityService,
-    learningProgressService: dependencies.learningProgressService,
-    notificationService: dependencies.notificationService,
-    paymentService: dependencies.paymentService,
-    refreshCatalog: dependencies.refreshCatalog,
-    refreshListenable: dependencies.refreshListenable,
-  );
-}
-
-class _RecordingAuthService implements AuthService {
-  _RecordingAuthService(this._delegate);
-
-  final AuthService _delegate;
-  OtpChallenge? latestChallenge;
-
-  @override
-  Future<OtpChallenge> requestOtp(String phoneNumber) async {
-    latestChallenge = await _delegate.requestOtp(phoneNumber);
-    return latestChallenge!;
-  }
-
-  @override
-  Future<AuthSession> verifyOtp({
-    required String phoneNumber,
-    required String otp,
-    required String challengeId,
-  }) {
-    return _delegate.verifyOtp(
-      phoneNumber: phoneNumber,
-      otp: otp,
-      challengeId: challengeId,
-    );
-  }
-
-  @override
-  Future<AuthSession> getSession(String phoneNumber) {
-    return _delegate.getSession(phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> cancelSubscription(String phoneNumber) {
-    return _delegate.cancelSubscription(phoneNumber);
-  }
-
-  @override
-  Future<AuthSession> updateProfile({
-    required String phoneNumber,
-    String? displayName,
-    String? preferredLocation,
-  }) {
-    return _delegate.updateProfile(
-      phoneNumber: phoneNumber,
-      displayName: displayName,
-      preferredLocation: preferredLocation,
-    );
-  }
-
-  @override
-  Future<AdminAccessDiagnostics> getAdminAccessDiagnostics() {
-    return _delegate.getAdminAccessDiagnostics();
-  }
 }

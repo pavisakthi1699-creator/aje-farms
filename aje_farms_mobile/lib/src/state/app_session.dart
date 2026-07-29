@@ -12,7 +12,7 @@ class AppSessionState {
   const AppSessionState({
     this.hasStarted = false,
     this.isGuest = false,
-    this.phoneNumber,
+    this.email,
     this.completedLessonIds = const {},
     this.localPosts = const [],
     this.localRepliesByPostId = const {},
@@ -21,6 +21,7 @@ class AppSessionState {
     this.assessmentScores = const {},
     this.subscriptionPlan,
     this.subscriptionStartedAt,
+    this.accountStatus,
     this.notificationsEnabled = true,
     this.preferredLocation,
     this.displayName,
@@ -30,7 +31,7 @@ class AppSessionState {
 
   final bool hasStarted;
   final bool isGuest;
-  final String? phoneNumber;
+  final String? email;
   final Set<String> completedLessonIds;
   final List<CommunityPost> localPosts;
   final Map<String, List<CommunityReply>> localRepliesByPostId;
@@ -39,13 +40,17 @@ class AppSessionState {
   final Map<String, int> assessmentScores;
   final String? subscriptionPlan;
   final DateTime? subscriptionStartedAt;
+
+  /// 'pending_activation' | 'active' | 'suspended'. The only source of truth
+  /// for whether paid content is unlocked — see [hasActiveAccess].
+  final String? accountStatus;
   final bool notificationsEnabled;
   final String? preferredLocation;
   final String? displayName;
   final String? role;
   final AppThemePreference themePreference;
 
-  bool get hasActiveSubscription => subscriptionPlan != null;
+  bool get hasActiveAccess => accountStatus == 'active';
   bool get isAdmin => role == 'admin';
 
   /// The community feed: locally submitted posts first, then the server feed.
@@ -65,7 +70,7 @@ class AppSessionState {
   AppSessionState copyWith({
     bool? hasStarted,
     bool? isGuest,
-    String? phoneNumber,
+    String? email,
     Set<String>? completedLessonIds,
     List<CommunityPost>? localPosts,
     Map<String, List<CommunityReply>>? localRepliesByPostId,
@@ -74,13 +79,15 @@ class AppSessionState {
     Map<String, int>? assessmentScores,
     String? subscriptionPlan,
     DateTime? subscriptionStartedAt,
+    String? accountStatus,
     bool? notificationsEnabled,
     String? preferredLocation,
     String? displayName,
     String? role,
     AppThemePreference? themePreference,
-    bool clearPhoneNumber = false,
+    bool clearEmail = false,
     bool clearSubscription = false,
+    bool clearAccountStatus = false,
     bool clearPreferredLocation = false,
     bool clearDisplayName = false,
     bool clearRole = false,
@@ -88,7 +95,7 @@ class AppSessionState {
     return AppSessionState(
       hasStarted: hasStarted ?? this.hasStarted,
       isGuest: isGuest ?? this.isGuest,
-      phoneNumber: clearPhoneNumber ? null : phoneNumber ?? this.phoneNumber,
+      email: clearEmail ? null : email ?? this.email,
       completedLessonIds: completedLessonIds ?? this.completedLessonIds,
       localPosts: localPosts ?? this.localPosts,
       localRepliesByPostId: localRepliesByPostId ?? this.localRepliesByPostId,
@@ -100,6 +107,8 @@ class AppSessionState {
       subscriptionStartedAt: clearSubscription
           ? null
           : subscriptionStartedAt ?? this.subscriptionStartedAt,
+      accountStatus:
+          clearAccountStatus ? null : accountStatus ?? this.accountStatus,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       preferredLocation: clearPreferredLocation
           ? null
@@ -117,7 +126,7 @@ class AppSessionController extends ChangeNotifier {
 
   static const _hasStartedKey = 'app_session.has_started';
   static const _isGuestKey = 'app_session.is_guest';
-  static const _phoneNumberKey = 'app_session.phone_number';
+  static const _emailKey = 'app_session.email';
   static const _completedLessonsKey = 'app_session.completed_lesson_ids';
   static const _localPostsKey = 'app_session.local_posts';
   static const _localRepliesKey = 'app_session.local_replies';
@@ -127,6 +136,7 @@ class AppSessionController extends ChangeNotifier {
   static const _subscriptionPlanKey = 'app_session.subscription_plan';
   static const _subscriptionStartedAtKey =
       'app_session.subscription_started_at';
+  static const _accountStatusKey = 'app_session.account_status';
   static const _notificationsEnabledKey = 'app_session.notifications_enabled';
   static const _preferredLocationKey = 'app_session.preferred_location';
   static const _displayNameKey = 'app_session.display_name';
@@ -139,9 +149,9 @@ class AppSessionController extends ChangeNotifier {
   AppSessionState get state => _state;
 
   bool get hasStarted => _state.hasStarted;
-  bool get isSignedIn => !_state.isGuest && _state.phoneNumber != null;
-  String? get phoneNumber => _state.phoneNumber;
-  bool get hasActiveSubscription => _state.hasActiveSubscription;
+  bool get isSignedIn => !_state.isGuest && _state.email != null;
+  String? get email => _state.email;
+  bool get hasActiveAccess => _state.hasActiveAccess;
   bool get isAdmin => _state.isAdmin;
 
   Future<void> restore() async {
@@ -149,7 +159,7 @@ class AppSessionController extends ChangeNotifier {
     _state = AppSessionState(
       hasStarted: preferences.getBool(_hasStartedKey) ?? false,
       isGuest: preferences.getBool(_isGuestKey) ?? false,
-      phoneNumber: preferences.getString(_phoneNumberKey),
+      email: preferences.getString(_emailKey),
       completedLessonIds:
           preferences.getStringList(_completedLessonsKey)?.toSet() ?? {},
       localPosts:
@@ -165,6 +175,7 @@ class AppSessionController extends ChangeNotifier {
       subscriptionPlan: preferences.getString(_subscriptionPlanKey),
       subscriptionStartedAt:
           _decodeDate(preferences.getString(_subscriptionStartedAtKey)),
+      accountStatus: preferences.getString(_accountStatusKey),
       notificationsEnabled:
           preferences.getBool(_notificationsEnabledKey) ?? true,
       preferredLocation: preferences.getString(_preferredLocationKey),
@@ -181,35 +192,33 @@ class AppSessionController extends ChangeNotifier {
     _state = _state.copyWith(
       hasStarted: true,
       isGuest: true,
-      clearPhoneNumber: true,
+      clearEmail: true,
       clearRole: true,
     );
     notifyListeners();
     await _save();
   }
 
-  Future<void> signInWithPhone(
-    String phoneNumber, {
-    String? sessionToken,
-    String? role,
-  }) async {
+  /// Called after Supabase Auth has already established the session (see
+  /// [AuthService.signIn]/[AuthService.signUp]) — this only records the
+  /// resulting identity locally. It does not touch the bearer token itself;
+  /// Supabase owns that (see [BackendSessionStorage]).
+  Future<void> signInWithEmail(String email, {String? role}) async {
     _state = _state.copyWith(
       hasStarted: true,
       isGuest: false,
-      phoneNumber: phoneNumber,
+      email: email,
       role: role,
     );
     notifyListeners();
-    if (sessionToken != null) {
-      await BackendSessionStorage.writeToken(sessionToken);
-    }
     await _save();
   }
 
+  /// Clears local session state only. Callers must also call
+  /// `authService.signOut()` to end the Supabase session itself.
   Future<void> signOut() async {
     _state = const AppSessionState();
     notifyListeners();
-    await BackendSessionStorage.writeToken(null);
     await _save();
   }
 
@@ -271,10 +280,15 @@ class AppSessionController extends ChangeNotifier {
     await _save();
   }
 
-  Future<void> syncSubscriptionFromAuthSession(AuthSession session) async {
-    if (session.sessionToken != null) {
-      await BackendSessionStorage.writeToken(session.sessionToken);
-    }
+  /// The only place paid-content gating state is set — always from a fresh
+  /// server response, never inferred locally. See [AppSessionState.hasActiveAccess].
+  Future<void> syncAccountStatusFromAuthSession(AuthSession session) async {
+    _state = _state.copyWith(
+      accountStatus: session.accountStatus,
+      clearAccountStatus: session.accountStatus == null,
+    );
+    notifyListeners();
+    await _save();
     final subscriptionPlan = session.subscriptionPlan;
     if (subscriptionPlan == null) {
       await cancelSubscription();
@@ -355,7 +369,7 @@ class AppSessionController extends ChangeNotifier {
   }) async {
     final post = CommunityPost(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
-      author: isSignedIn ? phoneNumber! : 'Wewe',
+      author: isSignedIn ? (_state.displayName ?? 'Wewe') : 'Wewe',
       location: location,
       time: 'Sasa hivi',
       content: content,
@@ -378,7 +392,7 @@ class AppSessionController extends ChangeNotifier {
     await addCommunityReplyRecord(
       postId,
       CommunityReply(
-        author: isSignedIn ? phoneNumber! : 'Wewe',
+        author: isSignedIn ? (_state.displayName ?? 'Wewe') : 'Wewe',
         body: body,
         time: 'Sasa hivi',
       ),
@@ -421,11 +435,11 @@ class AppSessionController extends ChangeNotifier {
     final preferences = _preferences ??= await SharedPreferences.getInstance();
     await preferences.setBool(_hasStartedKey, _state.hasStarted);
     await preferences.setBool(_isGuestKey, _state.isGuest);
-    final phoneNumber = _state.phoneNumber;
-    if (phoneNumber == null) {
-      await preferences.remove(_phoneNumberKey);
+    final email = _state.email;
+    if (email == null) {
+      await preferences.remove(_emailKey);
     } else {
-      await preferences.setString(_phoneNumberKey, phoneNumber);
+      await preferences.setString(_emailKey, email);
     }
     await preferences.setStringList(
       _completedLessonsKey,
@@ -462,6 +476,12 @@ class AppSessionController extends ChangeNotifier {
         _subscriptionStartedAtKey,
         (_state.subscriptionStartedAt ?? DateTime.now()).toIso8601String(),
       );
+    }
+    final accountStatus = _state.accountStatus;
+    if (accountStatus == null) {
+      await preferences.remove(_accountStatusKey);
+    } else {
+      await preferences.setString(_accountStatusKey, accountStatus);
     }
     await preferences.setBool(
       _notificationsEnabledKey,

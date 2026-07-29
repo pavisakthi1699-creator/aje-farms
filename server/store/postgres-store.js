@@ -12,18 +12,15 @@ import {
   documentsFromCourses,
   extensionForImageContentType,
   extensionForVideoContentType,
-  hashOtp,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
   lessonVideosBucket,
   lessonVideosPrefix,
   normalizeApprovedCourse,
   normalizeContentDocument,
-  normalizePhoneNumber,
-  otpTtlMs,
+  normalizeEmail,
   paymentFromRow,
   userFromRow,
-  verifyOtpHash,
 } from './utils.js';
 import {
   createSessionToken,
@@ -105,9 +102,340 @@ export class PostgresStore {
       courses: await this.approvedContentCourses(),
       documents: await this.approvedContentDocuments(),
       problemCategories: this.catalog.problemCategories,
-      plans: this.catalog.plans,
+      plans: await this.activePlans(),
       communityPosts: await this.communityPosts(),
     };
+  }
+
+  async activePlans() {
+    const result = await this.pool.query(
+      `SELECT id, title, subtitle, price_tzs, duration_days, icon, recommended
+       FROM plans WHERE enabled = TRUE ORDER BY sort_order`,
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle,
+      price: `TZS ${Number(row.price_tzs).toLocaleString('en-US')}`,
+      priceTzs: Number(row.price_tzs),
+      durationDays: Number(row.duration_days),
+      icon: row.icon,
+      recommended: row.recommended,
+    }));
+  }
+
+  async getPlan(planId) {
+    const result = await this.pool.query(
+      `SELECT id, title, duration_days, enabled FROM plans WHERE id = $1`,
+      [planId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      durationDays: Number(row.duration_days),
+      enabled: row.enabled,
+    };
+  }
+
+  // Staff pick a plan id; the price and duration always come from the plans
+  // table, never from request input.
+  async recordPaymentRecord({
+    userId,
+    planId,
+    method,
+    amountTzs,
+    currency = 'TZS',
+    reference = null,
+    note = null,
+    recordedByUserId,
+  }) {
+    const plan = await this.getPlan(planId);
+    if (!plan || !plan.enabled) return null;
+    const now = new Date().toISOString();
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO payment_records (
+           id, user_id, plan_id, method, amount_tzs, currency, reference, note,
+           status, recorded_by, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $10)
+         RETURNING *`,
+        [
+          createId('payrec'),
+          userId,
+          planId,
+          method,
+          amountTzs,
+          currency,
+          reference,
+          note,
+          recordedByUserId,
+          now,
+        ],
+      );
+      return paymentRecordFromRow(result.rows[0]);
+    } catch (error) {
+      if (error?.code === '23505') {
+        const conflict = new Error('A payment with this reference already exists.');
+        conflict.code = 'DUPLICATE_REFERENCE';
+        throw conflict;
+      }
+      throw error;
+    }
+  }
+
+  async getPaymentRecord(paymentRecordId) {
+    const result = await this.pool.query(
+      `SELECT * FROM payment_records WHERE id = $1`,
+      [paymentRecordId],
+    );
+    return result.rows[0] ? paymentRecordFromRow(result.rows[0]) : null;
+  }
+
+  // For the staff review queue: joins in the learner's email/display name so
+  // the UI doesn't need a second lookup per row.
+  async paymentRecordsForAdmin({ status, userId, limit = 50, offset = 0 } = {}) {
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const result = await this.pool.query(
+      `SELECT pr.*, u.email AS user_email, u.display_name AS user_display_name,
+              COUNT(*) OVER() AS total_count
+       FROM payment_records pr
+       JOIN users u ON u.id = pr.user_id
+       WHERE ($1::text IS NULL OR pr.status = $1)
+         AND ($2::text IS NULL OR pr.user_id = $2)
+       ORDER BY pr.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [status ?? null, userId ?? null, safeLimit, safeOffset],
+    );
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    const records = result.rows.map((row) => ({
+      ...paymentRecordFromRow(row),
+      userEmail: row.user_email ?? null,
+      userDisplayName: row.user_display_name ?? null,
+    }));
+    return { records, total };
+  }
+
+  // Idempotent and transactional: the `FOR UPDATE ... WHERE status='pending'`
+  // guard means a concurrent second approval blocks on the row lock, then
+  // sees status already 'approved' and returns the existing entitlement
+  // instead of minting a second one. The unique index on
+  // entitlements.payment_record_id is a second, defense-in-depth guard
+  // against the same failure mode.
+  async approvePaymentRecord({ paymentRecordId, approvedByUserId, reason = null }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        `SELECT * FROM payment_records WHERE id = $1 FOR UPDATE`,
+        [paymentRecordId],
+      );
+      if (!existing.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      const record = paymentRecordFromRow(existing.rows[0]);
+      if (record.status !== 'pending') {
+        const currentEntitlement = await client.query(
+          `SELECT * FROM entitlements WHERE payment_record_id = $1`,
+          [paymentRecordId],
+        );
+        await client.query('COMMIT');
+        return {
+          paymentRecord: record,
+          entitlement: currentEntitlement.rows[0]
+            ? entitlementFromRow(currentEntitlement.rows[0])
+            : null,
+        };
+      }
+
+      const planResult = await client.query(
+        `SELECT title, duration_days FROM plans WHERE id = $1`,
+        [record.planId],
+      );
+      const plan = planResult.rows[0];
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const expiresAtIso = new Date(
+        now.getTime() + Number(plan.duration_days) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
+      const updatedRecord = await client.query(
+        `UPDATE payment_records
+         SET status = 'approved', approved_by = $2, approved_at = $3, updated_at = $3
+         WHERE id = $1
+         RETURNING *`,
+        [paymentRecordId, approvedByUserId, nowIso],
+      );
+
+      const entitlementResult = await client.query(
+        `INSERT INTO entitlements (
+           id, user_id, plan_id, payment_record_id, status, granted_at,
+           expires_at, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, 'active', $5, $6, $5, $5)
+         RETURNING *`,
+        [
+          createId('ent'),
+          record.userId,
+          record.planId,
+          record.id,
+          nowIso,
+          expiresAtIso,
+        ],
+      );
+
+      await client.query(
+        `UPDATE users
+         SET account_status = 'active', subscription_plan = $2,
+             subscription_started_at = $3, updated_at = $3
+         WHERE id = $1`,
+        [record.userId, plan.title, nowIso],
+      );
+
+      // created_at is deliberately left to the column's own DEFAULT now()
+      // rather than the JS-computed nowIso: approve and reverse each run in
+      // their own transaction, and two events can land in the same
+      // millisecond under JS Date precision, which breaks the ORDER BY
+      // created_at DESC tiebreak in auditEventsFor. Postgres's own
+      // transaction timestamp has finer precision and avoids that tie.
+      await client.query(
+        `INSERT INTO audit_events (
+           id, actor_user_id, action, target_type, target_id,
+           previous_status, new_status, reason
+         ) VALUES ($1, $2, 'payment_approved', 'payment_record', $3, 'pending', 'approved', $4)`,
+        [createId('audit'), approvedByUserId, record.id, reason],
+      );
+
+      await client.query('COMMIT');
+      return {
+        paymentRecord: paymentRecordFromRow(updatedRecord.rows[0]),
+        entitlement: entitlementFromRow(entitlementResult.rows[0]),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Idempotent for the same reason as approvePaymentRecord: reversing an
+  // already-reversed record returns the current state under lock rather than
+  // erroring or double-writing audit history.
+  async reversePaymentRecord({ paymentRecordId, actorUserId, reason = null }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        `SELECT * FROM payment_records WHERE id = $1 FOR UPDATE`,
+        [paymentRecordId],
+      );
+      if (!existing.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      const record = paymentRecordFromRow(existing.rows[0]);
+      if (record.status !== 'approved') {
+        await client.query('COMMIT');
+        return { paymentRecord: record, entitlement: null };
+      }
+
+      const now = new Date().toISOString();
+      const updatedRecord = await client.query(
+        `UPDATE payment_records
+         SET status = 'reversed', reversed_by = $2, reversed_at = $3, updated_at = $3
+         WHERE id = $1
+         RETURNING *`,
+        [paymentRecordId, actorUserId, now],
+      );
+      const updatedEntitlement = await client.query(
+        `UPDATE entitlements
+         SET status = 'revoked', revoked_at = $2, updated_at = $2
+         WHERE payment_record_id = $1 AND status = 'active'
+         RETURNING *`,
+        [paymentRecordId, now],
+      );
+
+      // A learner can in principle hold more than one entitlement (e.g. two
+      // approvals in quick succession); reversing one must not silently keep
+      // showing its plan as active once it's the only one left standing.
+      const remaining = await client.query(
+        `SELECT e.granted_at, p.title
+         FROM entitlements e
+         JOIN plans p ON p.id = e.plan_id
+         WHERE e.user_id = $1 AND e.status = 'active'
+         ORDER BY e.granted_at DESC
+         LIMIT 1`,
+        [record.userId],
+      );
+      if (remaining.rows[0]) {
+        await client.query(
+          `UPDATE users
+           SET account_status = 'active', subscription_plan = $2,
+               subscription_started_at = $3, updated_at = $4
+           WHERE id = $1`,
+          [record.userId, remaining.rows[0].title, remaining.rows[0].granted_at, now],
+        );
+      } else {
+        await client.query(
+          `UPDATE users
+           SET account_status = 'suspended', subscription_plan = NULL,
+               subscription_started_at = NULL, updated_at = $2
+           WHERE id = $1`,
+          [record.userId, now],
+        );
+      }
+
+      await client.query(
+        `INSERT INTO audit_events (
+           id, actor_user_id, action, target_type, target_id,
+           previous_status, new_status, reason
+         ) VALUES ($1, $2, 'payment_reversed', 'payment_record', $3, 'approved', 'reversed', $4)`,
+        [createId('audit'), actorUserId, record.id, reason],
+      );
+
+      await client.query('COMMIT');
+      return {
+        paymentRecord: paymentRecordFromRow(updatedRecord.rows[0]),
+        entitlement: updatedEntitlement.rows[0]
+          ? entitlementFromRow(updatedEntitlement.rows[0])
+          : null,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async entitlementsForUser(userId) {
+    const result = await this.pool.query(
+      `SELECT * FROM entitlements WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    );
+    return result.rows.map(entitlementFromRow);
+  }
+
+  async hasActiveEntitlement(userId) {
+    const result = await this.pool.query(
+      `SELECT 1 FROM entitlements
+       WHERE user_id = $1 AND status = 'active' AND expires_at > now()
+       LIMIT 1`,
+      [userId],
+    );
+    return result.rows.length > 0;
+  }
+
+  async auditEventsFor({ targetType, targetId }) {
+    const result = await this.pool.query(
+      `SELECT * FROM audit_events WHERE target_type = $1 AND target_id = $2
+       ORDER BY created_at DESC`,
+      [targetType, targetId],
+    );
+    return result.rows.map(auditEventFromRow);
   }
 
   async approvedContentCourses() {
@@ -1478,43 +1806,98 @@ export class PostgresStore {
     return contentDocumentFromRow(result.rows[0]);
   }
 
-  async getUser(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async getUser(userId) {
     const result = await this.pool.query(
-      `SELECT id, phone_number, role, subscription_plan, subscription_started_at,
+      `SELECT id, phone_number, email, auth_user_id, account_status, role,
+              subscription_plan, subscription_started_at,
               display_name, preferred_location, created_at, updated_at
        FROM users
-       WHERE phone_number = $1`,
-      [normalizedPhone],
+       WHERE id = $1`,
+      [userId],
     );
     return result.rows[0] ? userFromRow(result.rows[0]) : null;
   }
 
-  async ensureUser(phoneNumber) {
-    const existing = await this.getUser(phoneNumber);
-    if (existing) return existing;
+  async getUserByAuthUserId(authUserId) {
+    if (!authUserId) return null;
+    const result = await this.pool.query(
+      `SELECT id, phone_number, email, auth_user_id, account_status, role,
+              subscription_plan, subscription_started_at,
+              display_name, preferred_location, created_at, updated_at
+       FROM users
+       WHERE auth_user_id = $1`,
+      [authUserId],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+  }
 
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const now = new Date();
+  async getUserByEmail(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return null;
+    const result = await this.pool.query(
+      `SELECT id, phone_number, email, auth_user_id, account_status, role,
+              subscription_plan, subscription_started_at,
+              display_name, preferred_location, created_at, updated_at
+       FROM users
+       WHERE lower(email) = $1`,
+      [normalizedEmail],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+  }
+
+  // Called on every authenticated request with claims taken from the verified
+  // Supabase JWT, never from request input. An account created before
+  // Supabase Auth existed is matched by email and keeps its existing `id`, so
+  // every row that already points at that id stays attached.
+  async linkOrCreateUserForAuth({ authUserId, email }) {
+    const normalizedEmail = normalizeEmail(email);
+    const linked = await this.getUserByAuthUserId(authUserId);
+    if (linked) {
+      if (normalizedEmail && linked.email !== normalizedEmail) {
+        const updatedAt = new Date().toISOString();
+        await this.pool.query(
+          `UPDATE users SET email = $2, updated_at = $3 WHERE id = $1`,
+          [linked.id, normalizedEmail, updatedAt],
+        );
+        return { ...linked, email: normalizedEmail, updatedAt };
+      }
+      return linked;
+    }
+
+    const existing = await this.getUserByEmail(normalizedEmail);
+    if (existing) {
+      const updatedAt = new Date().toISOString();
+      await this.pool.query(
+        `UPDATE users SET auth_user_id = $2, email = $3, updated_at = $4 WHERE id = $1`,
+        [existing.id, authUserId, normalizedEmail, updatedAt],
+      );
+      return { ...existing, authUserId, email: normalizedEmail, updatedAt };
+    }
+
+    const now = new Date().toISOString();
     const user = {
       id: createId('user'),
-      phoneNumber: normalizedPhone,
+      authUserId,
+      email: normalizedEmail,
+      phoneNumber: null,
       role: 'learner',
+      accountStatus: 'pending_activation',
       subscriptionPlan: null,
       subscriptionStartedAt: null,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-
     await this.pool.query(
       `INSERT INTO users (
-         id, phone_number, role, subscription_plan, subscription_started_at,
-         created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         id, auth_user_id, email, role, account_status, subscription_plan,
+         subscription_started_at, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         user.id,
-        user.phoneNumber,
+        user.authUserId,
+        user.email,
         user.role,
+        user.accountStatus,
         user.subscriptionPlan,
         user.subscriptionStartedAt,
         user.createdAt,
@@ -1524,28 +1907,39 @@ export class PostgresStore {
     return user;
   }
 
-  async activateSubscription({ phoneNumber, planTitle }) {
-    const user = await this.ensureUser(phoneNumber);
+  async setAccountStatus({ userId, accountStatus }) {
+    const updatedAt = new Date().toISOString();
+    const result = await this.pool.query(
+      `UPDATE users SET account_status = $2, updated_at = $3
+       WHERE id = $1
+       RETURNING id, phone_number, email, auth_user_id, account_status, role,
+                 subscription_plan, subscription_started_at,
+                 display_name, preferred_location, created_at, updated_at`,
+      [userId, accountStatus, updatedAt],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+  }
+
+  async activateSubscription({ userId, planTitle }) {
     const startedAt = new Date();
     const updatedAt = startedAt.toISOString();
-    await this.pool.query(
+    const result = await this.pool.query(
       `UPDATE users
        SET subscription_plan = $2,
            subscription_started_at = $3,
+           account_status = 'active',
            updated_at = $4
-       WHERE id = $1`,
-      [user.id, planTitle, startedAt.toISOString(), updatedAt],
+       WHERE id = $1
+       RETURNING id, phone_number, email, auth_user_id, account_status, role,
+                 subscription_plan, subscription_started_at,
+                 display_name, preferred_location, created_at, updated_at`,
+      [userId, planTitle, startedAt.toISOString(), updatedAt],
     );
-    return {
-      ...user,
-      subscriptionPlan: planTitle,
-      subscriptionStartedAt: startedAt.toISOString(),
-      updatedAt,
-    };
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
   }
 
-  async cancelSubscription(phoneNumber) {
-    const user = await this.getUser(phoneNumber);
+  async cancelSubscription(userId) {
+    const user = await this.getUser(userId);
     if (!user) return null;
 
     const updatedAt = new Date().toISOString();
@@ -1565,8 +1959,9 @@ export class PostgresStore {
     };
   }
 
-  async updateUserProfile(phoneNumber, { displayName, preferredLocation }) {
-    const user = await this.ensureUser(phoneNumber);
+  async updateUserProfile(userId, { displayName, preferredLocation }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
     const nextDisplayName =
       displayName === undefined
         ? user.displayName ?? null
@@ -1587,7 +1982,8 @@ export class PostgresStore {
            preferred_location = $3,
            updated_at = $4
        WHERE id = $1
-       RETURNING id, phone_number, role, subscription_plan, subscription_started_at,
+       RETURNING id, phone_number, email, auth_user_id, account_status, role,
+                 subscription_plan, subscription_started_at,
                  display_name, preferred_location, created_at, updated_at`,
       [user.id, nextDisplayName, nextPreferredLocation, updatedAt],
     );
@@ -1601,14 +1997,15 @@ export class PostgresStore {
     const queryLike = query.length > 0 ? `%${query}%` : null;
     const result = await this.pool.query(
       `WITH filtered_users AS (
-         SELECT id, phone_number, role, subscription_plan, subscription_started_at,
-                display_name, preferred_location, created_at, updated_at
+         SELECT id, email, account_status, role, subscription_plan,
+                subscription_started_at, display_name, preferred_location,
+                created_at, updated_at
          FROM users
          WHERE ($1::text IS NULL)
-            OR phone_number ILIKE $1
+            OR email ILIKE $1
             OR COALESCE(display_name, '') ILIKE $1
        )
-       SELECT fu.id, fu.phone_number, fu.role, fu.subscription_plan,
+       SELECT fu.id, fu.email, fu.account_status, fu.role, fu.subscription_plan,
               fu.subscription_started_at, fu.display_name, fu.preferred_location,
               fu.created_at, fu.updated_at,
               COALESCE(lp.learning_progress_count, 0) AS learning_progress_count,
@@ -1618,27 +2015,26 @@ export class PostgresStore {
               COUNT(*) OVER() AS total_count
        FROM filtered_users fu
        LEFT JOIN (
-         SELECT phone_number, COUNT(*)::int AS learning_progress_count
+         SELECT user_id, COUNT(*)::int AS learning_progress_count
          FROM learning_progress
-         GROUP BY phone_number
-       ) lp ON lp.phone_number = fu.phone_number
+         GROUP BY user_id
+       ) lp ON lp.user_id = fu.id
        LEFT JOIN (
-         SELECT phone_number, COUNT(*)::int AS payment_transactions_count
+         SELECT user_id, COUNT(*)::int AS payment_transactions_count
          FROM payment_transactions
-         GROUP BY phone_number
-       ) pt ON pt.phone_number = fu.phone_number
+         GROUP BY user_id
+       ) pt ON pt.user_id = fu.id
        LEFT JOIN (
-         SELECT phone_number, COUNT(*)::int AS notification_count
+         SELECT user_id, COUNT(*)::int AS notification_count
          FROM notifications
-         GROUP BY phone_number
-       ) n ON n.phone_number = fu.phone_number
+         GROUP BY user_id
+       ) n ON n.user_id = fu.id
        LEFT JOIN (
-         SELECT author_phone AS phone_number,
-                COUNT(*)::int AS community_posts_count
+         SELECT author_user_id, COUNT(*)::int AS community_posts_count
          FROM community_posts
-         WHERE author_phone IS NOT NULL
-         GROUP BY author_phone
-       ) cp ON cp.phone_number = fu.phone_number
+         WHERE author_user_id IS NOT NULL
+         GROUP BY author_user_id
+       ) cp ON cp.author_user_id = fu.id
        ORDER BY fu.updated_at DESC
        LIMIT $2
        OFFSET $3`,
@@ -1648,7 +2044,8 @@ export class PostgresStore {
     const total = Number(result.rows[0]?.total_count ?? 0);
     const users = result.rows.map((row) => ({
       id: row.id,
-      phoneNumber: row.phone_number,
+      email: row.email ?? null,
+      accountStatus: row.account_status ?? 'pending_activation',
       displayName: row.display_name ?? null,
       preferredLocation: row.preferred_location ?? null,
       role: row.role ?? 'learner',
@@ -1666,18 +2063,17 @@ export class PostgresStore {
     return { users, total };
   }
 
-  async notificationSettings(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async notificationSettings(userId) {
     const result = await this.pool.query(
-      `SELECT phone_number, enabled, community_replies, moderation_updates,
+      `SELECT user_id, enabled, community_replies, moderation_updates,
               learning_reminders, updated_at
        FROM notification_settings
-       WHERE phone_number = $1`,
-      [normalizedPhone],
+       WHERE user_id = $1`,
+      [userId],
     );
     if (!result.rows[0]) {
       return {
-        phoneNumber: normalizedPhone,
+        userId,
         enabled: true,
         communityReplies: true,
         moderationUpdates: true,
@@ -1687,9 +2083,8 @@ export class PostgresStore {
     return notificationSettingsFromRow(result.rows[0]);
   }
 
-  async updateNotificationSettings({ phoneNumber, settings }) {
-    const current = await this.notificationSettings(phoneNumber);
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async updateNotificationSettings({ userId, settings }) {
+    const current = await this.notificationSettings(userId);
     const next = {
       enabled:
         typeof settings.enabled === 'boolean' ? settings.enabled : current.enabled,
@@ -1708,19 +2103,19 @@ export class PostgresStore {
     };
     const result = await this.pool.query(
       `INSERT INTO notification_settings (
-         phone_number, enabled, community_replies, moderation_updates,
+         user_id, enabled, community_replies, moderation_updates,
          learning_reminders, updated_at
        ) VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (phone_number) DO UPDATE
+       ON CONFLICT (user_id) DO UPDATE
        SET enabled = EXCLUDED.enabled,
            community_replies = EXCLUDED.community_replies,
            moderation_updates = EXCLUDED.moderation_updates,
            learning_reminders = EXCLUDED.learning_reminders,
            updated_at = EXCLUDED.updated_at
-       RETURNING phone_number, enabled, community_replies, moderation_updates,
+       RETURNING user_id, enabled, community_replies, moderation_updates,
                  learning_reminders, updated_at`,
       [
-        normalizedPhone,
+        userId,
         next.enabled,
         next.communityReplies,
         next.moderationUpdates,
@@ -1731,60 +2126,57 @@ export class PostgresStore {
     return notificationSettingsFromRow(result.rows[0]);
   }
 
-  async registerNotificationDevice({ phoneNumber, token, platform }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async registerNotificationDevice({ userId, token, platform }) {
     const now = new Date().toISOString();
     const result = await this.pool.query(
       `INSERT INTO notification_devices (
-         id, phone_number, token, platform, created_at, updated_at
+         id, user_id, token, platform, created_at, updated_at
        ) VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (token) DO UPDATE
-       SET phone_number = EXCLUDED.phone_number,
+       SET user_id = EXCLUDED.user_id,
            platform = EXCLUDED.platform,
            updated_at = EXCLUDED.updated_at
-       RETURNING id, phone_number, token, platform, created_at, updated_at`,
-      [createId('device'), normalizedPhone, token, platform, now, now],
+       RETURNING id, user_id, token, platform, created_at, updated_at`,
+      [createId('device'), userId, token, platform, now, now],
     );
     return notificationDeviceFromRow(result.rows[0]);
   }
 
-  async notificationDevices(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async notificationDevices(userId) {
     const result = await this.pool.query(
-      `SELECT id, phone_number, token, platform, created_at, updated_at
+      `SELECT id, user_id, token, platform, created_at, updated_at
        FROM notification_devices
-       WHERE phone_number = $1`,
-      [normalizedPhone],
+       WHERE user_id = $1`,
+      [userId],
     );
     return result.rows.map(notificationDeviceFromRow);
   }
 
-  async notificationsFor(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async notificationsFor(userId) {
     const result = await this.pool.query(
-      `SELECT id, phone_number, type, title, body, data, read_at, created_at
+      `SELECT id, user_id, type, title, body, data, read_at, created_at
        FROM notifications
-       WHERE phone_number = $1
+       WHERE user_id = $1
        ORDER BY created_at DESC`,
-      [normalizedPhone],
+      [userId],
     );
     return result.rows.map(notificationFromRow);
   }
 
-  async createNotification({ phoneNumber, type, title, body, data = {} }) {
-    const settings = await this.notificationSettings(phoneNumber);
+  async createNotification({ userId, type, title, body, data = {} }) {
+    const settings = await this.notificationSettings(userId);
     if (!settings.enabled) return null;
     if (type === 'community_reply' && !settings.communityReplies) return null;
     if (type === 'moderation_update' && !settings.moderationUpdates) return null;
     const now = new Date().toISOString();
     const result = await this.pool.query(
       `INSERT INTO notifications (
-         id, phone_number, type, title, body, data, read_at, created_at
+         id, user_id, type, title, body, data, read_at, created_at
        ) VALUES ($1, $2, $3, $4, $5, $6, NULL, $7)
-       RETURNING id, phone_number, type, title, body, data, read_at, created_at`,
+       RETURNING id, user_id, type, title, body, data, read_at, created_at`,
       [
         createId('notification'),
-        normalizePhoneNumber(phoneNumber),
+        userId,
         type,
         title,
         body,
@@ -1795,36 +2187,34 @@ export class PostgresStore {
     return notificationFromRow(result.rows[0]);
   }
 
-  async markNotificationRead({ phoneNumber, notificationId }) {
+  async markNotificationRead({ userId, notificationId }) {
     const result = await this.pool.query(
       `UPDATE notifications
        SET read_at = COALESCE(read_at, $3)
-       WHERE id = $1 AND phone_number = $2
-       RETURNING id, phone_number, type, title, body, data, read_at, created_at`,
-      [notificationId, normalizePhoneNumber(phoneNumber), new Date().toISOString()],
+       WHERE id = $1 AND user_id = $2
+       RETURNING id, user_id, type, title, body, data, read_at, created_at`,
+      [notificationId, userId, new Date().toISOString()],
     );
     return result.rows[0] ? notificationFromRow(result.rows[0]) : null;
   }
 
-  async learningProgress(phoneNumber) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async learningProgress(userId) {
     const result = await this.pool.query(
-      `SELECT phone_number, course_id, lesson_id, completed_at
+      `SELECT user_id, course_id, lesson_id, completed_at
        FROM learning_progress
-       WHERE phone_number = $1
+       WHERE user_id = $1
        ORDER BY completed_at ASC`,
-      [normalizedPhone],
+      [userId],
     );
     return result.rows.map((row) => ({
-      phoneNumber: row.phone_number,
+      userId: row.user_id,
       courseId: row.course_id,
       lessonId: row.lesson_id,
       completedAt: new Date(row.completed_at).toISOString(),
     }));
   }
 
-  async markLessonCompleted({ phoneNumber, courseId, lessonId }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  async markLessonCompleted({ userId, courseId, lessonId }) {
     if (
       !hasApprovedLessonInCourses(
         await this.approvedContentCourses(),
@@ -1834,20 +2224,19 @@ export class PostgresStore {
     ) {
       return null;
     }
-    await this.ensureUser(normalizedPhone);
     const completedAt = new Date().toISOString();
     const result = await this.pool.query(
       `INSERT INTO learning_progress (
-         phone_number, course_id, lesson_id, completed_at
+         user_id, course_id, lesson_id, completed_at
        ) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (phone_number, course_id, lesson_id) DO UPDATE
+       ON CONFLICT (user_id, course_id, lesson_id) DO UPDATE
        SET completed_at = learning_progress.completed_at
-       RETURNING phone_number, course_id, lesson_id, completed_at`,
-      [normalizedPhone, courseId, lessonId, completedAt],
+       RETURNING user_id, course_id, lesson_id, completed_at`,
+      [userId, courseId, lessonId, completedAt],
     );
     const row = result.rows[0];
     return {
-      phoneNumber: row.phone_number,
+      userId: row.user_id,
       courseId: row.course_id,
       lessonId: row.lesson_id,
       completedAt: new Date(row.completed_at).toISOString(),
@@ -1886,82 +2275,10 @@ export class PostgresStore {
     }));
   }
 
-  async otpRequestDelaySeconds(phoneNumber, cooldownMs = 60 * 1000) {
-    await this.#purgeExpiredOtpChallenges();
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const result = await this.pool.query(
-      `SELECT created_at
-       FROM otp_challenges
-       WHERE phone_number = $1
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [normalizedPhone],
-    );
-    const latestChallenge = result.rows[0];
-    if (!latestChallenge) return 0;
-    const nextAllowedAt = Number(latestChallenge.created_at) + cooldownMs;
-    return Math.max(0, Math.ceil((nextAllowedAt - Date.now()) / 1000));
-  }
-
-  async createOtpChallenge({ phoneNumber, otp, deliveryProvider }) {
-    await this.#purgeExpiredOtpChallenges();
-    const now = Date.now();
-    const challenge = {
-      id: createId('otp'),
-      phoneNumber: normalizePhoneNumber(phoneNumber),
-      otpHash: hashOtp(otp),
-      createdAt: now,
-      expiresAt: now + otpTtlMs,
-      deliveryProvider,
-    };
-
-    await this.pool.query(
-      `INSERT INTO otp_challenges (
-         id, phone_number, otp_hash, created_at, expires_at, delivery_provider
-       ) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        challenge.id,
-        challenge.phoneNumber,
-        challenge.otpHash,
-        challenge.createdAt,
-        challenge.expiresAt,
-        challenge.deliveryProvider,
-      ],
-    );
-    return challenge;
-  }
-
-  async consumeOtpChallenge({ challengeId, phoneNumber, otp }) {
-    const result = await this.pool.query(
-      `SELECT id, phone_number, otp_hash, expires_at
-       FROM otp_challenges
-       WHERE id = $1`,
-      [challengeId],
-    );
-    const challenge = result.rows[0];
-    if (!challenge) return { status: 'missing' };
-    if (Number(challenge.expires_at) < Date.now()) {
-      await this.pool.query(`DELETE FROM otp_challenges WHERE id = $1`, [
-        challengeId,
-      ]);
-      return { status: 'expired' };
-    }
-    if (
-      challenge.phone_number !== phoneNumber ||
-      !verifyOtpHash(otp, challenge.otp_hash)
-    ) {
-      return { status: 'invalid' };
-    }
-    await this.pool.query(`DELETE FROM otp_challenges WHERE id = $1`, [
-      challengeId,
-    ]);
-    return { status: 'verified' };
-  }
-
   async createPaymentTransaction(transaction) {
     await this.pool.query(
       `INSERT INTO payment_transactions (
-         id, plan_title, price, method, phone_number, status, message,
+         id, plan_title, price, method, user_id, status, message,
          receipt_number, provider, provider_reference, checkout_instructions,
          auto_confirm_at, subscription_plan, subscription_started_at
        ) VALUES (
@@ -1974,7 +2291,7 @@ export class PostgresStore {
         transaction.planTitle,
         transaction.price,
         transaction.method,
-        transaction.phoneNumber,
+        transaction.userId,
         transaction.status,
         transaction.message,
         transaction.receiptNumber,
@@ -1991,7 +2308,7 @@ export class PostgresStore {
 
   async getPaymentTransaction(id) {
     const result = await this.pool.query(
-      `SELECT id, plan_title, price, method, phone_number, status, message,
+      `SELECT id, plan_title, price, method, user_id, status, message,
               receipt_number, provider, provider_reference, checkout_instructions,
               auto_confirm_at, subscription_plan, subscription_started_at
        FROM payment_transactions
@@ -2006,7 +2323,7 @@ export class PostgresStore {
     try {
       await client.query('BEGIN');
       const existing = await client.query(
-        `SELECT id, plan_title, price, method, phone_number, status, message,
+        `SELECT id, plan_title, price, method, user_id, status, message,
                 receipt_number, provider, provider_reference, checkout_instructions,
                 auto_confirm_at, subscription_plan, subscription_started_at
          FROM payment_transactions
@@ -2026,7 +2343,7 @@ export class PostgresStore {
       }
 
       const user = await this.#activateSubscriptionWithClient(client, {
-        phoneNumber: transaction.phoneNumber,
+        userId: transaction.userId,
         planTitle: transaction.planTitle,
       });
       const receiptNumber = `AJE-${transaction.id.slice(-6).toUpperCase()}`;
@@ -2039,7 +2356,7 @@ export class PostgresStore {
              subscription_plan = $4,
              subscription_started_at = $5
          WHERE id = $1
-         RETURNING id, plan_title, price, method, phone_number, status, message,
+         RETURNING id, plan_title, price, method, user_id, status, message,
                    receipt_number, provider, provider_reference, checkout_instructions,
                    auto_confirm_at, subscription_plan, subscription_started_at`,
         [
@@ -2065,7 +2382,7 @@ export class PostgresStore {
       `UPDATE payment_transactions
        SET status = 'failed', message = $2
        WHERE id = $1
-       RETURNING id, plan_title, price, method, phone_number, status, message,
+       RETURNING id, plan_title, price, method, user_id, status, message,
                  receipt_number, provider, provider_reference, checkout_instructions,
                  auto_confirm_at, subscription_plan, subscription_started_at`,
       [transactionId, message],
@@ -2075,7 +2392,7 @@ export class PostgresStore {
 
   async createCommunityPost({
     author,
-    authorPhone,
+    authorUserId,
     content,
     location,
     tags,
@@ -2104,7 +2421,7 @@ export class PostgresStore {
         normalizedTags.includes('Wadudu'),
       moderationStatus: 'visible',
     };
-    await this.#insertCommunityPost(post, new Date(), authorPhone);
+    await this.#insertCommunityPost(post, new Date(), authorUserId);
     const { imagePath: _imagePath, ...publicPost } = post;
     return { ...publicPost, imageUrl: communityPostImageUrl(post.imagePath) };
   }
@@ -2172,18 +2489,18 @@ export class PostgresStore {
     };
   }
 
-  async communityPostAuthorPhone(postId) {
+  async communityPostAuthorUserId(postId) {
     const result = await this.pool.query(
-      `SELECT author_phone FROM community_posts WHERE id = $1`,
+      `SELECT author_user_id FROM community_posts WHERE id = $1`,
       [postId],
     );
-    return result.rows[0]?.author_phone ?? null;
+    return result.rows[0]?.author_user_id ?? null;
   }
 
   async addCommunityReply({
     postId,
     author,
-    authorPhone,
+    authorUserId,
     body,
     isExpert = false,
   }) {
@@ -2195,14 +2512,14 @@ export class PostgresStore {
     };
     await this.pool.query(
       `INSERT INTO community_replies (
-         id, post_id, author, author_phone, body, time_label, is_expert,
+         id, post_id, author, author_user_id, body, time_label, is_expert,
          created_at
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         createId('reply'),
         postId,
         reply.author,
-        authorPhone ?? null,
+        authorUserId ?? null,
         reply.body,
         reply.time,
         reply.isExpert,
@@ -2248,7 +2565,7 @@ export class PostgresStore {
     }));
   }
 
-  async resolveCommunityReport({ postId, action, moderatorPhoneNumber }) {
+  async resolveCommunityReport({ postId, action, moderatorUserId }) {
     if (action === 'hide') {
       const result = await this.pool.query(
         `UPDATE community_posts
@@ -2260,7 +2577,7 @@ export class PostgresStore {
                    tags, related_topic, image_path, has_image, is_expert,
                    is_urgent, moderation_status, moderated_at, moderated_by,
                    created_at`,
-        [postId, new Date().toISOString(), moderatorPhoneNumber],
+        [postId, new Date().toISOString(), moderatorUserId],
       );
       await this.pool.query(
         `DELETE FROM reported_community_posts WHERE post_id = $1`,
@@ -2288,31 +2605,34 @@ export class PostgresStore {
       : null;
   }
 
-  async createAuthSession(phoneNumber) {
+  // Only used by the NODE_ENV=development dev-session issuer (see auth.js) so
+  // local dev and the server test suite can authenticate without a real
+  // Supabase Auth token. Production sessions come from Supabase JWTs and
+  // never touch this table.
+  async createAuthSession(userId) {
     await this.#purgeExpiredAuthSessions();
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const token = createSessionToken();
     const createdAt = new Date().toISOString();
     const expiresAt = sessionExpiresAt();
     await this.pool.query(
-      `INSERT INTO auth_sessions (token, phone_number, created_at, expires_at)
+      `INSERT INTO auth_sessions (token, user_id, created_at, expires_at)
        VALUES ($1, $2, $3, $4)`,
-      [token, normalizedPhone, createdAt, expiresAt],
+      [token, userId, createdAt, expiresAt],
     );
-    return { token, phoneNumber: normalizedPhone, createdAt, expiresAt };
+    return { token, userId, createdAt, expiresAt };
   }
 
   async getAuthSession(token) {
     await this.#purgeExpiredAuthSessions();
     const result = await this.pool.query(
-      `SELECT phone_number, expires_at
+      `SELECT user_id, expires_at
        FROM auth_sessions
        WHERE token = $1`,
       [token],
     );
     const row = result.rows[0];
     if (!row || isSessionExpired(row.expires_at)) return null;
-    return { phoneNumber: row.phone_number };
+    return { userId: row.user_id };
   }
 
   async resetForTests() {
@@ -2322,7 +2642,6 @@ export class PostgresStore {
         community_replies,
         community_posts,
         auth_sessions,
-        otp_challenges,
         learning_progress,
         notification_settings,
         notification_devices,
@@ -2330,6 +2649,9 @@ export class PostgresStore {
         content_documents,
         content_courses,
         payment_transactions,
+        audit_events,
+        entitlements,
+        payment_records,
         users
       RESTART IDENTITY
     `);
@@ -2337,63 +2659,26 @@ export class PostgresStore {
     await this.#seedCommunityCatalog();
   }
 
-  async #activateSubscriptionWithClient(client, { phoneNumber, planTitle }) {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    const existing = await client.query(
-      `SELECT id, phone_number, role, subscription_plan, subscription_started_at,
-              created_at, updated_at
-       FROM users
-       WHERE phone_number = $1`,
-      [normalizedPhone],
-    );
-
+  // The caller (markPaymentPaid) already holds `users` FOR UPDATE within its
+  // own transaction, and the user row always exists by the time a payment
+  // happens (requireAuthSession links/creates it on first authenticated
+  // request), so this only ever updates.
+  async #activateSubscriptionWithClient(client, { userId, planTitle }) {
     const startedAt = new Date();
     const updatedAt = startedAt.toISOString();
-    if (existing.rows[0]) {
-      const updated = await client.query(
-        `UPDATE users
-         SET subscription_plan = $2,
-             subscription_started_at = $3,
-             updated_at = $4
-         WHERE id = $1
-         RETURNING id, phone_number, role, subscription_plan, subscription_started_at,
-                   created_at, updated_at`,
-        [existing.rows[0].id, planTitle, startedAt.toISOString(), updatedAt],
-      );
-      return userFromRow(updated.rows[0]);
-    }
-
-    const user = {
-      id: createId('user'),
-      phoneNumber: normalizedPhone,
-      role: 'learner',
-      subscriptionPlan: planTitle,
-      subscriptionStartedAt: startedAt.toISOString(),
-      createdAt: updatedAt,
-      updatedAt,
-    };
-    await client.query(
-      `INSERT INTO users (
-         id, phone_number, role, subscription_plan, subscription_started_at,
-         created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        user.id,
-        user.phoneNumber,
-        user.role,
-        user.subscriptionPlan,
-        user.subscriptionStartedAt,
-        user.createdAt,
-        user.updatedAt,
-      ],
+    const updated = await client.query(
+      `UPDATE users
+       SET subscription_plan = $2,
+           subscription_started_at = $3,
+           account_status = 'active',
+           updated_at = $4
+       WHERE id = $1
+       RETURNING id, phone_number, email, auth_user_id, account_status, role,
+                 subscription_plan, subscription_started_at,
+                 created_at, updated_at`,
+      [userId, planTitle, startedAt.toISOString(), updatedAt],
     );
-    return user;
-  }
-
-  async #purgeExpiredOtpChallenges() {
-    await this.pool.query(`DELETE FROM otp_challenges WHERE expires_at < $1`, [
-      Date.now(),
-    ]);
+    return userFromRow(updated.rows[0]);
   }
 
   async #purgeExpiredAuthSessions() {
@@ -2492,10 +2777,10 @@ export class PostgresStore {
     }
   }
 
-  async #insertCommunityPost(post, createdAt, authorPhone = null) {
+  async #insertCommunityPost(post, createdAt, authorUserId = null) {
     await this.pool.query(
       `INSERT INTO community_posts (
-         id, author, author_phone, location, time_label, content, likes,
+         id, author, author_user_id, location, time_label, content, likes,
          comments, tags, related_topic, image_path, has_image, is_expert,
          is_urgent, moderation_status, moderated_at, moderated_by, created_at
        ) VALUES (
@@ -2506,7 +2791,7 @@ export class PostgresStore {
       [
         post.id,
         post.author,
-        authorPhone,
+        authorUserId,
         post.location,
         post.time,
         post.content,
@@ -2537,7 +2822,7 @@ function normalizeSchemaIdentifier(schema) {
   return normalized;
 }
 
-// `moderatedBy` holds a moderator phone number, so it is omitted unless an
+// `moderatedBy` holds a moderator's internal user id, so it is omitted unless an
 // admin-only caller opts in. `/api/community/posts` is unauthenticated.
 function communityPostFromRow(row, { includeModeration = false } = {}) {
   const post = {
@@ -2578,7 +2863,7 @@ function replyFromRow(row) {
 
 function notificationSettingsFromRow(row) {
   return {
-    phoneNumber: row.phone_number,
+    userId: row.user_id,
     enabled: row.enabled,
     communityReplies: row.community_replies,
     moderationUpdates: row.moderation_updates,
@@ -2590,7 +2875,7 @@ function notificationSettingsFromRow(row) {
 function notificationDeviceFromRow(row) {
   return {
     id: row.id,
-    phoneNumber: row.phone_number,
+    userId: row.user_id,
     token: row.token,
     platform: row.platform,
     createdAt: new Date(row.created_at).toISOString(),
@@ -2601,12 +2886,63 @@ function notificationDeviceFromRow(row) {
 function notificationFromRow(row) {
   return {
     id: row.id,
-    phoneNumber: row.phone_number,
+    userId: row.user_id,
     type: row.type,
     title: row.title,
     body: row.body,
     data: row.data ?? {},
     readAt: row.read_at ? new Date(row.read_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
+function paymentRecordFromRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    planId: row.plan_id,
+    method: row.method,
+    amountTzs: Number(row.amount_tzs),
+    currency: row.currency,
+    reference: row.reference ?? null,
+    note: row.note ?? null,
+    status: row.status,
+    recordedBy: row.recorded_by,
+    approvedBy: row.approved_by ?? null,
+    approvedAt: row.approved_at ? new Date(row.approved_at).toISOString() : null,
+    reversedBy: row.reversed_by ?? null,
+    reversedAt: row.reversed_at ? new Date(row.reversed_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function entitlementFromRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    planId: row.plan_id,
+    paymentRecordId: row.payment_record_id,
+    status: row.status,
+    grantedAt: new Date(row.granted_at).toISOString(),
+    expiresAt: new Date(row.expires_at).toISOString(),
+    revokedAt: row.revoked_at ? new Date(row.revoked_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function auditEventFromRow(row) {
+  return {
+    id: row.id,
+    actorUserId: row.actor_user_id ?? null,
+    action: row.action,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    previousStatus: row.previous_status ?? null,
+    newStatus: row.new_status ?? null,
+    reason: row.reason ?? null,
+    metadata: row.metadata ?? {},
     createdAt: new Date(row.created_at).toISOString(),
   };
 }

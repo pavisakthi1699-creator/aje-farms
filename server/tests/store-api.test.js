@@ -8,6 +8,8 @@ import express from 'express';
 
 import { registerApiRoutes } from '../api.js';
 
+const ADMIN_EMAIL = 'admin@ajefarms.test';
+
 function createTempDataFile() {
   const filePath = path.join(
     os.tmpdir(),
@@ -23,7 +25,7 @@ async function withTestServer(run) {
   process.env.AJE_DATA_FILE = dataFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
-  process.env.AJE_ADMIN_PHONE_NUMBERS = '+255799000111';
+  process.env.AJE_ADMIN_EMAILS = ADMIN_EMAIL;
   process.env.NODE_ENV = 'development';
 
   const app = express();
@@ -82,48 +84,44 @@ async function authHeaders(sessionToken) {
   return { Authorization: `Bearer ${sessionToken}` };
 }
 
+// Stands in for the Flutter client signing in with Supabase Auth: hits the
+// NODE_ENV=development-only dev-session issuer (see api.js) rather than a
+// real Supabase Auth token, so the server test suite can run without a
+// configured Supabase project.
+async function signIn(baseUrl, email) {
+  const { response, payload } = await postJson(baseUrl, '/api/auth/dev-session', {
+    email,
+  });
+  assert.equal(response.status, 200);
+  return { user: payload.user, sessionToken: payload.sessionToken };
+}
+
 test('auth flow creates and restores a user session', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255712345678';
-    const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
+    const email = 'farmer1@aje.test';
+    const { user, sessionToken } = await signIn(baseUrl, email);
 
-    assert.equal(otpRequest.response.status, 200);
-    assert.ok(typeof otpRequest.payload.challengeId === 'string');
-    assert.ok(typeof otpRequest.payload.debugOtp === 'string');
-
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otpRequest.payload.debugOtp,
-      challengeId: otpRequest.payload.challengeId,
-    });
-
-    assert.equal(verify.response.status, 200);
-    assert.equal(verify.payload.user.phoneNumber, phoneNumber);
-    assert.equal(verify.payload.user.subscriptionPlan, null);
-    assert.ok(typeof verify.payload.sessionToken === 'string');
+    assert.equal(user.email, email);
+    assert.equal(user.subscriptionPlan, null);
+    assert.ok(typeof sessionToken === 'string');
 
     const profile = await getJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
-      await authHeaders(verify.payload.sessionToken),
+      '/api/users/me',
+      await authHeaders(sessionToken),
     );
 
     assert.equal(profile.response.status, 200);
-    assert.equal(profile.payload.user.id, verify.payload.user.id);
+    assert.equal(profile.payload.user.id, user.id);
 
-    const deniedProfile = await getJson(
-      baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
-    );
+    const deniedProfile = await getJson(baseUrl, '/api/users/me');
     assert.equal(deniedProfile.response.status, 401);
 
     const updatedProfile = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/profile`,
+      '/api/users/me/profile',
       { displayName: 'Asha', preferredLocation: 'Morogoro' },
-      await authHeaders(verify.payload.sessionToken),
+      await authHeaders(sessionToken),
     );
 
     assert.equal(updatedProfile.response.status, 200);
@@ -154,18 +152,7 @@ test('liveness endpoint reports a running API independently of providers', async
 
 test('subscription cancel clears backend subscription state', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255798765432';
-    const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otpRequest.payload.debugOtp,
-      challengeId: otpRequest.payload.challengeId,
-    });
-    assert.equal(verify.response.status, 200);
-    const token = verify.payload.sessionToken;
-    assert.ok(typeof token === 'string');
+    const { sessionToken: token } = await signIn(baseUrl, 'farmer2@aje.test');
 
     const checkout = await postJson(
       baseUrl,
@@ -174,7 +161,6 @@ test('subscription cancel clears backend subscription state', async () => {
         planTitle: 'Wiki 1',
         price: 'TSh 2,000',
         method: 'M-Pesa',
-        phoneNumber,
       },
       await authHeaders(token),
     );
@@ -195,14 +181,14 @@ test('subscription cancel clears backend subscription state', async () => {
 
     const activeProfile = await getJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
+      '/api/users/me',
       await authHeaders(token),
     );
     assert.equal(activeProfile.payload.user.subscriptionPlan, 'Wiki 1');
 
     const cancel = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/subscription/cancel`,
+      '/api/users/me/subscription/cancel',
       {},
       await authHeaders(token),
     );
@@ -211,7 +197,7 @@ test('subscription cancel clears backend subscription state', async () => {
 
     const clearedProfile = await getJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}`,
+      '/api/users/me',
       await authHeaders(token),
     );
     assert.equal(clearedProfile.payload.user.subscriptionPlan, null);
@@ -220,16 +206,7 @@ test('subscription cancel clears backend subscription state', async () => {
 
 test('learning progress is authenticated and survives store restart', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255711222333';
-    const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otpRequest.payload.debugOtp,
-      challengeId: otpRequest.payload.challengeId,
-    });
-    const token = verify.payload.sessionToken;
+    const { sessionToken: token } = await signIn(baseUrl, 'farmer3@aje.test');
 
     const catalog = await getJson(baseUrl, '/api/catalog');
     assert.equal(catalog.response.status, 200);
@@ -242,7 +219,7 @@ test('learning progress is authenticated and survives store restart', async () =
 
     const marked = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/progress/lessons`,
+      '/api/users/me/progress/lessons',
       {
         courseId: 'pasheni',
         lessonId: 'kuchagua-eneo-la-shamba',
@@ -254,7 +231,7 @@ test('learning progress is authenticated and survives store restart', async () =
 
     const progress = await getJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(phoneNumber)}/progress`,
+      '/api/users/me/progress',
       await authHeaders(token),
     );
     assert.equal(progress.response.status, 200);
@@ -269,16 +246,7 @@ test('learning progress is authenticated and survives store restart', async () =
 
 test('community writes preserve users and payment data on disk', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255700111222';
-    const otpRequest = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otpRequest.payload.debugOtp,
-      challengeId: otpRequest.payload.challengeId,
-    });
-    const token = verify.payload.sessionToken;
+    const { sessionToken: token } = await signIn(baseUrl, 'farmer4@aje.test');
 
     const checkout = await postJson(
       baseUrl,
@@ -287,7 +255,6 @@ test('community writes preserve users and payment data on disk', async () => {
         planTitle: 'Mwezi 1',
         price: 'TSh 5,000',
         method: 'M-Pesa',
-        phoneNumber,
       },
       await authHeaders(token),
     );
@@ -320,16 +287,10 @@ test('community writes preserve users and payment data on disk', async () => {
 
 test('admin moderation can review reports and hide a community post', async () => {
   await withTestServer(async (baseUrl) => {
-    const farmerPhone = '+255700444555';
-    const farmerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: farmerPhone,
-    });
-    const farmerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: farmerPhone,
-      otp: farmerOtp.payload.debugOtp,
-      challengeId: farmerOtp.payload.challengeId,
-    });
-    const farmerToken = farmerVerify.payload.sessionToken;
+    const { sessionToken: farmerToken } = await signIn(
+      baseUrl,
+      'farmer5@aje.test',
+    );
 
     const post = await postJson(
       baseUrl,
@@ -352,17 +313,11 @@ test('admin moderation can review reports and hide a community post', async () =
     );
     assert.equal(report.response.status, 200);
 
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminToken = adminVerify.payload.sessionToken;
-    assert.equal(adminVerify.payload.user.role, 'admin');
+    const { user: adminUser, sessionToken: adminToken } = await signIn(
+      baseUrl,
+      ADMIN_EMAIL,
+    );
+    assert.equal(adminUser.role, 'admin');
 
     const reports = await getJson(
       baseUrl,
@@ -388,9 +343,10 @@ test('admin moderation can review reports and hide a community post', async () =
       false,
     );
 
-    // `moderatedBy` holds a moderator phone number. Hidden posts are filtered
-    // out of this feed today, so the field is not currently reachable here, but
-    // the endpoint is unauthenticated and must never serialize it regardless.
+    // `moderatedBy` holds a moderator's internal user id. Hidden posts are
+    // filtered out of this feed today, so the field is not currently
+    // reachable here, but the endpoint is unauthenticated and must never
+    // serialize it regardless.
     for (const item of community.payload.posts) {
       assert.equal(
         Object.hasOwn(item, 'moderatedBy'),
@@ -405,7 +361,7 @@ test('admin moderation can review reports and hide a community post', async () =
     }
 
     // Admin moderation routes still need the fields the dashboard renders.
-    assert.equal(hidden.payload.post.moderatedBy, adminPhone);
+    assert.equal(hidden.payload.post.moderatedBy, adminUser.id);
   });
 });
 
@@ -417,46 +373,31 @@ test('lesson video endpoints require a session', async () => {
     const anonymousRedirect = await getJson(baseUrl, '/api/lessons/any-id/video');
     assert.equal(anonymousRedirect.response.status, 401);
 
-    const phone = '+255700222333';
-    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: phone,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: phone,
-      otp: otp.payload.debugOtp,
-      challengeId: otp.payload.challengeId,
-    });
+    const { sessionToken } = await signIn(baseUrl, 'farmer6@aje.test');
 
     // Authenticated but unknown lesson: past the auth gate, so not a 401.
     const authorized = await getJson(
       baseUrl,
       '/api/lessons/any-id/video-url',
-      await authHeaders(verify.payload.sessionToken),
+      await authHeaders(sessionToken),
     );
     assert.notEqual(authorized.response.status, 401);
   });
 });
 
-test('community authorship is session-derived and never exposes phone numbers', async () => {
+test('community authorship is session-derived and never exposes internal ids', async () => {
   await withTestServer(async (baseUrl) => {
-    const farmerPhone = '+255700888999';
-    const victimPhone = '+255799999999';
-    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: farmerPhone,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: farmerPhone,
-      otp: otp.payload.debugOtp,
-      challengeId: otp.payload.challengeId,
-    });
-    const headers = await authHeaders(verify.payload.sessionToken);
+    const farmerEmail = 'farmer7@aje.test';
+    const victimEmail = 'victim@aje.test';
+    const { sessionToken } = await signIn(baseUrl, farmerEmail);
+    const headers = await authHeaders(sessionToken);
 
     // A client-supplied author must be ignored, not trusted.
     const post = await postJson(
       baseUrl,
       '/api/community/posts',
       {
-        author: victimPhone,
+        author: victimEmail,
         content: 'Nina swali kuhusu kilimo cha mpunga katika msimu huu wa mvua.',
         location: 'Morogoro',
         tags: ['Mpunga'],
@@ -464,13 +405,13 @@ test('community authorship is session-derived and never exposes phone numbers', 
       headers,
     );
     assert.equal(post.response.status, 200);
-    assert.notEqual(post.payload.author, victimPhone);
-    assert.notEqual(post.payload.author, farmerPhone);
+    assert.notEqual(post.payload.author, victimEmail);
+    assert.notEqual(post.payload.author, farmerEmail);
 
     await postJson(
       baseUrl,
       `/api/community/posts/${post.payload.id}/replies`,
-      { author: victimPhone, body: 'Jibu la majaribio.' },
+      { author: victimEmail, body: 'Jibu la majaribio.' },
       headers,
     );
 
@@ -478,17 +419,17 @@ test('community authorship is session-derived and never exposes phone numbers', 
     assert.equal(community.response.status, 200);
     const serialized = JSON.stringify(community.payload);
     assert.equal(
-      serialized.includes(farmerPhone),
+      serialized.includes(farmerEmail),
       false,
-      'public community feed must not expose the author phone number',
+      'public community feed must not expose the author email',
     );
     assert.equal(
-      serialized.includes(victimPhone),
+      serialized.includes(victimEmail),
       false,
       'a spoofed author must never be persisted or served',
     );
     assert.equal(
-      serialized.includes('authorPhone'),
+      serialized.includes('authorUserId'),
       false,
       'the private authorship key must not be serialized',
     );
@@ -497,16 +438,8 @@ test('community authorship is session-derived and never exposes phone numbers', 
 
 test('community image uploads are unavailable outside Supabase-backed environments', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255700111222';
-    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otp.payload.debugOtp,
-      challengeId: otp.payload.challengeId,
-    });
-    const headers = await authHeaders(verify.payload.sessionToken);
+    const { sessionToken } = await signIn(baseUrl, 'farmer8@aje.test');
+    const headers = await authHeaders(sessionToken);
 
     const response = await fetch(`${baseUrl}/api/community/posts/image`, {
       method: 'POST',
@@ -529,16 +462,8 @@ test('community image uploads are unavailable outside Supabase-backed environmen
 
 test('a post referencing an invalid image path is rejected', async () => {
   await withTestServer(async (baseUrl) => {
-    const phoneNumber = '+255700111333';
-    const otp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber,
-    });
-    const verify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber,
-      otp: otp.payload.debugOtp,
-      challengeId: otp.payload.challengeId,
-    });
-    const headers = await authHeaders(verify.payload.sessionToken);
+    const { sessionToken } = await signIn(baseUrl, 'farmer9@aje.test');
+    const headers = await authHeaders(sessionToken);
 
     const post = await postJson(
       baseUrl,
@@ -557,27 +482,14 @@ test('a post referencing an invalid image path is rejected', async () => {
 
 test('admin-authored posts and replies are flagged as expert content', async () => {
   await withTestServer(async (baseUrl) => {
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminHeaders = await authHeaders(adminVerify.payload.sessionToken);
+    const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminSessionToken);
 
-    const farmerPhone = '+255700111444';
-    const farmerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: farmerPhone,
-    });
-    const farmerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: farmerPhone,
-      otp: farmerOtp.payload.debugOtp,
-      challengeId: farmerOtp.payload.challengeId,
-    });
-    const farmerHeaders = await authHeaders(farmerVerify.payload.sessionToken);
+    const { sessionToken: farmerSessionToken } = await signIn(
+      baseUrl,
+      'farmer10@aje.test',
+    );
+    const farmerHeaders = await authHeaders(farmerSessionToken);
 
     const adminPost = await postJson(
       baseUrl,
@@ -624,16 +536,8 @@ test('admin-authored posts and replies are flagged as expert content', async () 
 
 test('admin content courses can be drafted and published into catalog', async () => {
   await withTestServer(async (baseUrl) => {
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminHeaders = await authHeaders(adminVerify.payload.sessionToken);
+    const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminSessionToken);
 
     const catalog = await getJson(baseUrl, '/api/catalog');
     const pasheni = catalog.payload.courses.find(
@@ -701,16 +605,8 @@ test('admin content courses can be drafted and published into catalog', async ()
 
 test('admin content documents can be drafted and published into catalog', async () => {
   await withTestServer(async (baseUrl) => {
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminHeaders = await authHeaders(adminVerify.payload.sessionToken);
+    const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminSessionToken);
 
     const catalog = await getJson(baseUrl, '/api/catalog');
     assert.equal(catalog.response.status, 200);
@@ -775,16 +671,10 @@ test('admin content documents can be drafted and published into catalog', async 
 
 test('admin users endpoint is role-gated', async () => {
   await withTestServer(async (baseUrl) => {
-    const learnerPhone = '+255700333444';
-    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: learnerPhone,
-    });
-    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: learnerPhone,
-      otp: learnerOtp.payload.debugOtp,
-      challengeId: learnerOtp.payload.challengeId,
-    });
-    const learnerToken = learnerVerify.payload.sessionToken;
+    const { sessionToken: learnerToken } = await signIn(
+      baseUrl,
+      'learner1@aje.test',
+    );
 
     const forbidden = await getJson(
       baseUrl,
@@ -803,34 +693,19 @@ test('admin source review routes enforce authorization and validation', async ()
     );
     assert.equal(anonymous.response.status, 401);
 
-    const learnerPhone = '+255700333445';
-    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: learnerPhone,
-    });
-    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: learnerPhone,
-      otp: learnerOtp.payload.debugOtp,
-      challengeId: learnerOtp.payload.challengeId,
-    });
+    const { sessionToken: learnerToken } = await signIn(
+      baseUrl,
+      'learner2@aje.test',
+    );
     const forbidden = await getJson(
       baseUrl,
       '/api/admin/content/source-segments',
-      await authHeaders(learnerVerify.payload.sessionToken),
+      await authHeaders(learnerToken),
     );
     assert.equal(forbidden.response.status, 403);
 
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminHeaders = await authHeaders(
-      adminVerify.payload.sessionToken,
-    );
+    const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminSessionToken);
     const segments = await getJson(
       baseUrl,
       '/api/admin/content/source-segments?search=maharage',
@@ -863,53 +738,41 @@ test('admin source review routes enforce authorization and validation', async ()
 
 test('whoami exposes safe admin access diagnostics', async () => {
   await withTestServer(async (baseUrl) => {
-    const learnerPhone = '+255700123456';
-    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: learnerPhone,
-    });
-    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: learnerPhone,
-      otp: learnerOtp.payload.debugOtp,
-      challengeId: learnerOtp.payload.challengeId,
-    });
+    const learnerEmail = 'learner3@aje.test';
+    const { sessionToken: learnerSessionToken } = await signIn(
+      baseUrl,
+      learnerEmail,
+    );
     const learnerWhoAmI = await getJson(
       baseUrl,
       '/api/auth/whoami',
-      await authHeaders(learnerVerify.payload.sessionToken),
+      await authHeaders(learnerSessionToken),
     );
     assert.equal(learnerWhoAmI.response.status, 200);
-    assert.equal(learnerWhoAmI.payload.phoneNumber, learnerPhone);
+    assert.equal(learnerWhoAmI.payload.user.email, learnerEmail);
     assert.equal(learnerWhoAmI.payload.role, 'learner');
     assert.equal(learnerWhoAmI.payload.hasAdminAccess, false);
     assert.equal(learnerWhoAmI.payload.allowlistedAdmin, false);
     assert.equal(learnerWhoAmI.payload.source, 'learner');
 
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
+    const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
     const adminWhoAmI = await getJson(
       baseUrl,
       '/api/auth/whoami',
-      await authHeaders(adminVerify.payload.sessionToken),
+      await authHeaders(adminSessionToken),
     );
     assert.equal(adminWhoAmI.response.status, 200);
-    assert.equal(adminWhoAmI.payload.phoneNumber, adminPhone);
+    assert.equal(adminWhoAmI.payload.user.email, ADMIN_EMAIL);
     assert.equal(adminWhoAmI.payload.role, 'admin');
     assert.equal(adminWhoAmI.payload.hasAdminAccess, true);
     assert.equal(adminWhoAmI.payload.allowlistedAdmin, true);
-    assert.equal(adminWhoAmI.payload.source, 'phone_allowlist');
+    assert.equal(adminWhoAmI.payload.source, 'email_allowlist');
 
-    process.env.AJE_ADMIN_PHONE_NUMBERS = '';
+    process.env.AJE_ADMIN_EMAILS = '';
     const revokedWhoAmI = await getJson(
       baseUrl,
       '/api/auth/whoami',
-      await authHeaders(adminVerify.payload.sessionToken),
+      await authHeaders(adminSessionToken),
     );
     assert.equal(revokedWhoAmI.response.status, 200);
     assert.equal(revokedWhoAmI.payload.role, 'learner');
@@ -920,7 +783,7 @@ test('whoami exposes safe admin access diagnostics', async () => {
     const revokedAdminRequest = await getJson(
       baseUrl,
       '/api/admin/users',
-      await authHeaders(adminVerify.payload.sessionToken),
+      await authHeaders(adminSessionToken),
     );
     assert.equal(revokedAdminRequest.response.status, 403);
   });
@@ -928,16 +791,8 @@ test('whoami exposes safe admin access diagnostics', async () => {
 
 test('admin users endpoint returns monitoring summaries with search', async () => {
   await withTestServer(async (baseUrl) => {
-    const learnerPhone = '+255700111222';
-    const learnerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: learnerPhone,
-    });
-    const learnerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: learnerPhone,
-      otp: learnerOtp.payload.debugOtp,
-      challengeId: learnerOtp.payload.challengeId,
-    });
-    const learnerToken = learnerVerify.payload.sessionToken;
+    const learnerEmail = 'learner4@aje.test';
+    const { sessionToken: learnerToken } = await signIn(baseUrl, learnerEmail);
 
     const checkout = await postJson(
       baseUrl,
@@ -946,7 +801,6 @@ test('admin users endpoint returns monitoring summaries with search', async () =
         planTitle: 'Wiki 1',
         price: 'TSh 2,000',
         method: 'M-Pesa',
-        phoneNumber: learnerPhone,
       },
       await authHeaders(learnerToken),
     );
@@ -954,7 +808,7 @@ test('admin users endpoint returns monitoring summaries with search', async () =
 
     const completed = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(learnerPhone)}/progress/lessons`,
+      '/api/users/me/progress/lessons',
       {
         courseId: 'pasheni',
         lessonId: 'kuchagua-eneo-la-shamba',
@@ -967,7 +821,7 @@ test('admin users endpoint returns monitoring summaries with search', async () =
       baseUrl,
       '/api/community/posts',
       {
-        author: learnerPhone,
+        author: learnerEmail,
         content: 'Ninaomba ushauri kuhusu afya ya pasheni wiki hii.',
         location: 'Morogoro',
         tags: ['Pasheni'],
@@ -976,21 +830,11 @@ test('admin users endpoint returns monitoring summaries with search', async () =
     );
     assert.equal(community.response.status, 200);
 
-    const adminPhone = '+255799000111';
-    const adminOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: adminPhone,
-    });
-    const adminVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: adminPhone,
-      otp: adminOtp.payload.debugOtp,
-      challengeId: adminOtp.payload.challengeId,
-    });
-    const adminToken = adminVerify.payload.sessionToken;
-    assert.equal(adminVerify.payload.user.role, 'admin');
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
 
     const list = await getJson(
       baseUrl,
-      `/api/admin/users?search=${encodeURIComponent('255700111222')}&limit=10&offset=0`,
+      `/api/admin/users?search=${encodeURIComponent(learnerEmail)}&limit=10&offset=0`,
       await authHeaders(adminToken),
     );
     assert.equal(list.response.status, 200);
@@ -998,7 +842,7 @@ test('admin users endpoint returns monitoring summaries with search', async () =
     assert.ok(Array.isArray(list.payload.users));
     assert.ok(list.payload.users.length >= 1);
     const user = list.payload.users.find(
-      (entry) => entry.phoneNumber === learnerPhone,
+      (entry) => entry.email === learnerEmail,
     );
     assert.ok(user);
     assert.equal(user.learningProgressCount, 1);
@@ -1009,20 +853,12 @@ test('admin users endpoint returns monitoring summaries with search', async () =
 
 test('notification settings, devices, inbox, and read state are backend backed', async () => {
   await withTestServer(async (baseUrl) => {
-    const ownerPhone = '+255700555666';
-    const ownerOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: ownerPhone,
-    });
-    const ownerVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: ownerPhone,
-      otp: ownerOtp.payload.debugOtp,
-      challengeId: ownerOtp.payload.challengeId,
-    });
-    const ownerToken = ownerVerify.payload.sessionToken;
+    const ownerEmail = 'owner@aje.test';
+    const { sessionToken: ownerToken } = await signIn(baseUrl, ownerEmail);
 
     const device = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(ownerPhone)}/notifications/devices`,
+      '/api/users/me/notifications/devices',
       { token: 'test-device-token', platform: 'android' },
       await authHeaders(ownerToken),
     );
@@ -1031,7 +867,7 @@ test('notification settings, devices, inbox, and read state are backend backed',
 
     const settings = await putJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(ownerPhone)}/notifications/settings`,
+      '/api/users/me/notifications/settings',
       { learningReminders: false },
       await authHeaders(ownerToken),
     );
@@ -1042,7 +878,7 @@ test('notification settings, devices, inbox, and read state are backend backed',
       baseUrl,
       '/api/community/posts',
       {
-        author: ownerPhone,
+        author: ownerEmail,
         content: 'Nahitaji ushauri kuhusu majani ya nyanya kubadilika rangi.',
         location: 'Mbeya',
         tags: ['Nyanya'],
@@ -1050,25 +886,20 @@ test('notification settings, devices, inbox, and read state are backend backed',
       await authHeaders(ownerToken),
     );
 
-    const replyPhone = '+255700777888';
-    const replyOtp = await postJson(baseUrl, '/api/auth/request-otp', {
-      phoneNumber: replyPhone,
-    });
-    const replyVerify = await postJson(baseUrl, '/api/auth/verify-otp', {
-      phoneNumber: replyPhone,
-      otp: replyOtp.payload.debugOtp,
-      challengeId: replyOtp.payload.challengeId,
-    });
+    const { sessionToken: replySessionToken } = await signIn(
+      baseUrl,
+      'replier@aje.test',
+    );
     await postJson(
       baseUrl,
       `/api/community/posts/${post.payload.id}/replies`,
       { author: 'Mtaalamu AJE', body: 'Angalia upande wa chini wa majani.' },
-      await authHeaders(replyVerify.payload.sessionToken),
+      await authHeaders(replySessionToken),
     );
 
     const inbox = await getJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(ownerPhone)}/notifications`,
+      '/api/users/me/notifications',
       await authHeaders(ownerToken),
     );
     assert.equal(inbox.response.status, 200);
@@ -1077,7 +908,7 @@ test('notification settings, devices, inbox, and read state are backend backed',
 
     const read = await postJson(
       baseUrl,
-      `/api/users/by-phone/${encodeURIComponent(ownerPhone)}/notifications/${inbox.payload.notifications[0].id}/read`,
+      `/api/users/me/notifications/${inbox.payload.notifications[0].id}/read`,
       {},
       await authHeaders(ownerToken),
     );
