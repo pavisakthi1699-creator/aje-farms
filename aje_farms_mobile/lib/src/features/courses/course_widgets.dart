@@ -388,7 +388,9 @@ class LessonTile extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         lesson.isPremium
-                            ? 'Fungua premium kuendelea'
+                            // There is no in-app unlock; an admin verifies the
+                            // account before a locked lesson opens.
+                            ? 'Inasubiri uthibitisho'
                             : isCompleted
                                 ? 'Umekamilisha'
                                 : 'Bado hujaanza',

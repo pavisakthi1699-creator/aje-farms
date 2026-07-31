@@ -67,8 +67,10 @@ class DashboardScreen extends StatelessWidget {
                     color: context.colors.charcoal,
                     foreground: context.colors.onPrimary,
                     icon: Icons.workspace_premium_outlined,
-                    title: 'Vifurushi',
-                    subtitle: 'Angalia chaguo',
+                    // Not a package picker: access is granted by staff, so
+                    // this only opens the account's current status.
+                    title: 'Uanachama',
+                    subtitle: 'Angalia hali yako',
                     onTap: () => AppNavigator.pushPaywall(context),
                   ),
                 ),
