@@ -1,63 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../theme/app_color_scheme.dart';
-import '../../theme/app_motion.dart';
 import '../../theme/app_radius.dart';
 import 'loading_skeleton.dart';
 
 /// Renders bundled assets or remote URLs for course and hero imagery.
-class AppPhoto extends StatelessWidget {
+class AppPhoto extends StatefulWidget {
   const AppPhoto({required this.source, super.key});
 
   final String source;
 
-  bool get _isAsset => source.startsWith('assets/');
+  @override
+  State<AppPhoto> createState() => _AppPhotoState();
+}
+
+class _AppPhotoState extends State<AppPhoto> {
+  bool get _isAsset => widget.source.startsWith('assets/');
 
   @override
   Widget build(BuildContext context) {
     if (_isAsset) {
       return Image.asset(
-        source,
+        widget.source,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _fallback(context),
       );
     }
 
-    return Image.network(
-      source,
+    return CachedNetworkImage(
+      key: ValueKey('${widget.source}-$_retry'),
+      imageUrl: widget.source,
       fit: BoxFit.cover,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) {
-          return AnimatedOpacity(
-            opacity: frame == null && !wasSynchronouslyLoaded ? 0 : 1,
-            duration: AppMotion.durationOf(context, AppMotion.standard),
-            curve: AppMotion.emphasized,
-            child: child,
-          );
-        }
-        return ColoredBox(
-          color: context.colors.primaryContainer,
-          child: const Center(
-            child: LoadingSkeleton(
-              width: 72,
-              height: 72,
-              borderRadius: AppRadius.xl,
-            ),
-          ),
-        );
-      },
-      errorBuilder: (_, __, ___) => _fallback(context),
+      placeholder: (_, __) => ColoredBox(color: context.colors.primaryContainer, child: const Center(child: LoadingSkeleton(width: 72, height: 72, borderRadius: AppRadius.xl))),
+      errorWidget: (_, __, ___) => _fallback(context),
     );
   }
 
   Widget _fallback(BuildContext context) {
-    return Container(
+    return InkWell(
+      onTap: () async {
+        await CachedNetworkImage.evictFromCache(widget.source);
+        if (mounted) setState(() => _retry++);
+      },
+      child: Container(
       color: context.colors.primaryContainer,
-      child: Icon(
-        Icons.landscape_outlined,
-        color: context.colors.primary,
-        size: 44,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.broken_image_outlined, color: context.colors.primary, size: 44),
+        const SizedBox(height: 6),
+        Text('Picha haijapatikana. Gusa ujaribu tena.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall),
+      ]),
       ),
     );
   }
+
+  var _retry = 0;
 }

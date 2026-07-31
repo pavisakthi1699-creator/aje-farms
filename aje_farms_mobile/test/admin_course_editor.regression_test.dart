@@ -313,6 +313,16 @@ class _RecordingAdminService implements AdminService {
   }
 
   @override
+  Future<AdminLessonSourceReviewResult> registerUploadedVideoEvidence({
+    required String lessonId,
+    required String transcript,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    throw const AdminException('not used');
+  }
+
+  @override
   Future<String> uploadLessonVideo({
     required Uint8List bytes,
     required String contentType,

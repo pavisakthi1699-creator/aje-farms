@@ -325,6 +325,35 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  app.post(
+    '/api/admin/content/lessons/:lessonId/video-evidence',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const transcript = typeof req.body.transcript === 'string' ? req.body.transcript.trim() : '';
+      const evidenceNote = typeof req.body.evidenceNote === 'string' ? req.body.evidenceNote.trim() : '';
+      const groundingFact = typeof req.body.groundingFact === 'string' ? req.body.groundingFact.trim() : '';
+      if (transcript.length < 40 || !evidenceNote || !groundingFact) {
+        res.status(400).json({ error: 'Video transcript (at least 40 characters), evidence note, and grounding fact are required.' });
+        return;
+      }
+      if (transcript.length > 20000 || evidenceNote.length > 2000 || groundingFact.length > 2000) {
+        res.status(400).json({ error: 'Video evidence is too long.' });
+        return;
+      }
+      if (typeof store.registerUploadedVideoEvidence !== 'function') {
+        res.status(501).json({ error: 'Video evidence requires the production content store.' });
+        return;
+      }
+      try {
+        const reviewer = await store.getUser(req.userId);
+        res.json(await store.registerUploadedVideoEvidence({ lessonId: req.params.lessonId, transcript, evidenceNote, groundingFact, reviewerActorId: reviewer?.id ?? null }));
+      } catch (error) {
+        res.status(400).json({ error: error instanceof Error ? error.message : 'Video evidence could not be saved.' });
+      }
+    },
+  );
+
   app.get(
     '/api/admin/content/documents',
     requireAuthSession(store),

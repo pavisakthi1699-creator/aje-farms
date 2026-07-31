@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1801,6 +1802,64 @@ export class PostgresStore {
     } finally {
       client.release();
     }
+  }
+
+  async registerUploadedVideoEvidence({
+    lessonId,
+    transcript,
+    evidenceNote,
+    groundingFact,
+    reviewerActorId = null,
+  }) {
+    if (process.env.AJE_STORE !== 'supabase') {
+      throw new Error('Video evidence is only available in Supabase mode.');
+    }
+    const video = await this.pool.query(
+      `SELECT l.title_sw, lr.storage_path
+       FROM lessons l
+       JOIN lesson_resources lr ON lr.lesson_id = l.id
+       WHERE l.id = $1 AND l.lesson_type = 'video'
+         AND lr.resource_type = 'video' AND lr.storage_path IS NOT NULL
+       ORDER BY lr.updated_at DESC LIMIT 1`,
+      [lessonId],
+    );
+    const row = video.rows[0];
+    if (!row) throw new Error('Uploaded video could not be found for this lesson.');
+    const contentHash = createHash('sha256').update(transcript).digest('hex');
+    const document = await this.pool.query(
+      `INSERT INTO source_documents
+         (title, language_code, source_type, source_kind, storage_bucket,
+          storage_path, file_name, checksum, processing_status, metadata)
+       VALUES ($1, 'sw', 'video/mp4', 'video', $2, $3, $4, $5,
+               'approved'::content_status, $6::jsonb)
+       RETURNING id::text`,
+      [
+        `Video: ${row.title_sw}`,
+        lessonVideosBucket,
+        row.storage_path,
+        path.basename(row.storage_path),
+        createHash('sha256').update(row.storage_path).digest('hex'),
+        JSON.stringify({ origin: 'admin_uploaded_video', reviewerActorId }),
+      ],
+    );
+    const segment = await this.pool.query(
+      `INSERT INTO source_segments
+         (source_document_id, section_title, segment_order, content_sw,
+          content_hash, extraction_method, review_status, risk_level,
+          reviewed_by, reviewed_at)
+       VALUES ($1, 'Transcript ya video', 1, $2, $3,
+               'admin_video_transcript', 'approved'::content_status,
+               'normal'::content_risk_level, $4, NOW())
+       RETURNING id::text`,
+      [document.rows[0].id, transcript, contentHash, reviewerActorId],
+    );
+    return this.approveLessonSource({
+      lessonId,
+      sourceSegmentId: segment.rows[0].id,
+      evidenceNote,
+      groundingFact,
+      reviewerActorId,
+    });
   }
 
   async approvedContentDocuments() {

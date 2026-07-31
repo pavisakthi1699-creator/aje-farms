@@ -22,6 +22,12 @@ abstract interface class AdminService {
     required String evidenceNote,
     required String groundingFact,
   });
+  Future<AdminLessonSourceReviewResult> registerUploadedVideoEvidence({
+    required String lessonId,
+    required String transcript,
+    required String evidenceNote,
+    required String groundingFact,
+  });
   /// Uploads a lesson video and returns its storage key, which a lesson can
   /// then reference. The bytes go straight to storage through a short-lived
   /// signed URL rather than through the API.

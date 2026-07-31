@@ -46,6 +46,18 @@ class LocalAdminService implements AdminService {
   }
 
   @override
+  Future<AdminLessonSourceReviewResult> registerUploadedVideoEvidence({
+    required String lessonId,
+    required String transcript,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    throw const AdminException(
+      'Ushahidi wa video unahitaji backend iliyounganishwa.',
+    );
+  }
+
+  @override
   Future<String> uploadLessonVideo({
     required Uint8List bytes,
     required String contentType,

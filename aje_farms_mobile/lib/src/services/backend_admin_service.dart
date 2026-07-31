@@ -118,6 +118,23 @@ class BackendAdminService implements AdminService {
   }
 
   @override
+  Future<AdminLessonSourceReviewResult> registerUploadedVideoEvidence({
+    required String lessonId,
+    required String transcript,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lessons/${Uri.encodeComponent(lessonId)}/video-evidence',
+      {'transcript': transcript, 'evidenceNote': evidenceNote, 'groundingFact': groundingFact},
+    );
+    final updatedAt = payload['courseUpdatedAt'];
+    final parsed = updatedAt is String ? DateTime.tryParse(updatedAt) : null;
+    if (parsed == null) throw const AdminException('Invalid video evidence response.');
+    return AdminLessonSourceReviewResult(courseUpdatedAt: parsed, contentReady: payload['contentReady'] == true);
+  }
+
+  @override
   Future<String> uploadLessonVideo({
     required Uint8List bytes,
     required String contentType,
