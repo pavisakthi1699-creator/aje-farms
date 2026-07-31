@@ -56,13 +56,14 @@ class AppDependencies {
     AdminService? adminService,
     CommunityService? communityService,
     CommunityRepository? communityRepository,
+    MwalimuAiService? mwalimuAiService,
     Future<void> Function()? refreshCatalog,
   }) {
     return AppDependencies(
       learningRepository: learningRepository,
       communityRepository: communityRepository ?? this.communityRepository,
       subscriptionRepository: subscriptionRepository,
-      mwalimuAiService: mwalimuAiService,
+      mwalimuAiService: mwalimuAiService ?? this.mwalimuAiService,
       authService: authService,
       catalogService: catalogService,
       adminService: adminService ?? this.adminService,

@@ -46,6 +46,13 @@ class AiChatScreenState extends State<AiChatScreen> {
     super.dispose();
   }
 
+  static const _networkFailureReply =
+      'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au '
+      'wasiliana na mtaalamu.';
+  static const _pendingVerificationReply =
+      'Mwalimu AI itapatikana baada ya timu ya AJE Farms kuthibitisha akaunti '
+      'yako. Tunakujulisha mara akaunti yako itakapowashwa.';
+
   Future<void> _send([String? value]) async {
     final text = (value ?? _controller.text).trim();
     if (text.isEmpty || _isLoading) return;
@@ -57,18 +64,22 @@ class AiChatScreenState extends State<AiChatScreen> {
     });
 
     final aiService = context.dependencies.mwalimuAiService;
-    var answer = const MwalimuAiAnswer(
-      text:
-          'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
-    );
+    MwalimuAiAnswer answer;
 
     try {
       answer = await aiService.answer(text);
+    } on MwalimuAiException catch (error) {
+      // A learner whose account an admin has not verified yet is not offline.
+      // Telling them to check their connection sends them retrying forever, so
+      // name the real reason and open the membership status screen.
+      if (error.requiresVerifiedAccount) {
+        answer = const MwalimuAiAnswer(text: _pendingVerificationReply);
+        if (mounted) AppNavigator.pushPaywall(context);
+      } else {
+        answer = const MwalimuAiAnswer(text: _networkFailureReply);
+      }
     } catch (_) {
-      answer = const MwalimuAiAnswer(
-        text:
-            'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
-      );
+      answer = const MwalimuAiAnswer(text: _networkFailureReply);
     }
 
     if (!mounted) return;

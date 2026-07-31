@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'backend_session_storage.dart';
 import 'mwalimu_ai_service.dart';
 
 class BackendMwalimuAiService implements MwalimuAiService {
@@ -19,10 +20,17 @@ class BackendMwalimuAiService implements MwalimuAiService {
 
   @override
   Future<MwalimuAiAnswer> answer(String prompt) async {
+    // `/api/mwalimu-chat` requires a session and an active entitlement, so the
+    // bearer token is mandatory here — without it every request 401s.
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     final response = await _client
         .post(
           _baseUrl.resolve('/api/mwalimu-chat'),
-          headers: const {'Content-Type': 'application/json'},
+          headers: headers,
           body: jsonEncode({
             'message': prompt,
             'history': const [],
@@ -36,6 +44,7 @@ class BackendMwalimuAiService implements MwalimuAiService {
         payload is Map<String, dynamic> && payload['error'] is String
             ? payload['error'] as String
             : 'Mwalimu AI request failed.',
+        statusCode: response.statusCode,
       );
     }
 

@@ -6,6 +6,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aje_farms_mobile/src/app.dart';
 import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 
+/// Stands in for the backend rejecting a learner whose account no admin has
+/// verified yet (`/api/mwalimu-chat` answers 403).
+class _UnverifiedMwalimuAiService implements MwalimuAiService {
+  @override
+  Future<MwalimuAiAnswer> answer(String prompt) async {
+    throw const MwalimuAiException(
+      'Ufikiaji wa mafunzo unahitaji malipo yaliyoidhinishwa na admin.',
+      statusCode: 403,
+    );
+  }
+}
+
 void main() {
   Widget buildDemoApp() {
     return AjeFarmsApp(dependencies: AppDependencies.demo());
@@ -53,7 +65,80 @@ void main() {
 
     expect(find.textContaining('Karibu'), findsOneWidget);
     expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
-    expect(find.text('Chagua kifurushi'), findsOneWidget);
+    // The demo auth service returns an already-verified account, so the card
+    // reports active access rather than prompting for a package.
+    expect(find.text('Akaunti yako imewashwa'), findsOneWidget);
+  });
+
+  testWidgets(
+      'an unverified learner asking Mwalimu AI is sent to membership status, '
+      'not told the network failed', (WidgetTester tester) async {
+    useTallViewport(tester);
+    final session = AppSessionController();
+    await session.signInWithEmail('mkulima@aje.test');
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          mwalimuAiService: _UnverifiedMwalimuAiService(),
+        ),
+        sessionController: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Both the dashboard shortcut and the nav destination carry this label.
+    await tester.tap(find.text('Uliza AI').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Nyanya zangu ni?');
+    await tester.tap(find.byTooltip('Tuma'));
+    await tester.pumpAndSettle();
+
+    // The 403 opens the membership status screen so the learner has somewhere
+    // to go instead of retrying a request that cannot succeed.
+    expect(find.text('Hali ya Uanachama'), findsOneWidget);
+
+    // The chat itself sits under the pushed route, so look offstage: the reply
+    // must name verification rather than blame the connection.
+    expect(
+      find.textContaining('kuthibitisha akaunti', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('tatizo la kimtandao', skipOffstage: false),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+      'a newly registered learner is told an admin must verify the account',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    final session = AppSessionController();
+    await session.signInWithEmail('mkulima@aje.test');
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo(),
+        sessionController: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
+    expect(
+      find.text(
+        'Umesajiliwa. Timu ya AJE Farms itathibitisha akaunti yako '
+        'ili kufungua mafunzo.',
+      ),
+      findsOneWidget,
+    );
+    // Access is granted by staff, never bought in-app, so the card must not
+    // send a pending learner looking for a package to choose.
+    expect(find.textContaining('Chagua kifurushi'), findsNothing);
+    // The registration prompt belongs to signed-out guests only.
+    expect(
+      find.text('Jisajili ili kuona mafunzo yanayopatikana.'),
+      findsNothing,
+    );
   });
 
   testWidgets('a guest dashboard prompts registration instead of local lessons',
