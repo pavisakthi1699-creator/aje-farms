@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'app_a11y.dart';
 import 'app_color_scheme.dart';
@@ -24,11 +23,17 @@ export 'app_spacing.dart';
 export 'app_theme_preference.dart';
 
 class AppTheme {
-  static ThemeData light({bool useGoogleFonts = true}) =>
-      _build(AppColorScheme.light, useGoogleFonts: useGoogleFonts);
+  /// The bundled legibility typeface. Declared in pubspec.yaml, shipped in
+  /// the APK — never fetched at runtime.
+  static const brandFontFamily = 'Atkinson Hyperlegible';
 
-  static ThemeData dark({bool useGoogleFonts = true}) =>
-      _build(AppColorScheme.dark, useGoogleFonts: useGoogleFonts);
+  /// [useBrandFont] is disabled only by golden tests, which need the
+  /// deterministic test font rather than real glyph metrics.
+  static ThemeData light({bool useBrandFont = true}) =>
+      _build(AppColorScheme.light, useBrandFont: useBrandFont);
+
+  static ThemeData dark({bool useBrandFont = true}) =>
+      _build(AppColorScheme.dark, useBrandFont: useBrandFont);
 
   static SystemUiOverlayStyle overlayStyle(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
@@ -45,7 +50,7 @@ class AppTheme {
 
   static ThemeData _build(
     AppColorScheme colors, {
-    required bool useGoogleFonts,
+    required bool useBrandFont,
   }) {
     final brightness =
         colors == AppColorScheme.dark ? Brightness.dark : Brightness.light;
@@ -118,8 +123,8 @@ class AppTheme {
         fontWeight: FontWeight.w500,
       ),
     );
-    final baseTextTheme = useGoogleFonts
-        ? GoogleFonts.atkinsonHyperlegibleTextTheme(textTheme)
+    final baseTextTheme = useBrandFont
+        ? textTheme.apply(fontFamily: brandFontFamily)
         : textTheme;
 
     final inputBorder = OutlineInputBorder(

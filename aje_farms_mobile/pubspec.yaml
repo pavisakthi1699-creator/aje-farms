@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^6.2.1
   connectivity_plus: ^6.1.4
   flutter_secure_storage: ^9.2.4
   supabase_flutter: ^2.8.0
@@ -33,6 +32,16 @@ flutter:
     - assets/images/courses/
     - assets/images/hero/
     - assets/branding/
+  # Bundled rather than fetched at runtime: this is a legibility typeface for
+  # farmers on weak rural connections, so it must be present on first launch
+  # and offline. Braille Institute, SIL OFL 1.1 (assets/fonts/OFL.txt).
+  fonts:
+    - family: Atkinson Hyperlegible
+      fonts:
+        - asset: assets/fonts/AtkinsonHyperlegible-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/AtkinsonHyperlegible-Bold.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: true

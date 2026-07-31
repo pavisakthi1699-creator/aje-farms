@@ -1,7 +1,6 @@
 import 'package:aje_farms_mobile/src/app.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,15 +24,8 @@ void main() {
     await tester.pump(wait);
   }
 
-  setUpAll(() async {
-    GoogleFonts.config.allowRuntimeFetching = true;
-    await GoogleFonts.pendingFonts([
-      GoogleFonts.atkinsonHyperlegible(),
-      GoogleFonts.atkinsonHyperlegible(fontWeight: FontWeight.w600),
-      GoogleFonts.atkinsonHyperlegible(fontWeight: FontWeight.w700),
-      GoogleFonts.atkinsonHyperlegible(fontWeight: FontWeight.bold),
-    ]);
-  });
+  // The brand typeface ships in the APK, so screenshots no longer need to
+  // wait on a font download before the first frame is representative.
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});

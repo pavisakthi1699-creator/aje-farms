@@ -1,14 +1,12 @@
 import 'package:aje_farms_mobile/src/app.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _surfaceKey = ValueKey('golden-surface');
 
 void main() {
   setUp(() {
-    GoogleFonts.config.allowRuntimeFetching = false;
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
   });
@@ -22,7 +20,7 @@ void main() {
         child: AppSessionScope(
           controller: AppSessionController(),
           child: MaterialApp(
-            theme: AppTheme.light(useGoogleFonts: false),
+            theme: AppTheme.light(useBrandFont: false),
             home: const OnboardingScreen(),
           ),
         ),
@@ -46,7 +44,7 @@ void main() {
         child: AppSessionScope(
           controller: session,
           child: MaterialApp(
-            theme: AppTheme.light(useGoogleFonts: false),
+            theme: AppTheme.light(useBrandFont: false),
             home: const MainShell(),
           ),
         ),
@@ -70,7 +68,7 @@ void main() {
         child: AppSessionScope(
           controller: session,
           child: MaterialApp(
-            theme: AppTheme.dark(useGoogleFonts: false),
+            theme: AppTheme.dark(useBrandFont: false),
             home: const MainShell(),
           ),
         ),
@@ -96,7 +94,7 @@ void main() {
           child: AppSessionScope(
             controller: session,
             child: MaterialApp(
-              theme: AppTheme.light(useGoogleFonts: false),
+              theme: AppTheme.light(useBrandFont: false),
               home: const MainShell(),
             ),
           ),

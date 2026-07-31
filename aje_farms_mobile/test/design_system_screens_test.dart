@@ -1,7 +1,6 @@
 import 'package:aje_farms_mobile/src/app.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Screen-level checks for the updated design system (onboarding + dark dashboard).
@@ -27,7 +26,6 @@ void main() {
   }
 
   setUp(() {
-    GoogleFonts.config.allowRuntimeFetching = false;
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
   });
