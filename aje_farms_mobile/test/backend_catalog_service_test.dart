@@ -1,6 +1,7 @@
 import 'package:aje_farms_mobile/src/repositories/cached_app_repository.dart';
 import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 import 'package:aje_farms_mobile/src/services/backend_catalog_service.dart';
+import 'package:aje_farms_mobile/src/services/backend_session_storage.dart';
 import 'package:aje_farms_mobile/src/services/catalog_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,10 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  setUp(() async {
+    await BackendSessionStorage.writeToken('catalog-test-token');
+  });
+
   test('loads catalog data from backend and maps wire fields', () async {
     late http.Request capturedRequest;
     final service = BackendCatalogService(
@@ -24,6 +29,8 @@ void main() {
       capturedRequest.url.toString(),
       'http://localhost:3000/api/catalog',
     );
+    expect(
+        capturedRequest.headers['Authorization'], 'Bearer catalog-test-token');
     expect(catalog.courses.single.id, 'pilipili');
     expect(catalog.documents.single.id, 'pilipili-mwongozo');
     expect(catalog.courses.single.icon, Icons.grass);
@@ -82,7 +89,8 @@ void main() {
 
 class _FakeCatalogService implements CatalogService {
   @override
-  Future<String> lessonVideoUrl(String lessonId) async => 'https://example.test/v';
+  Future<String> lessonVideoUrl(String lessonId) async =>
+      'https://example.test/v';
 
   @override
   Future<CatalogSnapshot> loadCatalog() async {
@@ -96,7 +104,8 @@ class _FakeCatalogService implements CatalogService {
 
 class _EmptyCourseCatalogService implements CatalogService {
   @override
-  Future<String> lessonVideoUrl(String lessonId) async => 'https://example.test/v';
+  Future<String> lessonVideoUrl(String lessonId) async =>
+      'https://example.test/v';
 
   @override
   Future<CatalogSnapshot> loadCatalog() async {

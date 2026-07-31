@@ -271,3 +271,48 @@ test('recording a payment against a disabled or unknown plan is rejected', async
     assert.equal(invalid.response.status, 400);
   });
 });
+
+test('a payment must exactly match the server-owned plan price in TZS', async () => {
+  await withTestServer(async (baseUrl) => {
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminToken);
+    const { user: learner } = await signIn(baseUrl, 'learner-price@aje.test');
+
+    for (const body of [
+      {
+        userId: learner.id,
+        planId: 'wiki-1',
+        method: 'cash',
+        amountTzs: 0,
+      },
+      {
+        userId: learner.id,
+        planId: 'wiki-1',
+        method: 'cash',
+        amountTzs: 2999,
+      },
+      {
+        userId: learner.id,
+        planId: 'wiki-1',
+        method: 'cash',
+        amountTzs: 3000,
+        currency: 'USD',
+      },
+    ]) {
+      const result = await postJson(
+        baseUrl,
+        '/api/admin/payments',
+        body,
+        adminHeaders,
+      );
+      assert.equal(result.response.status, 422);
+    }
+
+    const pending = await getJson(
+      baseUrl,
+      '/api/admin/payments?status=pending',
+      adminHeaders,
+    );
+    assert.equal(pending.payload.records.length, 0);
+  });
+});

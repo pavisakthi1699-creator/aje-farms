@@ -83,9 +83,22 @@ export class JsonStore {
   }) {
     const plan = await this.getPlan(planId);
     if (!plan || !plan.enabled) return null;
+    if (currency !== 'TZS' || amountTzs !== plan.priceTzs) {
+      const mismatch = new Error(
+        `Payment must match the selected plan price of TZS ${plan.priceTzs}.`,
+      );
+      mismatch.code = 'PAYMENT_AMOUNT_MISMATCH';
+      throw mismatch;
+    }
+    const normalizedReference =
+      typeof reference === 'string' && reference.trim()
+        ? reference.trim().toUpperCase()
+        : null;
     if (
-      reference &&
-      this.state.paymentRecords.some((item) => item.reference === reference)
+      normalizedReference &&
+      this.state.paymentRecords.some(
+        (item) => item.reference === normalizedReference,
+      )
     ) {
       const conflict = new Error('A payment with this reference already exists.');
       conflict.code = 'DUPLICATE_REFERENCE';
@@ -99,7 +112,7 @@ export class JsonStore {
       method,
       amountTzs,
       currency,
-      reference,
+      reference: normalizedReference,
       note,
       status: 'pending',
       recordedBy: recordedByUserId,
@@ -279,6 +292,56 @@ export class JsonStore {
         item.status === 'active' &&
         Date.parse(item.expiresAt) > now,
     );
+  }
+
+  async reconcileUserEntitlements(userId) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+    const now = Date.now();
+    let changed = false;
+    for (const entitlement of this.state.entitlements) {
+      if (
+        entitlement.userId === userId &&
+        entitlement.status === 'active' &&
+        Date.parse(entitlement.expiresAt) <= now
+      ) {
+        entitlement.status = 'expired';
+        entitlement.updatedAt = new Date(now).toISOString();
+        changed = true;
+      }
+    }
+    const active = this.state.entitlements
+      .filter(
+        (item) =>
+          item.userId === userId &&
+          item.status === 'active' &&
+          Date.parse(item.expiresAt) > now,
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(right.grantedAt) - Date.parse(left.grantedAt),
+      )[0];
+    if (active) {
+      const plan = await this.getPlan(active.planId);
+      if (
+        user.accountStatus !== 'active' ||
+        user.subscriptionPlan !== plan?.title
+      ) {
+        user.accountStatus = 'active';
+        user.subscriptionPlan = plan?.title ?? null;
+        user.subscriptionStartedAt = active.grantedAt;
+        user.updatedAt = new Date(now).toISOString();
+        changed = true;
+      }
+    } else if (user.accountStatus === 'active') {
+      user.accountStatus = 'suspended';
+      user.subscriptionPlan = null;
+      user.subscriptionStartedAt = null;
+      user.updatedAt = new Date(now).toISOString();
+      changed = true;
+    }
+    if (changed) this.#saveAll();
+    return user;
   }
 
   async auditEventsFor({ targetType, targetId }) {
@@ -511,6 +574,9 @@ export class JsonStore {
       track(item.userId, 'learningProgressCount');
     }
     for (const item of this.state.paymentTransactions) {
+      track(item.userId, 'paymentTransactionsCount');
+    }
+    for (const item of this.state.paymentRecords) {
       track(item.userId, 'paymentTransactionsCount');
     }
     for (const item of this.state.notifications) {

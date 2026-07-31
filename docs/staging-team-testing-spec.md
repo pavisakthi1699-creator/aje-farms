@@ -276,7 +276,7 @@ database, or `AJE_OTP_PEPPER`.**
 | `AJE_OTP_PEPPER` | **new** ≥32-char random secret, distinct from prod | Avoids the public fallback at `store/utils.js:133` |
 | `AJE_ADMIN_PHONE_NUMBERS` | comma-separated team numbers | Grants admin with no DB write (`auth.js:3-8`) |
 | `APP_URL` | the staging Railway URL | Self-referential links |
-| `GEMINI_API_KEY` | staging-scoped key, or omit | Omitting falls back to the approved knowledge base |
+| `GEMINI_API` | staging-scoped key, or omit | Omitting falls back to the approved knowledge base |
 | `AJE_PUSH_PROVIDER` | `development` | No FCM setup needed |
 
 **Explicitly leave unset:** `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY`,

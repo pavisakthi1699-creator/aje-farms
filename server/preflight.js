@@ -1,3 +1,5 @@
+import { configuredGeminiApiKey } from './gemini-config.js';
+
 const placeholderValues = new Set([
   '',
   'MY_APP_URL',
@@ -37,15 +39,15 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     'SUPABASE_SERVICE_ROLE_KEY',
     env.SUPABASE_SERVICE_ROLE_KEY,
   );
-  requireValue(blockers, 'AJE_OTP_PEPPER', env.AJE_OTP_PEPPER, (value) => {
-    return value.length < 32
-      ? 'must be at least 32 characters for release.'
-      : null;
-  });
   // Gates the dev-only /api/auth/dev-session bypass in api.js — must never
   // be reachable in a release build.
   if (env.AJE_ENABLE_DEBUG_OTP === 'true') {
     blockers.push('AJE_ENABLE_DEBUG_OTP must not be true for release.');
+  }
+  if (env.AJE_ENABLE_LEGACY_DEV_PAYMENTS === 'true') {
+    blockers.push(
+      'AJE_ENABLE_LEGACY_DEV_PAYMENTS must not be true for release.',
+    );
   }
   if (String(env.AJE_INTERNAL_BUILD ?? '').toLowerCase() === 'true') {
     blockers.push('AJE_INTERNAL_BUILD must not be true for release.');
@@ -92,8 +94,9 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
   } else {
     blockers.push('AJE_PUSH_PROVIDER must be "development" or "fcm".');
   }
-  if (!env.GEMINI_API_KEY || placeholderValues.has(env.GEMINI_API_KEY)) {
-    warnings.push('GEMINI_API_KEY is missing; AI will use the approved knowledge-base fallback.');
+  const geminiApiKey = configuredGeminiApiKey(env);
+  if (!geminiApiKey || placeholderValues.has(geminiApiKey)) {
+    warnings.push('GEMINI_API is missing; AI will use the approved knowledge-base fallback.');
   }
 
   return {

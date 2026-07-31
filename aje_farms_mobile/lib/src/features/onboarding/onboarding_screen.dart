@@ -116,11 +116,11 @@ class _OnboardingHeroCard extends StatelessWidget {
                       color: context.colors.onPrimaryBorder,
                     ),
                   ),
-                    child: const ExcludeSemantics(
-                      child: Center(
-                        child: BrandMark(
-                          size: 48,
-                        ),
+                  child: const ExcludeSemantics(
+                    child: Center(
+                      child: BrandMark(
+                        size: 48,
+                      ),
                     ),
                   ),
                 ),
@@ -170,25 +170,11 @@ abstract final class _OnboardingActions {
   static List<Widget> build(BuildContext context) {
     return [
       FilledButton.icon(
-        onPressed: () async {
-          AppFeedback.tap();
-          await context.session.startAsGuest();
-          if (!context.mounted) return;
-          AppNavigator.replaceWithMainShell(
-            context,
-            tab: AppNavigator.pendingInitialTab() ?? MainShellTab.home,
-          );
-        },
-        icon: const Icon(Icons.arrow_forward),
-        label: const Text('Anza Sasa'),
-      ),
-      const SizedBox(height: AppSpacing.md),
-      OutlinedButton.icon(
         onPressed: () {
           AppFeedback.tap();
           AppNavigator.pushAuth(context);
         },
-        icon: const Icon(Icons.phone_iphone),
+        icon: const Icon(Icons.login),
         label: const Text('Ingia / Jisajili'),
       ),
     ];

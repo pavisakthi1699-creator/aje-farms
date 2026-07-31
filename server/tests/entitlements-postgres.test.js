@@ -108,6 +108,27 @@ test(
 );
 
 test(
+  'postgres: payment amount and currency must match the selected plan',
+  { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
+  async () => {
+    await withStore(async (store) => {
+      const { admin, learner } = await seedUsers(store);
+      await assert.rejects(
+        () =>
+          store.recordPaymentRecord({
+            userId: learner.id,
+            planId: 'wiki-1',
+            method: 'cash',
+            amountTzs: 0,
+            recordedByUserId: admin.id,
+          }),
+        /PAYMENT_AMOUNT_MISMATCH|must match/,
+      );
+    });
+  },
+);
+
+test(
   'postgres: reversing revokes the entitlement and suspends the account when no other access remains',
   { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
   async () => {

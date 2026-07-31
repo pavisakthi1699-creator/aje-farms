@@ -8,6 +8,7 @@ import {
   requireAdminSession,
   requireAuthSession,
 } from './auth.js';
+import { hasConfiguredGeminiApiKey } from './gemini-config.js';
 import { chatWithMwalimuServer } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
@@ -23,8 +24,15 @@ import {
 
 function devModeEnabled() {
   return (
-    process.env.NODE_ENV === 'development' ||
+    ['development', 'test'].includes(process.env.NODE_ENV) &&
     process.env.AJE_ENABLE_DEBUG_OTP === 'true'
+  );
+}
+
+function legacyDevelopmentPaymentsEnabled() {
+  return (
+    devModeEnabled() &&
+    process.env.AJE_ENABLE_LEGACY_DEV_PAYMENTS === 'true'
   );
 }
 
@@ -55,15 +63,15 @@ export async function registerApiRoutes(app) {
           Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
       },
       payments: {
-        provider: paymentProvider.name,
-        ready: paymentProvider.isProductionReady || !isProduction,
+        provider: 'manual',
+        ready: true,
       },
       notifications: {
         provider: notificationProvider.name,
         ready: notificationProvider.isProductionReady || !isProduction,
       },
       ai: {
-        provider: process.env.GEMINI_API_KEY ? 'gemini' : 'knowledge-base',
+        provider: hasConfiguredGeminiApiKey() ? 'gemini' : 'knowledge-base',
         ready: true,
       },
     };
@@ -75,9 +83,18 @@ export async function registerApiRoutes(app) {
     });
   });
 
-  app.get('/api/catalog', async (_req, res) => {
-    res.json(await store.catalogSnapshot());
-  });
+  app.get(
+    '/api/catalog',
+    requireAuthSession(store),
+    async (req, res) => {
+      const snapshot = await store.catalogSnapshot();
+      if (await hasPaidLearningAccess(store, req.userId)) {
+        res.json(snapshot);
+        return;
+      }
+      res.json(lockedCatalogSnapshot(snapshot));
+    },
+  );
 
   // Resolves a lesson video to a short-lived signed URL. The player opens that
   // URL in an external viewer, which cannot carry an Authorization header, so
@@ -85,6 +102,7 @@ export async function registerApiRoutes(app) {
   app.get(
     '/api/lessons/:lessonId/video-url',
     requireAuthSession(store),
+    requirePaidLearningAccess(store),
     async (req, res) => {
       if (typeof store.lessonVideoUrl !== 'function') {
         res.status(404).json({ error: 'Video haipatikani.' });
@@ -102,6 +120,7 @@ export async function registerApiRoutes(app) {
   app.get(
     '/api/lessons/:lessonId/video',
     requireAuthSession(store),
+    requirePaidLearningAccess(store),
     async (req, res) => {
       if (typeof store.lessonVideoUrl !== 'function') {
         res.status(404).json({ error: 'Video haipatikani.' });
@@ -470,6 +489,10 @@ export async function registerApiRoutes(app) {
         }
         res.json({ paymentRecord: record });
       } catch (error) {
+        if (error?.code === 'PAYMENT_AMOUNT_MISMATCH') {
+          res.status(422).json({ error: error.message });
+          return;
+        }
         if (error?.code === 'DUPLICATE_REFERENCE') {
           res.status(409).json({ error: error.message });
           return;
@@ -705,6 +728,7 @@ export async function registerApiRoutes(app) {
   app.post(
     '/api/users/me/progress/lessons',
     requireAuthSession(store),
+    requirePaidLearningAccess(store),
     async (req, res) => {
       const { courseId, lessonId } = req.body;
       if (typeof courseId !== 'string' || typeof lessonId !== 'string') {
@@ -728,6 +752,10 @@ export async function registerApiRoutes(app) {
     '/api/payments/checkout',
     requireAuthSession(store),
     async (req, res) => {
+      if (!legacyDevelopmentPaymentsEnabled()) {
+        res.status(404).json({ error: 'Not found.' });
+        return;
+      }
       const { planTitle, price, method } = req.body;
 
       if (
@@ -771,6 +799,10 @@ export async function registerApiRoutes(app) {
     '/api/payments/:transactionId',
     requireAuthSession(store),
     async (req, res) => {
+      if (!legacyDevelopmentPaymentsEnabled()) {
+        res.status(404).json({ error: 'Not found.' });
+        return;
+      }
       let transaction = await store.getPaymentTransaction(
         req.params.transactionId,
       );
@@ -790,6 +822,10 @@ export async function registerApiRoutes(app) {
   );
 
   app.post('/api/payments/webhook/development', async (req, res) => {
+    if (!legacyDevelopmentPaymentsEnabled()) {
+      res.status(404).json({ error: 'Not found.' });
+      return;
+    }
     if (!isAuthorizedDevelopmentWebhook(req)) {
       res.status(401).json({ error: 'Webhook secret is required.' });
       return;
@@ -980,36 +1016,83 @@ export async function registerApiRoutes(app) {
     },
   );
 
-  app.post('/api/mwalimu-chat', async (req, res) => {
-    const { message, history } = req.body;
+  app.post(
+    '/api/mwalimu-chat',
+    requireAuthSession(store),
+    requirePaidLearningAccess(store),
+    async (req, res) => {
+      const { message, history } = req.body;
 
-    if (typeof message !== 'string' || message.trim().length === 0) {
-      res.status(400).json({ error: 'Message is required.' });
-      return;
-    }
+      if (typeof message !== 'string' || message.trim().length === 0) {
+        res.status(400).json({ error: 'Message is required.' });
+        return;
+      }
 
-    try {
-      const groundingSources =
-        typeof store.groundingSources === 'function'
-          ? await store.groundingSources(message)
-          : null;
-      const answer = await chatWithMwalimuServer(
-        message,
-        Array.isArray(history) ? history : [],
-        (await store.catalogSnapshot()).courses,
-        groundingSources,
-      );
-      res.json(answer);
-    } catch (error) {
-      console.error('Mwalimu AI server error:', error);
-      res.status(500).json({
-        error:
-          'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
-      });
+      try {
+        const groundingSources =
+          typeof store.groundingSources === 'function'
+            ? await store.groundingSources(message)
+            : null;
+        const answer = await chatWithMwalimuServer(
+          message,
+          Array.isArray(history) ? history : [],
+          (await store.catalogSnapshot()).courses,
+          groundingSources,
+        );
+        res.json(answer);
+      } catch (error) {
+        console.error('Mwalimu AI server error:', error);
+        res.status(500).json({
+          error:
+            'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
+        });
+      }
     }
-  });
+  );
 
   return store;
+}
+
+function requirePaidLearningAccess(store) {
+  return async (req, res, next) => {
+    if (await hasPaidLearningAccess(store, req.userId)) {
+      next();
+      return;
+    }
+    res.status(403).json({
+      error: 'Ufikiaji wa mafunzo unahitaji malipo yaliyoidhinishwa na admin.',
+    });
+  };
+}
+
+async function hasPaidLearningAccess(store, userId) {
+  const user = await store.getUser(userId);
+  return (
+    userHasAdminAccess(user, user?.email) ||
+    (typeof store.hasActiveEntitlement === 'function' &&
+      (await store.hasActiveEntitlement(userId)))
+  );
+}
+
+function lockedCatalogSnapshot(snapshot) {
+  return {
+    ...snapshot,
+    courses: snapshot.courses.map((course) => ({
+      ...course,
+      lessons: course.lessons.map((lesson) => ({
+        ...lesson,
+        description: '',
+        resourceUrl: null,
+        resourcePath: null,
+        isPremium: true,
+      })),
+    })),
+    documents: snapshot.documents.map((document) => ({
+      ...document,
+      url: null,
+      isPremium: true,
+    })),
+  };
 }
 
 function isAuthorizedDevelopmentWebhook(req) {

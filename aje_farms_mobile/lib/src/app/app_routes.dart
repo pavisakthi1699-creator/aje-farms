@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const paywall = '/paywall';
   static const notifications = '/notifications';
   static const auth = '/auth';
+  static const passwordReset = '/auth/password-reset';
   static const onboarding = '/onboarding';
   static const problem = '/problem';
   static const settings = '/settings';

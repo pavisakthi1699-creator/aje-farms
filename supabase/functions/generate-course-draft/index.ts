@@ -31,8 +31,10 @@ Deno.serve(async (req) => {
     const { source_document_id } = await req.json();
     if (!source_document_id) return jsonResponse({ error: "source_document_id is required" }, 400);
 
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) return jsonResponse({ error: "GEMINI_API_KEY secret is not configured" }, 500);
+    const apiKey =
+      Deno.env.get("GEMINI_API")?.trim() ||
+      Deno.env.get("GEMINI_API_KEY")?.trim();
+    if (!apiKey) return jsonResponse({ error: "GEMINI_API secret is not configured" }, 500);
 
     const admin = serviceClient();
     const { data: document, error: documentError } = await admin

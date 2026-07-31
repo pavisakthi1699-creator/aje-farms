@@ -9,6 +9,7 @@ export 'features/ai_chat/chat_widgets.dart';
 export 'features/admin/admin_dashboard_screen.dart';
 export 'features/assessments/assessments_screen.dart';
 export 'features/auth/auth_screen.dart';
+export 'features/auth/password_reset_screen.dart';
 export 'features/community/community_screen.dart';
 export 'features/community/community_widgets.dart';
 export 'features/courses/course_detail_screen.dart';

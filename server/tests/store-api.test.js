@@ -24,6 +24,7 @@ async function withTestServer(run) {
   process.env.AJE_STORE = 'json';
   process.env.AJE_DATA_FILE = dataFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
+  process.env.AJE_ENABLE_LEGACY_DEV_PAYMENTS = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
   process.env.AJE_ADMIN_EMAILS = ADMIN_EMAIL;
   process.env.NODE_ENV = 'development';
@@ -137,7 +138,7 @@ test('health endpoint reports development readiness', async () => {
     assert.equal(health.response.status, 200);
     assert.equal(health.payload.status, 'ok');
     assert.equal(health.payload.checks.store.mode, 'json');
-    assert.equal(health.payload.checks.payments.provider, 'development');
+    assert.equal(health.payload.checks.payments.provider, 'manual');
   });
 });
 
@@ -206,9 +207,9 @@ test('subscription cancel clears backend subscription state', async () => {
 
 test('learning progress is authenticated and survives store restart', async () => {
   await withTestServer(async (baseUrl) => {
-    const { sessionToken: token } = await signIn(baseUrl, 'farmer3@aje.test');
+    const { sessionToken: token } = await signIn(baseUrl, ADMIN_EMAIL);
 
-    const catalog = await getJson(baseUrl, '/api/catalog');
+    const catalog = await getJson(baseUrl, '/api/catalog', await authHeaders(token));
     assert.equal(catalog.response.status, 200);
     assert.equal(catalog.payload.courses[0].progress, 0);
     assert.equal(
@@ -385,6 +386,85 @@ test('lesson video endpoints require a session', async () => {
   });
 });
 
+test('course content is withheld until a staff-approved entitlement is active', async () => {
+  await withTestServer(async (baseUrl) => {
+    const anonymousCatalog = await getJson(baseUrl, '/api/catalog');
+    assert.equal(anonymousCatalog.response.status, 401);
+
+    const { user, sessionToken } = await signIn(
+      baseUrl,
+      'farmer-entitlement@aje.test',
+    );
+    const catalog = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(sessionToken),
+    );
+
+    assert.equal(catalog.response.status, 200);
+    assert.ok(catalog.payload.courses.length > 0);
+    for (const course of catalog.payload.courses) {
+      for (const lesson of course.lessons) {
+        assert.equal(lesson.isPremium, true);
+        assert.equal(lesson.description, '');
+        assert.equal(lesson.resourceUrl, null);
+      }
+    }
+
+    const videoLesson = catalog.payload.courses
+      .flatMap((course) => course.lessons)
+      .find((lesson) => lesson.type === 'video');
+    if (videoLesson) {
+      const video = await getJson(
+        baseUrl,
+        `/api/lessons/${videoLesson.id}/video-url`,
+        await authHeaders(sessionToken),
+      );
+      assert.equal(video.response.status, 403);
+    }
+
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const plans = await getJson(
+      baseUrl,
+      '/api/admin/plans',
+      await authHeaders(adminToken),
+    );
+    const plan = plans.payload.plans[0];
+    const recordedPayment = await postJson(
+      baseUrl,
+      '/api/admin/payments',
+      {
+        userId: user.id,
+        planId: plan.id,
+        method: 'cash',
+        amountTzs: plan.priceTzs,
+        currency: 'TZS',
+      },
+      await authHeaders(adminToken),
+    );
+    assert.equal(recordedPayment.response.status, 200);
+    const approval = await postJson(
+      baseUrl,
+      `/api/admin/payments/${recordedPayment.payload.paymentRecord.id}/approve`,
+      {},
+      await authHeaders(adminToken),
+    );
+    assert.equal(approval.response.status, 200);
+
+    const unlockedCatalog = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(sessionToken),
+    );
+    assert.equal(unlockedCatalog.response.status, 200);
+    assert.ok(
+      unlockedCatalog.payload.courses
+        .flatMap((course) => course.lessons)
+        .some((lesson) => lesson.description.length > 0),
+    );
+  });
+});
+
 test('community authorship is session-derived and never exposes internal ids', async () => {
   await withTestServer(async (baseUrl) => {
     const farmerEmail = 'farmer7@aje.test';
@@ -539,7 +619,7 @@ test('admin content courses can be drafted and published into catalog', async ()
     const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
     const adminHeaders = await authHeaders(adminSessionToken);
 
-    const catalog = await getJson(baseUrl, '/api/catalog');
+    const catalog = await getJson(baseUrl, '/api/catalog', adminHeaders);
     const pasheni = catalog.payload.courses.find(
       (course) => course.id === 'pasheni',
     );
@@ -572,7 +652,11 @@ test('admin content courses can be drafted and published into catalog', async ()
     assert.equal(draft.response.status, 200);
     assert.equal(draft.payload.course.status, 'draft');
 
-    const catalogAfterDraft = await getJson(baseUrl, '/api/catalog');
+    const catalogAfterDraft = await getJson(
+      baseUrl,
+      '/api/catalog',
+      adminHeaders,
+    );
     assert.equal(
       catalogAfterDraft.payload.courses.some(
         (course) => course.title === 'Kilimo cha Pasheni Rasimu',
@@ -594,7 +678,11 @@ test('admin content courses can be drafted and published into catalog', async ()
     );
     assert.equal(published.response.status, 200);
 
-    const catalogAfterPublish = await getJson(baseUrl, '/api/catalog');
+    const catalogAfterPublish = await getJson(
+      baseUrl,
+      '/api/catalog',
+      adminHeaders,
+    );
     assert.equal(
       catalogAfterPublish.payload.courses.find((course) => course.id === 'pasheni')
         .title,
@@ -608,7 +696,7 @@ test('admin content documents can be drafted and published into catalog', async 
     const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
     const adminHeaders = await authHeaders(adminSessionToken);
 
-    const catalog = await getJson(baseUrl, '/api/catalog');
+    const catalog = await getJson(baseUrl, '/api/catalog', adminHeaders);
     assert.equal(catalog.response.status, 200);
     assert.ok(Array.isArray(catalog.payload.documents));
     const document = {
@@ -637,7 +725,11 @@ test('admin content documents can be drafted and published into catalog', async 
     assert.equal(draft.response.status, 200);
     assert.equal(draft.payload.document.status, 'draft');
 
-    const catalogAfterDraft = await getJson(baseUrl, '/api/catalog');
+    const catalogAfterDraft = await getJson(
+      baseUrl,
+      '/api/catalog',
+      adminHeaders,
+    );
     assert.equal(
       catalogAfterDraft.payload.documents.some(
         (item) => item.title === 'Mwongozo wa Pasheni Rasimu',
@@ -659,7 +751,11 @@ test('admin content documents can be drafted and published into catalog', async 
     );
     assert.equal(published.response.status, 200);
 
-    const catalogAfterPublish = await getJson(baseUrl, '/api/catalog');
+    const catalogAfterPublish = await getJson(
+      baseUrl,
+      '/api/catalog',
+      adminHeaders,
+    );
     assert.equal(
       catalogAfterPublish.payload.documents.find(
         (item) => item.id === document.id,
@@ -792,19 +888,34 @@ test('whoami exposes safe admin access diagnostics', async () => {
 test('admin users endpoint returns monitoring summaries with search', async () => {
   await withTestServer(async (baseUrl) => {
     const learnerEmail = 'learner4@aje.test';
-    const { sessionToken: learnerToken } = await signIn(baseUrl, learnerEmail);
-
-    const checkout = await postJson(
+    const { user: learner, sessionToken: learnerToken } = await signIn(
       baseUrl,
-      '/api/payments/checkout',
-      {
-        planTitle: 'Wiki 1',
-        price: 'TSh 2,000',
-        method: 'M-Pesa',
-      },
-      await authHeaders(learnerToken),
+      learnerEmail,
     );
-    assert.equal(checkout.response.status, 200);
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const adminHeaders = await authHeaders(adminToken);
+    const plans = await getJson(baseUrl, '/api/admin/plans', adminHeaders);
+    const plan = plans.payload.plans[0];
+    const payment = await postJson(
+      baseUrl,
+      '/api/admin/payments',
+      {
+        userId: learner.id,
+        planId: plan.id,
+        method: 'cash',
+        amountTzs: plan.priceTzs,
+        currency: 'TZS',
+      },
+      adminHeaders,
+    );
+    assert.equal(payment.response.status, 200);
+    const approval = await postJson(
+      baseUrl,
+      `/api/admin/payments/${payment.payload.paymentRecord.id}/approve`,
+      {},
+      adminHeaders,
+    );
+    assert.equal(approval.response.status, 200);
 
     const completed = await postJson(
       baseUrl,
@@ -830,12 +941,10 @@ test('admin users endpoint returns monitoring summaries with search', async () =
     );
     assert.equal(community.response.status, 200);
 
-    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
-
     const list = await getJson(
       baseUrl,
       `/api/admin/users?search=${encodeURIComponent(learnerEmail)}&limit=10&offset=0`,
-      await authHeaders(adminToken),
+      adminHeaders,
     );
     assert.equal(list.response.status, 200);
     assert.ok(typeof list.payload.total === 'number');

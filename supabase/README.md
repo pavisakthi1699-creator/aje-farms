@@ -44,7 +44,7 @@ If testing against a linked remote project, review the SQL first and run migrati
 Set Edge Function secrets with the Supabase CLI or dashboard:
 
 ```sh
-supabase secrets set GEMINI_API_KEY=<server-side-gemini-key>
+supabase secrets set GEMINI_API=<server-side-gemini-key>
 ```
 
 The Edge Functions also expect the standard Supabase runtime values:
@@ -53,7 +53,7 @@ The Edge Functions also expect the standard Supabase runtime values:
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY` or `GEMINI_API_KEY` to Flutter or any browser/mobile client.
+Never expose `SUPABASE_SERVICE_ROLE_KEY` or `GEMINI_API` to Flutter or any browser/mobile client.
 
 ## Roles
 

@@ -2,6 +2,7 @@ import 'package:aje_farms_mobile/src/app.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Requires two pre-seeded, email-confirmed Supabase Auth accounts on the
 // target project (set via --dart-define=AJE_API_BASE_URL=... against a
@@ -20,9 +21,22 @@ const _adminEmail =
     String.fromEnvironment('AJE_E2E_ADMIN_EMAIL', defaultValue: '');
 const _adminPassword =
     String.fromEnvironment('AJE_E2E_ADMIN_PASSWORD', defaultValue: '');
+const _supabaseUrl =
+    String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+const _supabasePublishableKey =
+    String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY', defaultValue: '');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    expect(_supabaseUrl, isNotEmpty);
+    expect(_supabasePublishableKey, isNotEmpty);
+    await Supabase.initialize(
+      url: _supabaseUrl,
+      publishableKey: _supabasePublishableKey,
+    );
+  });
 
   testWidgets(
     'real auth: standard user blocked, admin user allowed dashboard',
@@ -42,17 +56,40 @@ void main() {
       await tester.pumpAndSettle();
 
       await _login(tester, _standardEmail, _standardPassword);
-      expect(find.byType(MainShell), findsOneWidget);
+      expect(
+        find.byType(MainShell),
+        findsOneWidget,
+        reason: 'Learner login screen: ${_screenTexts().join(' | ')}',
+      );
 
       await _openProfile(tester);
       expect(find.text('Dashibodi ya Admin'), findsNothing);
+      await _openAccessStatus(tester);
+      expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
+      Navigator.of(tester.element(find.byType(PaywallScreen))).pop();
+      await tester.pumpAndSettle();
       await _logout(tester);
       expect(find.byType(OnboardingScreen), findsOneWidget);
 
       await _login(tester, _adminEmail, _adminPassword);
-      expect(find.byType(MainShell), findsOneWidget);
+      expect(
+        find.byType(MainShell),
+        findsOneWidget,
+        reason: 'Admin login screen: ${_screenTexts().join(' | ')}',
+      );
+      final adminShellContext = tester.element(find.byType(MainShell));
+      expect(
+        adminShellContext.session.isAdmin,
+        isTrue,
+        reason: 'Admin role was not synchronized into the Flutter session.',
+      );
 
       await _openProfile(tester);
+      await tester.scrollUntilVisible(
+        find.text('Dashibodi ya Admin'),
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
       final adminDashboard = find.text('Dashibodi ya Admin');
       expect(adminDashboard, findsOneWidget);
 
@@ -65,6 +102,68 @@ void main() {
       expect(find.text('Maandishi'), findsOneWidget);
       expect(find.text('Usimamizi'), findsOneWidget);
       expect(find.text('Watumiaji'), findsOneWidget);
+
+      await tester.tap(find.text('Malipo'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Tafuta mkulima kwa barua pepe'),
+        _standardEmail,
+      );
+      await tester.tap(find.byTooltip('Tafuta'));
+      await tester.pumpAndSettle();
+      final learnerResult = find.ancestor(
+        of: find.text(_standardEmail),
+        matching: find.byType(ListTile),
+      );
+      expect(learnerResult, findsOneWidget);
+      await tester.ensureVisible(learnerResult);
+      await tester.tap(learnerResult);
+      await tester.pumpAndSettle();
+      expect(find.text('Badilisha'), findsOneWidget);
+      expect(
+        find.byType(ListView),
+        findsWidgets,
+        reason: 'Payments form did not render: ${_screenTexts().join(' | ')}',
+      );
+      await _dragListUntilText(tester, 'Rekodi Malipo');
+      await tester.tap(find.text('Rekodi Malipo'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Malipo yamerekodiwa. Yanasubiri idhini.'),
+        findsOneWidget,
+      );
+      await _dragListUntilText(tester, 'Idhinisha');
+      await tester.tap(find.text('Idhinisha').last);
+      await tester.pumpAndSettle();
+      final approvalConfirmation = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Idhinisha'),
+      );
+      expect(approvalConfirmation, findsOneWidget);
+      await tester.tap(approvalConfirmation);
+      for (var attempt = 0;
+          attempt < 20 &&
+              find.text('Hakuna malipo yanayosubiri').evaluate().isEmpty;
+          attempt += 1) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Hakuna malipo yanayosubiri'),
+        findsOneWidget,
+        reason: 'Approval result: ${_screenTexts().join(' | ')}',
+      );
+
+      Navigator.of(tester.element(find.byType(AdminDashboardScreen))).pop();
+      await tester.pumpAndSettle();
+      await _resetSessionForNextLogin(tester);
+      await _login(tester, _standardEmail, _standardPassword);
+      final shellContextAfterApproval =
+          tester.element(find.byType(MainShell));
+      expect(
+        shellContextAfterApproval.session.state.accountStatus,
+        'active',
+      );
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
@@ -75,27 +174,92 @@ Future<void> _login(
   String email,
   String password,
 ) async {
+  await tester.ensureVisible(find.text('Ingia / Jisajili'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Ingia / Jisajili'));
   await tester.pumpAndSettle();
 
   await tester.enterText(find.byType(EditableText).at(0), email);
   await tester.enterText(find.byType(EditableText).at(1), password);
   await tester.scrollUntilVisible(
-    find.text('Ingia'),
+    find.text('Ingia Sasa'),
     220,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.tap(find.text('Ingia'));
-  await tester.pumpAndSettle(const Duration(seconds: 2));
+  await tester.tap(find.text('Ingia Sasa'));
+  for (var attempt = 0;
+      attempt < 20 && find.byType(MainShell).evaluate().isEmpty;
+      attempt += 1) {
+    await tester.pump(const Duration(seconds: 1));
+  }
+  await tester.pumpAndSettle();
 }
 
 Future<void> _openProfile(WidgetTester tester) async {
   await tester.tap(find.byIcon(Icons.person_outline));
+  await tester.pumpAndSettle();
+  expect(
+    find.byType(ProfileScreen),
+    findsOneWidget,
+    reason: 'Profile navigation failed: ${_screenTexts().join(' | ')}',
+  );
+}
+
+Future<void> _openAccessStatus(WidgetTester tester) async {
+  final shellContext = tester.element(find.byType(MainShell));
+  Navigator.of(shellContext).push(
+    MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
+  );
   await tester.pumpAndSettle();
 }
 
 Future<void> _logout(WidgetTester tester) async {
   await tester.scrollUntilVisible(find.text('Ondoka kwenye Akaunti'), 220);
   await tester.tap(find.text('Ondoka kwenye Akaunti'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Ondoka'));
+  for (var attempt = 0;
+      attempt < 10 && find.byType(OnboardingScreen).evaluate().isEmpty;
+      attempt += 1) {
+    await tester.pump(const Duration(seconds: 1));
+  }
+  await tester.pumpAndSettle();
+}
+
+Future<void> _resetSessionForNextLogin(WidgetTester tester) async {
+  final context = tester.element(find.byType(ProfileScreen));
+  ScaffoldMessenger.of(context).clearSnackBars();
+  await context.dependencies.authService.signOut();
+  await context.session.signOut();
+  if (!context.mounted) return;
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+    (_) => false,
+  );
+  await tester.pumpAndSettle();
+}
+
+List<String> _screenTexts() {
+  return find
+      .byType(Text)
+      .evaluate()
+      .map((element) => (element.widget as Text).data)
+      .whereType<String>()
+      .toList();
+}
+
+Future<void> _dragListUntilText(WidgetTester tester, String text) async {
+  for (var attempt = 0;
+      attempt < 12 && find.text(text).evaluate().isEmpty;
+      attempt += 1) {
+    await tester.drag(find.byType(ListView).last, const Offset(0, -450));
+    await tester.pumpAndSettle();
+  }
+  expect(
+    find.text(text),
+    findsWidgets,
+    reason: 'Could not find "$text": ${_screenTexts().join(' | ')}',
+  );
+  await tester.ensureVisible(find.text(text).last);
   await tester.pumpAndSettle();
 }

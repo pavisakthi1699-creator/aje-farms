@@ -56,6 +56,36 @@ test('recording a payment against an unknown plan is rejected', async () => {
   assert.equal(record, null);
 });
 
+test('the store rejects an amount or currency that differs from the plan', async () => {
+  const store = freshStore();
+  const { admin, learner } = await seedUsers(store);
+
+  await assert.rejects(
+    () =>
+      store.recordPaymentRecord({
+        userId: learner.id,
+        planId: 'wiki-1',
+        method: 'cash',
+        amountTzs: 0,
+        recordedByUserId: admin.id,
+      }),
+    /PAYMENT_AMOUNT_MISMATCH|must match/,
+  );
+
+  await assert.rejects(
+    () =>
+      store.recordPaymentRecord({
+        userId: learner.id,
+        planId: 'wiki-1',
+        method: 'cash',
+        amountTzs: 3000,
+        currency: 'USD',
+        recordedByUserId: admin.id,
+      }),
+    /PAYMENT_AMOUNT_MISMATCH|must match/,
+  );
+});
+
 test('approving a payment grants an entitlement and activates the account', async () => {
   const store = freshStore();
   const { admin, learner } = await seedUsers(store);
@@ -219,6 +249,30 @@ test('reversing one of two active entitlements keeps the other plan active', asy
   assert.equal(stillActiveLearner.accountStatus, 'active');
   assert.equal(stillActiveLearner.subscriptionPlan, 'Mwaka 1');
   assert.equal(await store.hasActiveEntitlement(learner.id), true);
+});
+
+test('expired entitlements suspend access when the session is reconciled', async () => {
+  const store = freshStore();
+  const { admin, learner } = await seedUsers(store);
+  const record = await store.recordPaymentRecord({
+    userId: learner.id,
+    planId: 'wiki-1',
+    method: 'cash',
+    amountTzs: 3000,
+    recordedByUserId: admin.id,
+  });
+  const approved = await store.approvePaymentRecord({
+    paymentRecordId: record.id,
+    approvedByUserId: admin.id,
+  });
+  approved.entitlement.expiresAt = new Date(Date.now() - 1000).toISOString();
+
+  const reconciled = await store.reconcileUserEntitlements(learner.id);
+
+  assert.equal(reconciled.accountStatus, 'suspended');
+  assert.equal(reconciled.subscriptionPlan, null);
+  assert.equal(approved.entitlement.status, 'expired');
+  assert.equal(await store.hasActiveEntitlement(learner.id), false);
 });
 
 test('a duplicate payment reference is rejected before it can be approved twice', async () => {

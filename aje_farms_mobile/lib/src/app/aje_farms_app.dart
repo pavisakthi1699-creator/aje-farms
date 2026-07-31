@@ -110,10 +110,12 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
 
     try {
       final session = await _dependencies.authService.getSession();
-      await _sessionController.signInWithEmail(session.email, role: session.role);
+      await _sessionController.signInWithEmail(session.email,
+          role: session.role);
       await _sessionController.syncAccountStatusFromAuthSession(session);
       await _sessionController.syncRoleFromAuthSession(session);
       await _sessionController.syncProfileFromAuthSession(session);
+      await _dependencies.refreshCatalog();
       final completedLessons =
           await _dependencies.learningProgressService.completedLessons();
       await _sessionController.syncCompletedLessons(completedLessons);

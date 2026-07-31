@@ -2423,9 +2423,11 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: _amountController,
+                      readOnly: true,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'Kiasi (TZS)',
+                        helperText: 'Kiasi kinawekwa na kifurushi kilichochaguliwa.',
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),

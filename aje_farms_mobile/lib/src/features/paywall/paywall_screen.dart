@@ -50,7 +50,6 @@ class PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final status = context.session.state.accountStatus;
-    final plans = context.dependencies.subscriptionRepository.plans;
     final isSuspended = status == 'suspended';
 
     return Scaffold(
@@ -68,7 +67,7 @@ class PaywallScreenState extends State<PaywallScreen> {
             Text(
               isSuspended
                   ? 'Uanachama wako umesitishwa. Wasiliana na timu ya AJE Farms kwa msaada.'
-                  : 'Timu ya AJE Farms itawasha akaunti yako mara malipo yako yatakapothibitishwa.',
+                  : 'Timu ya AJE Farms bado inakagua na kuandaa ufikiaji wa akaunti yako.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -102,23 +101,9 @@ class PaywallScreenState extends State<PaywallScreen> {
                   AppNavigator.pushWhatsApp(context);
                 },
                 icon: const Icon(Icons.support_agent),
-                label: const Text('Wasiliana na Timu ya AJE'),
+                label: const Text('Pata Msaada wa Akaunti'),
               ),
             ),
-            const SizedBox(height: AppSpacing.xxl),
-            Text(
-              'Vifurushi vinavyopatikana',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Wasiliana na timu ya AJE Farms au wakala wako kulipia mojawapo ya vifurushi hivi.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.colors.muted,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ...plans.map((plan) => _PlanInfoTile(plan: plan)),
           ],
         ),
       ),
@@ -159,45 +144,6 @@ class _StatusBanner extends StatelessWidget {
                   ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlanInfoTile extends StatelessWidget {
-  const _PlanInfoTile({required this.plan});
-
-  final PlanOption plan;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Card(
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(AppSpacing.lg),
-          leading: CircleAvatar(
-            backgroundColor: context.colors.surfaceMuted,
-            child: Icon(plan.icon, color: context.colors.textPrimary),
-          ),
-          title: Text(
-            plan.title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          subtitle: Text(
-            plan.recommended ? 'Inapendekezwa - ${plan.subtitle}' : plan.subtitle,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          trailing: Text(
-            plan.price,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: context.colors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
         ),
       ),
     );

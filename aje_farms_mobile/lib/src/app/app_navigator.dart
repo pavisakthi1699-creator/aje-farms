@@ -53,6 +53,8 @@ class AppNavigator {
         return _page(settings, const NotificationsScreen());
       case AppRoutes.auth:
         return _page(settings, const AuthScreen());
+      case AppRoutes.passwordReset:
+        return _page(settings, const PasswordResetScreen());
       case AppRoutes.onboarding:
         return _page(settings, const OnboardingScreen());
       case AppRoutes.problem:
@@ -247,6 +249,9 @@ class AppNavigator {
         break;
       case DeepLinkKind.auth:
         pushAuth(context);
+        break;
+      case DeepLinkKind.passwordReset:
+        Navigator.of(context).pushNamed(AppRoutes.passwordReset);
         break;
       case DeepLinkKind.onboarding:
         replaceWithOnboarding(context);

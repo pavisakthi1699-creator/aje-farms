@@ -28,6 +28,7 @@
     "smoke:supabase": "AJE_STORE=supabase node server/scripts/smoke-postgres.js",
     "smoke:supabase:live": "AJE_STORE=supabase node server/scripts/smoke-supabase-live.js",
     "test:mobile:connected": "cd aje_farms_mobile && flutter test integration_test/connected_app_smoke_test.dart",
+    "test:mobile:manual-approval:e2e": "node server/scripts/run-manual-approval-e2e.js",
     "android:key:generate": "node server/scripts/generate-android-upload-key.js",
     "preflight:release": "node server/scripts/preflight-release.js",
     "validate:android-apk": "node server/scripts/validate-android-apk.js",

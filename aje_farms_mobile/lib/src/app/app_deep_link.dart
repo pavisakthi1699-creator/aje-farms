@@ -6,6 +6,7 @@ enum DeepLinkKind {
   paywall,
   notifications,
   auth,
+  passwordReset,
   onboarding,
   problem,
   settings,
@@ -30,6 +31,8 @@ class DeepLinkTarget {
   const DeepLinkTarget.notifications() : this._(DeepLinkKind.notifications);
 
   const DeepLinkTarget.auth() : this._(DeepLinkKind.auth);
+
+  const DeepLinkTarget.passwordReset() : this._(DeepLinkKind.passwordReset);
 
   const DeepLinkTarget.onboarding() : this._(DeepLinkKind.onboarding);
 
@@ -77,6 +80,8 @@ abstract final class AppDeepLinks {
       AppRoutes.paywall => const DeepLinkTarget.paywall(),
       AppRoutes.notifications => const DeepLinkTarget.notifications(),
       AppRoutes.auth => const DeepLinkTarget.auth(),
+      '/login-callback' || AppRoutes.passwordReset =>
+        const DeepLinkTarget.passwordReset(),
       AppRoutes.onboarding => const DeepLinkTarget.onboarding(),
       AppRoutes.problem => const DeepLinkTarget.problem(),
       AppRoutes.settings => const DeepLinkTarget.settings(),

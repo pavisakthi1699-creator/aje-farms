@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 import { catalog } from './catalog.js';
+import { configuredGeminiApiKey } from './gemini-config.js';
 import { approvedCoursesFromCatalog } from './store/utils.js';
 
 const SYSTEM_INSTRUCTION = `
@@ -12,11 +13,7 @@ Usipe ushauri wowote ambao haupo kwenye reference data uliyopewa. Majibu yako ya
 `;
 
 function readApiKey() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return apiKey;
+  return configuredGeminiApiKey();
 }
 
 export async function chatWithMwalimuServer(

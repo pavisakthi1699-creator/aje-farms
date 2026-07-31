@@ -14,7 +14,7 @@ View your app in AI Studio: https://ai.studio/apps/1ecf301b-e10d-4c2d-9688-da1de
 **Prerequisites:** Node.js
 
 1. Install dependencies: `npm install`
-2. Set `GEMINI_API_KEY` in `.env.local`.
+2. Set `GEMINI_API` in `.env.local`.
 3. Run the combined API and Vite dev server: `npm run dev`
 
 Gemini calls are handled by the local Express API at `/api/mwalimu-chat`, so the

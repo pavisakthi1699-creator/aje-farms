@@ -70,7 +70,9 @@ class AuthScreenState extends State<AuthScreen> {
     });
 
     final authService = context.dependencies.authService;
-    final learningProgressService = context.dependencies.learningProgressService;
+    final learningProgressService =
+        context.dependencies.learningProgressService;
+    final refreshCatalog = context.dependencies.refreshCatalog;
     final appSession = context.session;
     try {
       if (_mode == _AuthMode.signUp) {
@@ -90,8 +92,10 @@ class AuthScreenState extends State<AuthScreen> {
       await appSession.signInWithEmail(session.email, role: session.role);
       await appSession.syncAccountStatusFromAuthSession(session);
       await appSession.syncProfileFromAuthSession(session);
+      await refreshCatalog();
       try {
-        final completedLessons = await learningProgressService.completedLessons();
+        final completedLessons =
+            await learningProgressService.completedLessons();
         await appSession.syncCompletedLessons(completedLessons);
       } on LearningProgressException {
         // Progress sync should not block sign-in.
@@ -112,14 +116,6 @@ class AuthScreenState extends State<AuthScreen> {
       );
       return;
     }
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    AppNavigator.replaceWithMainShell(context);
-  }
-
-  Future<void> _continueAsGuest() async {
-    setState(() => _isLoading = true);
-    await context.session.startAsGuest();
     if (!mounted) return;
     setState(() => _isLoading = false);
     AppNavigator.replaceWithMainShell(context);
@@ -255,11 +251,6 @@ class AuthScreenState extends State<AuthScreen> {
                       )
                     : Icon(isSignUp ? Icons.person_add_outlined : Icons.login),
                 label: Text(isSignUp ? 'Jisajili Sasa' : 'Ingia Sasa'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: _isLoading ? null : _continueAsGuest,
-                child: const Text('Endelea kama mgeni'),
               ),
             ],
           ),

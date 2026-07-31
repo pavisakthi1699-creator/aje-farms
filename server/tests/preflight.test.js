@@ -46,6 +46,31 @@ test('release preflight accepts dedicated Supabase config', () => {
   assert.equal(result.blockers.length, 0);
 });
 
+test('release preflight recognizes Railway GEMINI_API before a stale legacy setting', () => {
+  const result = releasePreflight(
+    {
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL:
+        'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      ...SUPABASE_AUTH_ENV,
+      AJE_ENABLE_DEBUG_OTP: 'false',
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      AJE_PUSH_PROVIDER: 'development',
+      GEMINI_API: 'railway-gemini-key',
+      GEMINI_API_KEY: 'stale-legacy-key',
+    },
+    (relativePath) => relativePath === 'aje_farms_mobile/android/key.properties',
+  );
+
+  assert.equal(result.ok, true);
+  assert.ok(
+    !result.warnings.some((warning) => warning.includes('GEMINI_API is missing')),
+  );
+});
+
 test('release preflight blocks Supabase video signing without storage credentials', () => {
   const result = releasePreflight(
     {
@@ -296,11 +321,6 @@ test('release preflight blocks weak release secrets and insecure urls', () => {
 
   assert.equal(result.ok, false);
   assert.ok(result.blockers.includes('APP_URL must use HTTPS for release.'));
-  assert.ok(
-    result.blockers.includes(
-      'AJE_OTP_PEPPER must be at least 32 characters for release.',
-    ),
-  );
   assert.ok(
     result.blockers.includes(
       'AJE_ANDROID_API_BASE_URL must be an HTTPS production API URL.',

@@ -97,9 +97,14 @@ void main() {
   }
 
   Future<void> startDemoShell(WidgetTester tester) async {
-    final start = find.text('Anza Sasa');
+    final start = find.text('Ingia / Jisajili');
     await scrollToVisible(tester, start);
     await tester.tap(start);
+    await settle(tester);
+    await tester.enterText(find.byType(EditableText).at(0), 'mkulima@demo.aje');
+    await tester.enterText(find.byType(EditableText).at(1), 'nenosiri');
+    await scrollToVisible(tester, find.text('Ingia Sasa'));
+    await tester.tap(find.text('Ingia Sasa'));
     await settle(tester);
   }
 

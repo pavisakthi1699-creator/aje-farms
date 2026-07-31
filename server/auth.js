@@ -46,7 +46,7 @@ function supabaseAdminClient() {
 
 function devModeEnabled() {
   return (
-    process.env.NODE_ENV === 'development' ||
+    ['development', 'test'].includes(process.env.NODE_ENV) &&
     process.env.AJE_ENABLE_DEBUG_OTP === 'true'
   );
 }
@@ -89,7 +89,8 @@ export function requireAuthSession(store) {
         authUserId: data.user.id,
         email: data.user.email,
       });
-      req.userId = user.id;
+      const reconciledUser = await store.reconcileUserEntitlements(user.id);
+      req.userId = reconciledUser.id;
       req.authUserId = data.user.id;
       next();
     } catch (error) {

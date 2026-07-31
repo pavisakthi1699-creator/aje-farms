@@ -138,12 +138,14 @@ class WhatsAppEscalationScreen extends StatelessWidget {
       'https://api.whatsapp.com/send?phone=$_expertPhone&text=${Uri.encodeComponent(_message)}',
     );
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // Do not preflight with `canLaunchUrl`: Android 11+ hides other apps
+    // unless every possible handler is declared under <queries>, producing a
+    // false negative even when WhatsApp is installed. Launching lets Android
+    // resolve the installed app or browser directly.
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       return;
     }
-    if (await canLaunchUrl(fallback)) {
-      await launchUrl(fallback, mode: LaunchMode.externalApplication);
+    if (await launchUrl(fallback, mode: LaunchMode.externalApplication)) {
       return;
     }
     if (!context.mounted) return;

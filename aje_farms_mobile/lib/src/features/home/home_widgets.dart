@@ -9,11 +9,20 @@ class TrialStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.session.state;
     final plan = session.subscriptionPlan;
+    final needsAccount = session.isGuest;
+    final title = plan != null
+        ? '$plan imewashwa'
+        : needsAccount
+            ? 'Fungua akaunti yako'
+            : 'Chagua kifurushi';
+    final body = plan != null
+        ? 'Premium iko hai. Endelea na masomo, AI na jamii.'
+        : needsAccount
+            ? 'Jisajili ili kuona mafunzo yanayopatikana.'
+            : 'Chagua kifurushi ili kufungua mafunzo, AI na jamii.';
     return Semantics(
       container: true,
-      label: plan == null
-          ? 'Umeanza kujifunza. Masomo ${session.completedLessonIds.length} yamehifadhiwa.'
-          : '$plan imewashwa. Premium iko hai.',
+      label: '$title. $body',
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -38,16 +47,14 @@ class TrialStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      plan == null ? 'Umeanza kujifunza' : '$plan imewashwa',
+                      title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      plan == null
-                          ? 'Masomo ${session.completedLessonIds.length} yamehifadhiwa kwenye kifaa.'
-                          : 'Premium iko hai. Endelea na masomo, AI na jamii.',
+                      body,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ],

@@ -20,7 +20,12 @@ void main() {
   }
 
   Future<void> startDemoShell(WidgetTester tester) async {
-    await tester.tap(find.text('Anza Sasa'));
+    await tester.tap(find.text('Ingia / Jisajili'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).at(0), 'mkulima@demo.aje');
+    await tester.enterText(find.byType(EditableText).at(1), 'nenosiri');
+    await tester.ensureVisible(find.text('Ingia Sasa'));
+    await tester.tap(find.text('Ingia Sasa'));
     await tester.pumpAndSettle();
   }
 
@@ -35,7 +40,8 @@ void main() {
 
     expect(find.text('AJE Farms'), findsOneWidget);
     expect(find.text('Kilimo na Ujasiriamali'), findsOneWidget);
-    expect(find.text('Anza Sasa'), findsOneWidget);
+    expect(find.text('Ingia / Jisajili'), findsOneWidget);
+    expect(find.text('Anza Sasa'), findsNothing);
   });
 
   testWidgets('starts the main learner shell', (WidgetTester tester) async {
@@ -44,9 +50,29 @@ void main() {
 
     await startDemoShell(tester);
 
-    expect(find.text('Karibu, Mkulima'), findsOneWidget);
+    expect(find.textContaining('Karibu'), findsOneWidget);
     expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
-    expect(find.text('Umeanza kujifunza'), findsOneWidget);
+    expect(find.text('Chagua kifurushi'), findsOneWidget);
+  });
+
+  testWidgets('a guest dashboard prompts registration instead of local lessons',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    final session = AppSessionController();
+    await session.startAsGuest();
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo(),
+        sessionController: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Jisajili ili kuona mafunzo yanayopatikana.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('yamehifadhiwa kwenye kifaa'), findsNothing);
   });
 
   testWidgets('opens a course by tapping its catalog card',
@@ -195,7 +221,7 @@ void main() {
     expect(find.text('Jamii'), findsOneWidget);
   });
 
-  testWidgets('awaiting-activation screen shows status and available plans',
+  testWidgets('awaiting-activation screen is Play-safe and shows account help',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       AppDependenciesScope(
@@ -212,12 +238,9 @@ void main() {
     expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
     expect(find.text('Ufikiaji wa Mwalimu AI'), findsOneWidget);
     expect(find.text('Onyesha Hali Upya'), findsOneWidget);
-    expect(find.text('Wasiliana na Timu ya AJE'), findsOneWidget);
-
-    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
-    await tester.pumpAndSettle();
-    expect(find.text('Wiki 1'), findsOneWidget);
-    expect(find.text('TZS 3,000'), findsOneWidget);
+    expect(find.text('Pata Msaada wa Akaunti'), findsOneWidget);
+    expect(find.text('Wiki 1'), findsNothing);
+    expect(find.text('TZS 3,000'), findsNothing);
   });
 
   testWidgets('auth demo flow signs in with email and password',
@@ -331,7 +354,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Karibu, Mkulima'), findsOneWidget);
+      expect(find.textContaining('Karibu'), findsOneWidget);
       expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }

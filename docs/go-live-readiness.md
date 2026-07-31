@@ -52,7 +52,7 @@ Payment provider integration is intentionally deferred to the final slice.
    - Sandbox messages appear in the Africa's Talking simulator, not on a real
      handset. Use live credentials and `AFRICASTALKING_ENVIRONMENT=production`
      for a real-phone test.
-   - Gemini AI: set `GEMINI_API_KEY`, or accept the knowledge-base fallback.
+   - Gemini AI: set `GEMINI_API`, or accept the knowledge-base fallback.
    - Push notifications: set `AJE_PUSH_PROVIDER=fcm` and configure either
      `FCM_SERVICE_ACCOUNT_JSON` or `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, and
      `FCM_PRIVATE_KEY`.
@@ -79,7 +79,7 @@ AFRICASTALKING_USERNAME=<africas-talking-username> \
 AFRICASTALKING_API_KEY=<africas-talking-api-key> \
 AFRICASTALKING_ENVIRONMENT=production \
 AFRICASTALKING_SENDER_ID=<optional-approved-sender-id> \
-GEMINI_API_KEY=<gemini-key> \
+GEMINI_API=<gemini-key> \
 AJE_PUSH_PROVIDER=fcm \
 FCM_PROJECT_ID=<firebase-project-id> \
 FCM_CLIENT_EMAIL=<firebase-service-account-email> \

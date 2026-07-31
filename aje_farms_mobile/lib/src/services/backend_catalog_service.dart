@@ -26,8 +26,14 @@ class BackendCatalogService implements CatalogService {
 
   @override
   Future<CatalogSnapshot> loadCatalog() async {
-    final response =
-        await _client.get(_baseUrl.resolve('/api/catalog')).timeout(timeout);
+    final headers = <String, String>{};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await _client
+        .get(_baseUrl.resolve('/api/catalog'), headers: headers)
+        .timeout(timeout);
     final payload = jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw CatalogException(
@@ -58,7 +64,8 @@ class BackendCatalogService implements CatalogService {
           headers: headers,
         )
         .timeout(timeout);
-    final payload = response.body.isEmpty ? const {} : jsonDecode(response.body);
+    final payload =
+        response.body.isEmpty ? const {} : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw CatalogException(
         payload is Map<String, dynamic> && payload['error'] is String

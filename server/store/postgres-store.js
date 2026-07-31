@@ -126,7 +126,8 @@ export class PostgresStore {
 
   async getPlan(planId) {
     const result = await this.pool.query(
-      `SELECT id, title, duration_days, enabled FROM plans WHERE id = $1`,
+      `SELECT id, title, price_tzs, duration_days, enabled
+       FROM plans WHERE id = $1`,
       [planId],
     );
     const row = result.rows[0];
@@ -134,6 +135,7 @@ export class PostgresStore {
     return {
       id: row.id,
       title: row.title,
+      priceTzs: Number(row.price_tzs),
       durationDays: Number(row.duration_days),
       enabled: row.enabled,
     };
@@ -153,6 +155,17 @@ export class PostgresStore {
   }) {
     const plan = await this.getPlan(planId);
     if (!plan || !plan.enabled) return null;
+    if (currency !== 'TZS' || amountTzs !== plan.priceTzs) {
+      const mismatch = new Error(
+        `Payment must match the selected plan price of TZS ${plan.priceTzs}.`,
+      );
+      mismatch.code = 'PAYMENT_AMOUNT_MISMATCH';
+      throw mismatch;
+    }
+    const normalizedReference =
+      typeof reference === 'string' && reference.trim()
+        ? reference.trim().toUpperCase()
+        : null;
     const now = new Date().toISOString();
     try {
       const result = await this.pool.query(
@@ -168,7 +181,7 @@ export class PostgresStore {
           method,
           amountTzs,
           currency,
-          reference,
+          normalizedReference,
           note,
           recordedByUserId,
           now,
@@ -365,7 +378,9 @@ export class PostgresStore {
         `SELECT e.granted_at, p.title
          FROM entitlements e
          JOIN plans p ON p.id = e.plan_id
-         WHERE e.user_id = $1 AND e.status = 'active'
+         WHERE e.user_id = $1
+           AND e.status = 'active'
+           AND e.expires_at > now()
          ORDER BY e.granted_at DESC
          LIMIT 1`,
         [record.userId],
@@ -427,6 +442,66 @@ export class PostgresStore {
       [userId],
     );
     return result.rows.length > 0;
+  }
+
+  async reconcileUserEntitlements(userId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE entitlements
+         SET status = 'expired', updated_at = now()
+         WHERE user_id = $1 AND status = 'active' AND expires_at <= now()`,
+        [userId],
+      );
+      const active = await client.query(
+        `SELECT e.granted_at, p.title
+         FROM entitlements e
+         JOIN plans p ON p.id = e.plan_id
+         WHERE e.user_id = $1
+           AND e.status = 'active'
+           AND e.expires_at > now()
+         ORDER BY e.granted_at DESC
+         LIMIT 1`,
+        [userId],
+      );
+      if (active.rows[0]) {
+        await client.query(
+          `UPDATE users
+           SET account_status = 'active', subscription_plan = $2,
+               subscription_started_at = $3, updated_at = now()
+           WHERE id = $1
+             AND (
+               account_status <> 'active'
+               OR subscription_plan IS DISTINCT FROM $2
+               OR subscription_started_at IS DISTINCT FROM $3
+             )`,
+          [userId, active.rows[0].title, active.rows[0].granted_at],
+        );
+      } else {
+        await client.query(
+          `UPDATE users
+           SET account_status = 'suspended', subscription_plan = NULL,
+               subscription_started_at = NULL, updated_at = now()
+           WHERE id = $1 AND account_status = 'active'`,
+          [userId],
+        );
+      }
+      const userResult = await client.query(
+        `SELECT id, phone_number, email, auth_user_id, account_status, role,
+                subscription_plan, subscription_started_at,
+                display_name, preferred_location, created_at, updated_at
+         FROM users WHERE id = $1`,
+        [userId],
+      );
+      await client.query('COMMIT');
+      return userResult.rows[0] ? userFromRow(userResult.rows[0]) : null;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async auditEventsFor({ targetType, targetId }) {
@@ -2021,7 +2096,11 @@ export class PostgresStore {
        ) lp ON lp.user_id = fu.id
        LEFT JOIN (
          SELECT user_id, COUNT(*)::int AS payment_transactions_count
-         FROM payment_transactions
+         FROM (
+           SELECT user_id FROM payment_transactions
+           UNION ALL
+           SELECT user_id FROM payment_records
+         ) payments
          GROUP BY user_id
        ) pt ON pt.user_id = fu.id
        LEFT JOIN (

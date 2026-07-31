@@ -29,6 +29,7 @@ async function withPostgresServer(run) {
   }
   process.env.AJE_COMMUNITY_DATA_FILE = communityFile;
   process.env.AJE_ENABLE_DEBUG_OTP = 'true';
+  process.env.AJE_ENABLE_LEGACY_DEV_PAYMENTS = 'true';
   process.env.AJE_DEV_PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
   process.env.AJE_ADMIN_EMAILS = ADMIN_EMAIL;
   process.env.NODE_ENV = 'development';
