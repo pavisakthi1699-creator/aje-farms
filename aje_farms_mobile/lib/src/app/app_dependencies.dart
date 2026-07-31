@@ -123,7 +123,6 @@ class AppDependencies {
     subscriptionRepository = cachedRepository;
     final catalogService = BackendCatalogService(baseUrl: apiBaseUrl);
     refreshListenable = cachedRepository;
-    unawaited(cachedRepository.refresh(catalogService).catchError((_) {}));
     return AppDependencies(
       learningRepository: learningRepository,
       communityRepository: communityRepository,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_dependencies.dart';
+import '../state/app_session.dart';
 import '../theme/app_breakpoints.dart';
 import '../theme/app_color_scheme.dart';
 import '../theme/app_a11y.dart';
@@ -87,10 +88,11 @@ class MainShellState extends State<MainShell> {
     return Column(
       children: [
         OfflineBanner(
-          showCatalogStale: AppDependenciesScope.of(context)
-                  .cachedRepository
-                  ?.lastRefreshFailed ==
-              true,
+          showCatalogStale: AppSessionScope.of(context).isSignedIn &&
+              AppDependenciesScope.of(context)
+                      .cachedRepository
+                      ?.lastRefreshFailed ==
+                  true,
         ),
         Expanded(
           child: IndexedStack(

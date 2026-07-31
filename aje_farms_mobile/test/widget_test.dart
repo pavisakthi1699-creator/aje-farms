@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:aje_farms_mobile/src/app.dart';
+import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 
 void main() {
   Widget buildDemoApp() {
@@ -73,6 +74,50 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('yamehifadhiwa kwenye kifaa'), findsNothing);
+  });
+
+  testWidgets('guest state does not show a protected-catalog refresh failure',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    const fallback = DemoAppRepository();
+    final cachedRepository = CachedAppRepository(
+      learningSeed: fallback,
+      communitySeed: fallback,
+      subscriptionSeed: fallback,
+    );
+    await cachedRepository.refresh(_FailingCatalogService());
+    final demo = AppDependencies.demo();
+    final dependencies = AppDependencies(
+      learningRepository: cachedRepository,
+      communityRepository: cachedRepository,
+      subscriptionRepository: cachedRepository,
+      mwalimuAiService: demo.mwalimuAiService,
+      authService: demo.authService,
+      catalogService: demo.catalogService,
+      adminService: demo.adminService,
+      communityService: demo.communityService,
+      learningProgressService: demo.learningProgressService,
+      notificationService: demo.notificationService,
+      paymentService: demo.paymentService,
+      refreshCatalog: () => cachedRepository.refresh(_FailingCatalogService()),
+      refreshListenable: cachedRepository,
+    );
+    final session = AppSessionController();
+    await session.startAsGuest();
+
+    await tester.pumpWidget(
+      AjeFarmsApp(dependencies: dependencies, sessionController: session),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Imeshindikana kusasisha maudhui mapya. Unaona taarifa za hivi karibuni.'),
+      findsNothing,
+    );
+    expect(
+      find.text('Jisajili ili kuona mafunzo yanayopatikana.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens a course by tapping its catalog card',
@@ -458,4 +503,14 @@ void main() {
     expect(find.text('Eleza tatizo la shamba'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _FailingCatalogService implements CatalogService {
+  @override
+  Future<CatalogSnapshot> loadCatalog() async {
+    throw const CatalogException('Authentication required.');
+  }
+
+  @override
+  Future<String> lessonVideoUrl(String lessonId) async => '';
 }
