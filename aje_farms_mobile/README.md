@@ -31,8 +31,7 @@ Chrome:
 flutter run -d chrome --dart-define=AJE_API_BASE_URL=http://localhost:3000
 ```
 
-Run the React/Express server from the repo root before launching the connected
-app:
+Run the API from the repo root before launching the connected app:
 
 ```sh
 cd /Users/frankmchaina/Downloads/aje-farms
@@ -102,8 +101,7 @@ keyPassword=...
 `android/key.properties` is ignored by git.
 
 Release builds must pass the real production backend and expert support
-number. Do not convert the Vite website into an APK; that creates a WebView
-wrapper and does not contain this Flutter application.
+number. The native Flutter application is the only supported customer client.
 
 ```sh
 npm run release:android

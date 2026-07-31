@@ -436,7 +436,7 @@ today a price change means a new APK for every user.
 
 You wrote "optimized for **mobile browsers**/screens", but the admin dashboard
 today is **Flutter, inside the APK** — not a browser. The legacy Vite web build
-has no admin UI, no auth layer, and no session handling.
+had no admin UI, no auth layer, or session handling and has been removed.
 
 | | Flutter (extend existing) | New mobile web admin |
 |---|---|---|

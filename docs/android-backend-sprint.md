@@ -14,7 +14,6 @@ No runtime app modes and no silent local success fallbacks.
 
 Verification:
 
-- [x] `npm run lint`
 - [x] `flutter analyze`
 - [x] `flutter test`
 - [x] `flutter build apk --debug --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000`

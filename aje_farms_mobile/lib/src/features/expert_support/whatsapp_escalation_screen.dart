@@ -8,7 +8,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
 
   static const _expertPhone = String.fromEnvironment(
     'AJE_WHATSAPP_EXPERT_PHONE',
-    defaultValue: '255700000000',
+    defaultValue: '255743812853',
   );
   static const _message =
       'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya AJE Farms.';

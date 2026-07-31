@@ -6,9 +6,9 @@ Postgres/Supabase.
 
 ## Architecture notes that are easy to get wrong
 
-- **The Android client is native Flutter.** The root Vite/React build (`src/`)
-  is a legacy demo shell with no auth and no admin UI. It is not the Android
-  runtime. Release builds enforce this — see `server/android-release.js`.
+- **The Android client is native Flutter.** The unauthenticated Vite/React
+  prototype was removed; the API does not serve a customer web client. Release
+  builds enforce the native runtime — see `server/android-release.js`.
 - **There are two content models.** `server/store/schema.sql` defines a simple
   `content_courses`/`content_documents` model used by the JSON and Postgres
   stores. `supabase/migrations/` defines the rich
@@ -54,7 +54,7 @@ Postgres/Supabase.
 ## Commands
 
 ```bash
-npm run dev                 # API + Vite dev server (JSON store, NODE_ENV=development)
+npm run dev                 # API server (JSON store, NODE_ENV=development)
 npm run test:server         # node --test server/tests/*.test.js
 npm run db:migrate          # apply server/store/schema.sql
 npm run smoke:supabase:live # non-destructive Supabase readiness check

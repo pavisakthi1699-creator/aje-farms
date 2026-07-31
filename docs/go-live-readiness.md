@@ -7,8 +7,6 @@ Payment provider integration is intentionally deferred to the final slice.
 
 ## Verified Locally
 
-- React production build passes: `npm run build`
-- Root TypeScript check passes: `npm run lint`
 - Server contract tests pass: `npm run test:server`
 - Flutter analyzer, tests, goldens, diff hygiene, and server contracts pass:
   `cd aje_farms_mobile && bash scripts/frontend_quality_gate.sh`

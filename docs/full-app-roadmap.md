@@ -5,7 +5,8 @@ This branch starts from the Flutter MVP parity baseline and turns it into the pr
 ## Current Baseline
 
 - Flutter app matches the MVP flow: onboarding, home, problem intake, topics, topic detail, AI chat, community, paywall, WhatsApp escalation, profile, notifications, and assessments.
-- React/Vite demo remains in the repo as the product reference.
+- The retired React/Vite reference app was removed; the native Android app is
+  the only supported customer client.
 - App behavior now uses one connected runtime path. The Android app requires `AJE_API_BASE_URL`; demo/local services are explicit test harnesses only.
 - Real external services are not fully wired yet: SMS provider, real mobile money provider, push notifications, and admin workflows.
 - Flutter auth, payments, community writes, catalog refresh, and AI call server-side `/api/*` endpoints when launched with `AJE_API_BASE_URL`.

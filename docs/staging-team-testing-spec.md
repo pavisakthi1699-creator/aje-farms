@@ -260,8 +260,8 @@ database, or `AJE_OTP_PEPPER`.**
 
 1. Create a **new Railway service** from the same repo. Deploy from `main`, or
    from a dedicated `staging` branch if the team prefers to decouple.
-   `railway.json` is picked up as-is: build `npm run build`, start `npm run start`,
-   healthcheck `/api/health/live`.
+   `railway.json` is picked up as-is: start `npm run start`, healthcheck
+   `/api/health/live`.
 2. Add a **Railway Postgres plugin** to that service. It injects `DATABASE_URL`
    automatically.
 

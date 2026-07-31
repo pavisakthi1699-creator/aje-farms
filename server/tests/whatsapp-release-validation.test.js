@@ -27,6 +27,8 @@ test('Android release keeps WhatsApp launch visibility and avoids a false-negati
   assert.match(manifest, /android:scheme="https"/);
   assert.match(manifest, /android:name="com\.whatsapp"/);
   assert.match(manifest, /android:name="com\.whatsapp\.w4b"/);
+  assert.match(launcher, /defaultValue: '255743812853'/);
+  assert.doesNotMatch(launcher, /defaultValue: '255700000000'/);
   assert.doesNotMatch(launcher, /canLaunchUrl\(/);
   assert.match(launcher, /launchUrl\(uri, mode: LaunchMode\.externalApplication\)/);
 });

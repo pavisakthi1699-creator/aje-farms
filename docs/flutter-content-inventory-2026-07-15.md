@@ -6,8 +6,9 @@ The Flutter content pipeline is corrected, but the current curriculum is **not
 ready to share with a customer yet** because no course or grounding fact has
 completed source review and publication.
 
-The React application was excluded. Flutter, the Node API used by Flutter, and
-the linked Supabase content store were reviewed and corrected.
+Flutter, the Node API used by Flutter, and the linked Supabase content store
+were reviewed and corrected. The retired React reference application has since
+been removed from the repository.
 
 ## Live status — 2026-07-16
 
