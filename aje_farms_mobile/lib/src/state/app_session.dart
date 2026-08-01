@@ -50,8 +50,15 @@ class AppSessionState {
   final String? role;
   final AppThemePreference themePreference;
 
-  bool get hasActiveAccess => accountStatus == 'active';
   bool get isAdmin => role == 'admin';
+
+  /// Mirrors the server's `hasPaidLearningAccess`, which grants access on
+  /// `userHasAdminAccess(user) || hasActiveEntitlement(user)`. Staff reach
+  /// content through their role, never through an entitlement, so checking
+  /// [accountStatus] alone locked admins out of content the API would serve —
+  /// and showed them as suspended, because `reconcileUserEntitlements` drops
+  /// any account without an entitlement out of 'active'.
+  bool get hasActiveAccess => accountStatus == 'active' || isAdmin;
 
   /// The community feed: locally submitted posts first, then the server feed.
   ///

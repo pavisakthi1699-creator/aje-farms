@@ -41,6 +41,36 @@ void main() {
     expect(session.state.subscriptionPlan, isNull);
   });
 
+  // The server grants learning access on `userHasAdminAccess(user) ||
+  // hasActiveEntitlement(...)`, so an admin reaches content without an
+  // entitlement. The client checked only accountStatus, so a staff account
+  // with no entitlement was shown as suspended and locked out of the very
+  // content the API would have served it.
+  test('an admin has access even without an entitlement', () async {
+    final session = AppSessionController();
+    await session.signInWithEmail('msimamizi@aje.test', role: 'admin');
+    await session.syncAccountStatusFromAuthSession(
+      const AuthSession(
+        email: 'msimamizi@aje.test',
+        role: 'admin',
+        accountStatus: 'suspended',
+      ),
+    );
+
+    expect(session.state.isAdmin, isTrue);
+    expect(session.hasActiveAccess, isTrue);
+  });
+
+  test('a learner without an entitlement still has no access', () async {
+    final session = AppSessionController();
+    await session.signInWithEmail('mkulima@aje.test');
+    await session.syncAccountStatusFromAuthSession(
+      const AuthSession(email: 'mkulima@aje.test', accountStatus: 'suspended'),
+    );
+
+    expect(session.hasActiveAccess, isFalse);
+  });
+
   test('signInWithEmail records the signed-in identity', () async {
     final session = AppSessionController();
     await session.restore();
