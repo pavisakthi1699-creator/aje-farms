@@ -82,5 +82,6 @@ export 'shared/widgets/offline_banner.dart';
 export 'shared/widgets/pill.dart';
 export 'shared/widgets/section_header.dart';
 export 'shared/widgets/snack.dart';
+export 'state/account_access_status.dart';
 export 'state/app_session.dart';
 export 'theme/app_theme.dart';

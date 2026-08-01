@@ -139,6 +139,36 @@ void main() {
     );
   });
 
+  testWidgets('a suspended account is named as suspended on the profile card',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    final session = AppSessionController();
+    await session.signInWithEmail('msimamizi@aje.test');
+    await session.syncAccountStatusFromAuthSession(
+      const AuthSession(email: 'msimamizi@aje.test', accountStatus: 'suspended'),
+    );
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo(),
+        sessionController: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Akaunti').last);
+    await tester.pumpAndSettle();
+
+    // The profile card used to key off subscriptionPlan, so a suspended
+    // account was told it had ordinary access while the home card said it was
+    // suspended. Both now derive from AccountAccessStatus.
+    expect(find.text('Imesitishwa'), findsOneWidget);
+    expect(find.text('Ufikiaji wa kawaida'), findsNothing);
+    expect(
+      find.textContaining('Unaweza kusoma mafunzo ya msingi'),
+      findsNothing,
+    );
+  });
+
   testWidgets('a guest dashboard prompts registration instead of local lessons',
       (WidgetTester tester) async {
     useTallViewport(tester);

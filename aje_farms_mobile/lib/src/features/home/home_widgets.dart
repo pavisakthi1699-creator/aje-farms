@@ -2,69 +2,13 @@
 
 import "../../ui.dart";
 
-/// The four states the home status card can report.
-///
-/// Paid access is granted by staff after they approve a payment recorded
-/// outside the app — there is no in-app checkout — so nothing here may invite
-/// a learner to choose or buy a package. A registered learner is waiting on an
-/// admin, and the copy says exactly that.
-enum _AccessStatus {
-  /// Signed out. The only state where asking someone to register makes sense.
-  guest(
-    icon: Icons.person_add_alt_outlined,
-    body: 'Jisajili ili kuona mafunzo yanayopatikana.',
-  ),
-
-  /// Registered, waiting for an admin to verify the account.
-  pending(
-    icon: Icons.hourglass_empty,
-    body: 'Umesajiliwa. Timu ya AJE Farms itathibitisha akaunti yako '
-        'ili kufungua mafunzo.',
-  ),
-
-  /// Access was granted and later withdrawn.
-  suspended(
-    icon: Icons.error_outline,
-    body: 'Wasiliana na timu ya AJE Farms kwa msaada.',
-  ),
-
-  /// Verified by an admin; content is unlocked.
-  active(
-    icon: Icons.check_circle_outline,
-    body: 'Premium iko hai. Endelea na masomo, AI na jamii.',
-  );
-
-  const _AccessStatus({required this.icon, required this.body});
-
-  final IconData icon;
-  final String body;
-
-  static _AccessStatus of(AppSessionState session) {
-    if (session.isGuest) return guest;
-    if (session.hasActiveAccess) return active;
-    return session.accountStatus == 'suspended' ? suspended : pending;
-  }
-
-  String title(AppSessionState session) {
-    return switch (this) {
-      guest => 'Fungua akaunti yako',
-      pending => 'Akaunti yako inasubiri uthibitisho',
-      suspended => 'Akaunti yako imesitishwa',
-      // Falls back when access is active before the plan name has synced.
-      active => session.subscriptionPlan == null
-          ? 'Akaunti yako imewashwa'
-          : '${session.subscriptionPlan} imewashwa',
-    };
-  }
-}
-
 class TrialStatusCard extends StatelessWidget {
   const TrialStatusCard();
 
   @override
   Widget build(BuildContext context) {
     final session = context.session.state;
-    final status = _AccessStatus.of(session);
+    final status = AccountAccessStatus.of(session);
     final title = status.title(session);
     final body = status.body;
     return Semantics(

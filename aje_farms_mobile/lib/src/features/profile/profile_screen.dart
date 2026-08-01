@@ -13,6 +13,9 @@ class ProfileScreen extends StatelessWidget {
     final phoneLabel = displayName ?? session.email ?? 'Mgeni';
     final memberLabel = session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni';
     final subscriptionPlan = session.state.subscriptionPlan;
+    // Shared with the home status card so the two screens cannot disagree
+    // about the same account.
+    final accessStatus = AccountAccessStatus.of(session.state);
     final avatarLabel = _profileInitials(
       displayName: displayName,
       email: session.email,
@@ -112,14 +115,13 @@ class ProfileScreen extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
-                        Icon(Icons.schedule, color: context.colors.secondary),
+                        Icon(accessStatus.icon,
+                            color: context.colors.secondary),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      subscriptionPlan == null
-                          ? 'Ufikiaji wa kawaida'
-                          : 'Premium',
+                      accessStatus.shortLabel,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: context.colors.secondary,
                             fontWeight: FontWeight.w600,
@@ -133,14 +135,16 @@ class ProfileScreen extends StatelessWidget {
                         context.colors.peach,
                       ),
                       child: Text(
-                        subscriptionPlan == null
-                            ? 'Unaweza kusoma mafunzo ya msingi na kuhifadhi maendeleo yako.'
-                            : '$subscriptionPlan imewashwa kwenye kifaa hiki. Unaweza kuendelea na masomo na Mwalimu AI.',
+                        accessStatus == AccountAccessStatus.active &&
+                                subscriptionPlan != null
+                            ? '$subscriptionPlan imewashwa. Unaweza kuendelea '
+                                'na masomo na Mwalimu AI.'
+                            : accessStatus.body,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    if (subscriptionPlan == null)
+                    if (accessStatus != AccountAccessStatus.active)
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
