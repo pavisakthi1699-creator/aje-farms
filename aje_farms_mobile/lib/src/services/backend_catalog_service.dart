@@ -190,6 +190,10 @@ CommunityPost _postFromJson(Map<String, dynamic> json) {
         .map(_replyFromJson)
         .toList(),
     relatedTopic: json['relatedTopic'] as String?,
+    // Must stay in step with the catalog wire format: without imageUrl a post
+    // renders hasImage: true with nothing to show, i.e. a grey placeholder
+    // where the farmer's uploaded photo should be.
+    imageUrl: json['imageUrl'] as String?,
     hasImage: json['hasImage'] as bool? ?? false,
     isExpert: json['isExpert'] as bool? ?? false,
     isUrgent: json['isUrgent'] as bool? ?? false,

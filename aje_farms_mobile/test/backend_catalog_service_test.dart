@@ -13,6 +13,24 @@ void main() {
     await BackendSessionStorage.writeToken('catalog-test-token');
   });
 
+  // The catalog feed is what the community tab renders after any refresh or
+  // restart. Dropping imageUrl here left posts with hasImage: true and no URL,
+  // so an uploaded photo showed once and then became a grey placeholder — the
+  // "my picture disappeared" report. The community service parser kept the
+  // field, which is why the photo looked fine until the first refresh.
+  test('keeps the community photo URL when loading the catalog feed', () async {
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async => http.Response(_catalogJson, 200)),
+    );
+
+    final catalog = await service.loadCatalog();
+    final post = catalog.communityPosts.single;
+
+    expect(post.hasImage, isTrue);
+    expect(post.imageUrl, 'https://cdn.example.test/community/photo.jpg');
+  });
+
   test('loads catalog data from backend and maps wire fields', () async {
     late http.Request capturedRequest;
     final service = BackendCatalogService(
@@ -194,7 +212,9 @@ const _catalogJson = '''
           "isExpert": true
         }
       ],
-      "isExpert": true
+      "isExpert": true,
+      "hasImage": true,
+      "imageUrl": "https://cdn.example.test/community/photo.jpg"
     }
   ],
   "plans": [
