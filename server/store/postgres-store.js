@@ -1545,6 +1545,18 @@ export class PostgresStore {
                 ],
               );
             }
+          } else {
+            // No video in the payload means the editor removed it, or the
+            // lesson is no longer a video lesson. The client always round-trips
+            // videoPath/videoUrl for a video it is keeping, so an absent one is
+            // a deliberate removal. Without this the row survived: the object
+            // stayed in the bucket and came back as soon as the lesson was set
+            // to video again.
+            await client.query(
+              `DELETE FROM lesson_resources
+               WHERE lesson_id = $1 AND resource_type = 'video'`,
+              [lessonId],
+            );
           }
         }
 

@@ -357,3 +357,93 @@ test(
     assert.equal(update.params[4], true, 'a new video must re-enter review');
   }),
 );
+
+test(
+  'removing a lesson video deletes its resource instead of orphaning it',
+  withSupabaseEnv(async () => {
+    // "Ondoa video" clears videoPath/videoUrl, so the save payload carries no
+    // video. Leaving the lesson_resources row behind meant the file stayed in
+    // the bucket and reappeared the moment the lesson was switched back to
+    // video — a video the editor believed it had deleted.
+    const resourceDeletes = [];
+    const client = {
+      query: async (sql, params) => {
+        if (/SELECT id, status::text AS status, updated_at/.test(sql)) {
+          return {
+            rows: [
+              {
+                id: '00000000-0000-0000-0000-000000000001',
+                status: 'draft',
+                updated_at: '2026-07-26T10:00:00.000Z',
+              },
+            ],
+          };
+        }
+        if (/SELECT\s+id::text,\s+code, title_sw/.test(sql)) {
+          return {
+            rows: [
+              {
+                id: '00000000-0000-0000-0000-000000000010',
+                code: 'MOD-1',
+                title_sw: 'Sehemu ya video',
+                status: 'draft',
+              },
+            ],
+          };
+        }
+        if (/AS video_storage_path\s+FROM lessons l/.test(sql)) {
+          return {
+            rows: [
+              {
+                id: '00000000-0000-0000-0000-000000000020',
+                module_id: '00000000-0000-0000-0000-000000000010',
+                body_sw: null,
+                lesson_type: 'video',
+                video_url: null,
+                video_storage_path: 'lesson-videos/vid-old.mp4',
+              },
+            ],
+          };
+        }
+        if (/SELECT id::text FROM lessons WHERE module_id/.test(sql)) {
+          return { rows: [{ id: '00000000-0000-0000-0000-000000000020' }] };
+        }
+        if (/DELETE FROM lesson_resources/.test(sql)) {
+          resourceDeletes.push({ sql, params });
+          return { rows: [] };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: { connect: async () => client },
+      catalog: {},
+      schema: 'public',
+    });
+    store.courseCurriculum = async () => ({ stub: true });
+
+    await store.saveCourseCurriculum('CRS-VID-01', {
+      status: 'draft',
+      title: 'Kozi ya Video',
+      description: 'Maelezo',
+      deliveryType: 'text',
+      lessons: [
+        {
+          id: '00000000-0000-0000-0000-000000000020',
+          moduleId: '00000000-0000-0000-0000-000000000010',
+          moduleTitle: 'Sehemu ya video',
+          title: 'Somo la maandishi',
+          type: 'reading',
+          meta: 'Dakika 5',
+          body: 'Maandishi',
+          durationMinutes: 5,
+        },
+      ],
+    });
+
+    const removal = resourceDeletes[0];
+    assert.ok(removal, 'expected the orphaned video resource to be deleted');
+    assert.equal(removal.params[0], '00000000-0000-0000-0000-000000000020');
+  }),
+);
