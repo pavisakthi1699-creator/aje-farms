@@ -157,9 +157,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Future<void> openMalipoTab(
+  Future<void> openAdminTab(
     WidgetTester tester,
     _RecordingAdminService adminService,
+    String tabLabel,
   ) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1.0;
@@ -201,11 +202,72 @@ void main() {
     );
     await tester.tap(find.text('Dashibodi ya Admin'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Malipo'));
+    await tester.ensureVisible(find.text(tabLabel));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Malipo'));
+    await tester.tap(find.text(tabLabel));
     await tester.pumpAndSettle();
   }
+
+  Future<void> openMalipoTab(
+    WidgetTester tester,
+    _RecordingAdminService adminService,
+  ) =>
+      openAdminTab(tester, adminService, 'Malipo');
+
+  testWidgets(
+      'user card records and approves a paid learner in one admin action',
+      (tester) async {
+    final adminService = _RecordingAdminService(
+      users: [_learner],
+      plans: const [_plan],
+    );
+    await openAdminTab(tester, adminService, 'Watumiaji');
+
+    expect(find.text('Thibitisha Malipo'), findsOneWidget);
+    await tester.tap(find.text('Thibitisha Malipo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Thibitisha malipo na fungua mafunzo'), findsOneWidget);
+    expect(find.text('Wiki 1 — TZS 3,000'), findsOneWidget);
+    await tester.tap(find.text('Thibitisha na Fungua'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.recordedUserId, 'user-learner-1');
+    expect(adminService.recordedPlanId, 'wiki-1');
+    expect(adminService.recordedMethod, 'cash');
+    expect(adminService.recordedAmountTzs, 3000);
+    expect(adminService.approvedPaymentId, 'new-payment');
+    expect(
+      find.text('Malipo yamethibitishwa na mafunzo yamefunguliwa.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('admin user card shows role access instead of suspended status',
+      (tester) async {
+    final adminUser = AdminUserSummary(
+      id: 'user-admin-1',
+      email: 'admin@aje.test',
+      accountStatus: 'suspended',
+      displayName: 'AJE Admin',
+      preferredLocation: null,
+      role: 'admin',
+      subscriptionPlan: null,
+      subscriptionStartedAt: null,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+      learningProgressCount: 0,
+      paymentTransactionsCount: 0,
+      notificationCount: 0,
+      communityPostsCount: 0,
+    );
+    final adminService = _RecordingAdminService(users: [adminUser]);
+    await openAdminTab(tester, adminService, 'Watumiaji');
+
+    expect(find.text('Ufikiaji wa Admin'), findsOneWidget);
+    expect(find.text('Amesitishwa'), findsNothing);
+    expect(find.text('Thibitisha Malipo'), findsNothing);
+  });
 
   testWidgets('records a payment for a searched learner against a real plan',
       (tester) async {
@@ -247,10 +309,12 @@ void main() {
     expect(adminService.recordedPlanId, 'wiki-1');
     expect(adminService.recordedMethod, 'cash');
     expect(adminService.recordedAmountTzs, 3000);
-    expect(find.text('Malipo yamerekodiwa. Yanasubiri idhini.'), findsOneWidget);
+    expect(
+        find.text('Malipo yamerekodiwa. Yanasubiri idhini.'), findsOneWidget);
   });
 
-  testWidgets('approving a pending payment calls the service and removes it from the list',
+  testWidgets(
+      'approving a pending payment calls the service and removes it from the list',
       (tester) async {
     final pendingRecord = AdminPaymentRecord(
       id: 'payrec-1',
@@ -317,7 +381,8 @@ void main() {
     expect(find.text('Malipo yamerudishwa nyuma.'), findsOneWidget);
   });
 
-  testWidgets('empty pending list shows an explanatory empty state', (tester) async {
+  testWidgets('empty pending list shows an explanatory empty state',
+      (tester) async {
     final adminService = _RecordingAdminService(plans: const [_plan]);
     await openMalipoTab(tester, adminService);
 

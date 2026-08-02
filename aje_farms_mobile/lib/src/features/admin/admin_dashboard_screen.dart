@@ -549,7 +549,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   void _save() {
     if (_uploadingVideoKeys.isNotEmpty) {
       AppFeedback.error();
-      showErrorSnack(context, 'Subiri video imalize kupakiwa kabla ya kuhifadhi.');
+      showErrorSnack(
+          context, 'Subiri video imalize kupakiwa kabla ya kuhifadhi.');
       return;
     }
     setState(() => _showValidation = true);
@@ -835,8 +836,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     key: lesson.key,
                     index: index,
                     lesson: lesson,
-                    isUploadingVideo:
-                        _uploadingVideoKeys.contains(lesson.key),
+                    isUploadingVideo: _uploadingVideoKeys.contains(lesson.key),
                     onPickVideo: () => _pickLessonVideo(index),
                     onRemoveVideo: () => _removeLessonVideo(index),
                     onRemove: () => _removeLesson(index),
@@ -1516,7 +1516,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                                   ?.copyWith(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.xs),
+                              padding:
+                                  const EdgeInsets.only(top: AppSpacing.xs),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1896,6 +1897,7 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
   bool _loading = true;
   String? _error;
   AdminUsersPage _page = const AdminUsersPage(total: 0, users: []);
+  final Set<String> _grantingAccessUserIds = <String>{};
 
   @override
   void didChangeDependencies() {
@@ -1945,6 +1947,73 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     }
   }
 
+  Future<void> _grantPaidAccess(AdminUserSummary user) async {
+    if (_grantingAccessUserIds.contains(user.id)) return;
+    final adminService = context.dependencies.adminService;
+
+    List<AdminPlan> plans;
+    try {
+      plans = await adminService.listPlans();
+    } on AdminException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+      return;
+    } catch (_) {
+      if (mounted) showErrorSnack(context, 'Imeshindikana kupakia vifurushi.');
+      return;
+    }
+    if (!mounted) return;
+    if (plans.isEmpty) {
+      showErrorSnack(context, 'Hakuna kifurushi kinachopatikana.');
+      return;
+    }
+
+    final grant = await _showPaidAccessGrantSheet(
+      context: context,
+      user: user,
+      plans: plans,
+    );
+    if (grant == null || !mounted) return;
+
+    setState(() => _grantingAccessUserIds.add(user.id));
+    AdminPaymentRecord? recordedPayment;
+    try {
+      recordedPayment = await adminService.recordPayment(
+        userId: user.id,
+        planId: grant.plan.id,
+        method: grant.method,
+        amountTzs: grant.plan.priceTzs,
+        reference: grant.reference,
+        note: grant.note,
+      );
+      await adminService.approvePayment(recordedPayment.id);
+      if (!mounted) return;
+      AppFeedback.success();
+      showSuccessSnack(
+        context,
+        'Malipo yamethibitishwa na mafunzo yamefunguliwa.',
+      );
+      await _load();
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      final prefix = recordedPayment == null
+          ? ''
+          : 'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
+              'Kamilisha idhini kwenye kichupo cha Malipo. ';
+      showErrorSnack(context, '$prefix${error.message}');
+    } catch (_) {
+      if (!mounted) return;
+      final message = recordedPayment == null
+          ? 'Imeshindikana kuthibitisha malipo.'
+          : 'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
+              'Kamilisha idhini kwenye kichupo cha Malipo.';
+      showErrorSnack(context, message);
+    } finally {
+      if (mounted) {
+        setState(() => _grantingAccessUserIds.remove(user.id));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading && _page.users.isEmpty && _error == null) {
@@ -1977,9 +2046,17 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
           if (_loading || _page.users.isEmpty) {
             return _buildBodyPlaceholder(context);
           }
+          final user = _page.users[index - _headerSlotCount];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _AdminUserCard(user: _page.users[index - _headerSlotCount]),
+            child: _AdminUserCard(
+              user: user,
+              isGrantingAccess: _grantingAccessUserIds.contains(user.id),
+              onGrantPaidAccess:
+                  user.role == 'admin' || user.accountStatus == 'active'
+                      ? null
+                      : () => _grantPaidAccess(user),
+            ),
           );
         },
       ),
@@ -2082,11 +2159,149 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
   }
 }
 
-/// Records cash/bank-transfer payments and approves/reverses them. This is
-/// deliberately the only place in the app that grants paid access — the
-/// learner-facing screens never accept a payment themselves (see
-/// PaywallScreen), matching the go-live design: sales happen through AJE's
-/// existing cash/bank-transfer process, and staff confirm it here.
+class _PaidAccessGrant {
+  const _PaidAccessGrant({
+    required this.plan,
+    required this.method,
+    required this.reference,
+    required this.note,
+  });
+
+  final AdminPlan plan;
+  final String method;
+  final String? reference;
+  final String? note;
+}
+
+Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
+  required BuildContext context,
+  required AdminUserSummary user,
+  required List<AdminPlan> plans,
+}) async {
+  final referenceController = TextEditingController();
+  final noteController = TextEditingController();
+  var selectedPlan = plans.first;
+  var method = 'cash';
+
+  try {
+    return await showModalBottomSheet<_PaidAccessGrant>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                  AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Thibitisha malipo na fungua mafunzo',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      user.email ?? user.id,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    DropdownButtonFormField<AdminPlan>(
+                      initialValue: selectedPlan,
+                      decoration: const InputDecoration(labelText: 'Kifurushi'),
+                      items: [
+                        for (final plan in plans)
+                          DropdownMenuItem(
+                            value: plan,
+                            child: Text('${plan.title} — ${plan.price}'),
+                          ),
+                      ],
+                      onChanged: (plan) {
+                        if (plan != null) {
+                          setSheetState(() => selectedPlan = plan);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Fedha Taslimu'),
+                          selected: method == 'cash',
+                          onSelected: (_) =>
+                              setSheetState(() => method = 'cash'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Uhamisho wa Benki'),
+                          selected: method == 'bank_transfer',
+                          onSelected: (_) =>
+                              setSheetState(() => method = 'bank_transfer'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: referenceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Namba ya risiti (hiari)',
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Maelezo (hiari)',
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          final reference = referenceController.text.trim();
+                          final note = noteController.text.trim();
+                          Navigator.of(sheetContext).pop(
+                            _PaidAccessGrant(
+                              plan: selectedPlan,
+                              method: method,
+                              reference: reference.isEmpty ? null : reference,
+                              note: note.isEmpty ? null : note,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.verified_outlined),
+                        label: const Text('Thibitisha na Fungua'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  } finally {
+    referenceController.dispose();
+    noteController.dispose();
+  }
+}
+
+/// Records cash/bank-transfer payments and approves/reverses them. The user
+/// cards offer the same audited record-then-approve flow as a one-step staff
+/// action; learner-facing screens never accept a payment themselves (see
+/// PaywallScreen). Sales happen through AJE's existing cash/bank-transfer
+/// process, and staff confirm them in the admin dashboard.
 class _AdminPaymentsTab extends StatefulWidget {
   const _AdminPaymentsTab();
 
@@ -2353,7 +2568,8 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(user.email ?? user.id),
-                          subtitle: Text(_accountStatusLabel(user.accountStatus)),
+                          subtitle:
+                              Text(_accountStatusLabel(user.accountStatus)),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
                             AppFeedback.tap();
@@ -2368,7 +2584,8 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.person),
-                      title: Text(_selectedLearner!.email ?? _selectedLearner!.id),
+                      title:
+                          Text(_selectedLearner!.email ?? _selectedLearner!.id),
                       subtitle: Text(
                         _accountStatusLabel(_selectedLearner!.accountStatus),
                       ),
@@ -2409,8 +2626,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                         ChoiceChip(
                           label: const Text('Fedha Taslimu'),
                           selected: _method == 'cash',
-                          onSelected: (_) =>
-                              setState(() => _method = 'cash'),
+                          onSelected: (_) => setState(() => _method = 'cash'),
                         ),
                         ChoiceChip(
                           label: const Text('Uhamisho wa Benki'),
@@ -2427,7 +2643,8 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'Kiasi (TZS)',
-                        helperText: 'Kiasi kinawekwa na kifurushi kilichochaguliwa.',
+                        helperText:
+                            'Kiasi kinawekwa na kifurushi kilichochaguliwa.',
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -2505,9 +2722,10 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                         Text(
                           '${record.planId} · ${record.method == 'cash' ? 'Fedha Taslimu' : 'Uhamisho wa Benki'} · '
                           '${record.currency} ${record.amountTzs}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.colors.muted,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
                         ),
                         if (record.reference != null) ...[
                           const SizedBox(height: AppSpacing.xs),
@@ -2546,9 +2764,15 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
 }
 
 class _AdminUserCard extends StatelessWidget {
-  const _AdminUserCard({required this.user});
+  const _AdminUserCard({
+    required this.user,
+    required this.isGrantingAccess,
+    required this.onGrantPaidAccess,
+  });
 
   final AdminUserSummary user;
+  final bool isGrantingAccess;
+  final VoidCallback? onGrantPaidAccess;
 
   @override
   Widget build(BuildContext context) {
@@ -2557,6 +2781,11 @@ class _AdminUserCard extends StatelessWidget {
         : (user.email ?? 'Mtumiaji');
     final roleLabel = user.role == 'admin' ? 'Admin' : 'Mkulima';
     final planLabel = user.subscriptionPlan ?? 'Hakuna kifurushi';
+    final accessLabel = user.role == 'admin'
+        ? 'Ufikiaji wa Admin'
+        : _accountStatusLabel(user.accountStatus);
+    final hasEffectiveAccess =
+        user.role == 'admin' || user.accountStatus == 'active';
 
     return Card(
       child: Padding(
@@ -2620,8 +2849,8 @@ class _AdminUserCard extends StatelessWidget {
                   ),
                 ),
                 Pill(
-                  label: _accountStatusLabel(user.accountStatus),
-                  color: user.accountStatus == 'active'
+                  label: accessLabel,
+                  color: hasEffectiveAccess
                       ? context.colors.successSurface
                       : user.accountStatus == 'suspended'
                           ? context.colors.error.withValues(alpha: 0.12)
@@ -2656,6 +2885,22 @@ class _AdminUserCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (onGrantPaidAccess != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: isGrantingAccess ? null : onGrantPaidAccess,
+                  icon: isGrantingAccess
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.verified_outlined),
+                  label: const Text('Thibitisha Malipo'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
