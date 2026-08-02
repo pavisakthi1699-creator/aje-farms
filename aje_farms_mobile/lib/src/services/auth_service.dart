@@ -3,7 +3,11 @@
 /// backend, authenticated with the Supabase access token. See
 /// [BackendAuthService] for the split.
 abstract interface class AuthService {
-  Future<void> signUp({required String email, required String password});
+  Future<SignUpResult> signUp({
+    required String email,
+    required String password,
+  });
+  Future<void> resendSignUpConfirmation(String email);
   Future<void> signIn({required String email, required String password});
   Future<void> signOut();
   Future<void> sendPasswordResetEmail(String email);
@@ -21,6 +25,12 @@ abstract interface class AuthService {
     String? preferredLocation,
   });
   Future<AdminAccessDiagnostics> getAdminAccessDiagnostics();
+}
+
+class SignUpResult {
+  const SignUpResult({required this.emailConfirmationRequired});
+
+  final bool emailConfirmationRequired;
 }
 
 class AuthSession {
@@ -72,4 +82,11 @@ class AuthException implements Exception {
 
   @override
   String toString() => 'AuthException: $message';
+}
+
+class AuthEmailConfirmationRequiredException extends AuthException {
+  const AuthEmailConfirmationRequiredException()
+      : super(
+          'Thibitisha barua pepe yako kabla ya kuingia. Angalia inbox yako.',
+        );
 }

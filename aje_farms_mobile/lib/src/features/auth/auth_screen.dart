@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'dart:async';
+
 import "../../ui.dart";
 
 enum _AuthMode { signIn, signUp }
@@ -20,6 +22,26 @@ class AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   String? _emailError;
   String? _passwordError;
+  String? _pendingConfirmationEmail;
+  DateTime? _resendAvailableAt;
+  Timer? _resendTimer;
+
+  int get _resendSecondsRemaining {
+    final availableAt = _resendAvailableAt;
+    if (availableAt == null) return 0;
+    final seconds = availableAt.difference(DateTime.now()).inSeconds + 1;
+    return seconds > 0 ? seconds : 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && context.dependencies.authService.hasLocalSession) {
+        _completeAuthenticatedSession();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -27,7 +49,87 @@ class AuthScreenState extends State<AuthScreen> {
     _passwordController.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
+    _resendTimer?.cancel();
     super.dispose();
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    setState(() {
+      _resendAvailableAt = DateTime.now().add(const Duration(seconds: 60));
+    });
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSecondsRemaining == 0) {
+        timer.cancel();
+        setState(() => _resendAvailableAt = null);
+      } else {
+        setState(() {});
+      }
+    });
+  }
+
+  Future<void> _completeAuthenticatedSession() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    final dependencies = context.dependencies;
+    final appSession = context.session;
+    try {
+      final authService = dependencies.authService;
+      final session = await authService.getSession();
+      await appSession.signInWithEmail(session.email, role: session.role);
+      await appSession.syncAccountStatusFromAuthSession(session);
+      await appSession.syncProfileFromAuthSession(session);
+      await dependencies.refreshCatalog();
+      try {
+        final completedLessons =
+            await dependencies.learningProgressService.completedLessons();
+        await appSession.syncCompletedLessons(completedLessons);
+      } on LearningProgressException {
+        // Progress sync should not block sign-in.
+      }
+      if (!mounted) return;
+      AppNavigator.replaceWithMainShell(context);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      showErrorSnack(context, 'Imeshindikana kuingia. Angalia mtandao wako.');
+    }
+  }
+
+  Future<void> _resendConfirmation() async {
+    final email = _pendingConfirmationEmail ?? _emailController.text.trim();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      setState(() => _emailError = emailError);
+      _emailFocus.requestFocus();
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      await context.dependencies.authService.resendSignUpConfirmation(email);
+      if (!mounted) return;
+      _startResendCooldown();
+      showSuccessSnack(
+        context,
+        'Barua mpya ya uthibitisho imetumwa. Angalia inbox na spam.',
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnack(context, 'Imeshindikana kutuma barua. Jaribu tena.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   String? _validateEmail(String email) {
@@ -70,36 +172,40 @@ class AuthScreenState extends State<AuthScreen> {
     });
 
     final authService = context.dependencies.authService;
-    final learningProgressService =
-        context.dependencies.learningProgressService;
-    final refreshCatalog = context.dependencies.refreshCatalog;
-    final appSession = context.session;
     try {
       if (_mode == _AuthMode.signUp) {
-        await authService.signUp(email: email, password: password);
+        final result =
+            await authService.signUp(email: email, password: password);
         if (!mounted) return;
+        if (!result.emailConfirmationRequired) {
+          setState(() => _isLoading = false);
+          await _completeAuthenticatedSession();
+          return;
+        }
         setState(() => _isLoading = false);
+        _pendingConfirmationEmail = email;
+        _startResendCooldown();
         showSuccessSnack(
           context,
-          'Akaunti imeundwa. Thibitisha barua pepe yako kisha ingia.',
+          'Kama hii ni akaunti mpya, barua ya uthibitisho imetumwa. Thibitisha kisha ingia.',
         );
         setState(() => _mode = _AuthMode.signIn);
         return;
       }
 
       await authService.signIn(email: email, password: password);
-      final session = await authService.getSession();
-      await appSession.signInWithEmail(session.email, role: session.role);
-      await appSession.syncAccountStatusFromAuthSession(session);
-      await appSession.syncProfileFromAuthSession(session);
-      await refreshCatalog();
-      try {
-        final completedLessons =
-            await learningProgressService.completedLessons();
-        await appSession.syncCompletedLessons(completedLessons);
-      } on LearningProgressException {
-        // Progress sync should not block sign-in.
-      }
+      setState(() => _isLoading = false);
+      await _completeAuthenticatedSession();
+      return;
+    } on AuthEmailConfirmationRequiredException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _pendingConfirmationEmail = email;
+        _mode = _AuthMode.signIn;
+      });
+      showErrorSnack(context, error.message);
+      return;
     } on AuthException catch (error) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -116,9 +222,6 @@ class AuthScreenState extends State<AuthScreen> {
       );
       return;
     }
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    AppNavigator.replaceWithMainShell(context);
   }
 
   Future<void> _forgotPassword() async {
@@ -235,6 +338,39 @@ class AuthScreenState extends State<AuthScreen> {
                     child: const Text('Umesahau nenosiri?'),
                   ),
                 ),
+                if (_pendingConfirmationEmail != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Barua pepe bado haijathibitishwa',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Fungua kiungo tulichotuma kwa $_pendingConfirmationEmail. Kama hakijafika, angalia spam au utume tena.',
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          TextButton.icon(
+                            onPressed: _isLoading || _resendSecondsRemaining > 0
+                                ? null
+                                : _resendConfirmation,
+                            icon: const Icon(Icons.mark_email_unread_outlined),
+                            label: Text(
+                              _resendSecondsRemaining > 0
+                                  ? 'Tuma tena baada ya sekunde $_resendSecondsRemaining'
+                                  : 'Tuma tena barua ya uthibitisho',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: AppSpacing.xl),
               FilledButton.icon(

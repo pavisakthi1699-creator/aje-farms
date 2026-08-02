@@ -16,25 +16,54 @@ class BackendAuthService implements AuthService {
   BackendAuthService({
     required Uri baseUrl,
     http.Client? client,
+    supabase.GoTrueClient? authClient,
     this.timeout = const Duration(seconds: 20),
   })  : _baseUrl = baseUrl,
-        _client = client ?? http.Client();
+        _client = client ?? http.Client(),
+        _authClient = authClient;
 
   final Uri _baseUrl;
   final http.Client _client;
+  final supabase.GoTrueClient? _authClient;
   final Duration timeout;
 
-  supabase.GoTrueClient get _auth => supabase.Supabase.instance.client.auth;
+  static const _signUpRedirectUrl = 'ajefarms://app/auth';
+
+  supabase.GoTrueClient get _auth =>
+      _authClient ?? supabase.Supabase.instance.client.auth;
 
   @override
   bool get hasLocalSession => _auth.currentSession != null;
 
   @override
-  Future<void> signUp({required String email, required String password}) async {
+  Future<SignUpResult> signUp({
+    required String email,
+    required String password,
+  }) async {
     try {
-      await _auth.signUp(email: email, password: password);
+      final response = await _auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: _signUpRedirectUrl,
+      );
+      return SignUpResult(
+        emailConfirmationRequired: response.session == null,
+      );
     } on supabase.AuthException catch (error) {
-      throw AuthException(_friendlyAuthError(error));
+      throw _appAuthException(error);
+    }
+  }
+
+  @override
+  Future<void> resendSignUpConfirmation(String email) async {
+    try {
+      await _auth.resend(
+        email: email,
+        type: supabase.OtpType.signup,
+        emailRedirectTo: _signUpRedirectUrl,
+      );
+    } on supabase.AuthException catch (error) {
+      throw _appAuthException(error);
     }
   }
 
@@ -43,7 +72,7 @@ class BackendAuthService implements AuthService {
     try {
       await _auth.signInWithPassword(email: email, password: password);
     } on supabase.AuthException catch (error) {
-      throw AuthException(_friendlyAuthError(error));
+      throw _appAuthException(error);
     }
   }
 
@@ -60,7 +89,7 @@ class BackendAuthService implements AuthService {
         redirectTo: 'ajefarms://login-callback',
       );
     } on supabase.AuthException catch (error) {
-      throw AuthException(_friendlyAuthError(error));
+      throw _appAuthException(error);
     }
   }
 
@@ -69,7 +98,7 @@ class BackendAuthService implements AuthService {
     try {
       await _auth.updateUser(supabase.UserAttributes(password: newPassword));
     } on supabase.AuthException catch (error) {
-      throw AuthException(_friendlyAuthError(error));
+      throw _appAuthException(error);
     }
   }
 
@@ -202,6 +231,14 @@ DateTime? _dateTimeFromJson(Object? value) {
 /// Supabase's own error messages are in English and sometimes overly
 /// technical; translate the common ones so the auth screen reads in Swahili
 /// like the rest of the app.
+AuthException _appAuthException(supabase.AuthException error) {
+  if (error.code == 'email_not_confirmed' ||
+      error.message.toLowerCase().contains('email not confirmed')) {
+    return const AuthEmailConfirmationRequiredException();
+  }
+  return AuthException(_friendlyAuthError(error));
+}
+
 String _friendlyAuthError(supabase.AuthException error) {
   final message = error.message.toLowerCase();
   if (message.contains('invalid login credentials')) {
@@ -214,11 +251,12 @@ String _friendlyAuthError(supabase.AuthException error) {
   if (message.contains('password should be at least')) {
     return 'Nenosiri linahitajika kuwa na angalau tarakimu 6.';
   }
-  if (message.contains('email not confirmed')) {
-    return 'Thibitisha barua pepe yako kabla ya kuingia. Angalia inbox yako.';
+  if (error.code == 'over_email_send_rate_limit' ||
+      message.contains('email rate limit')) {
+    return 'Barua nyingi zimetumwa kwa muda mfupi. Subiri dakika chache kisha ujaribu tena.';
   }
-  if (message.contains('rate limit')) {
-    return 'Majaribio mengi. Subiri kidogo kabla ya kujaribu tena.';
+  if (message.contains('rate limit') || message.contains('security purposes')) {
+    return 'Majaribio mengi. Subiri dakika moja kabla ya kujaribu tena.';
   }
   return error.message;
 }

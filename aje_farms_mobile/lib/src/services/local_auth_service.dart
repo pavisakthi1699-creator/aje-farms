@@ -9,8 +9,17 @@ class LocalAuthService implements AuthService {
   bool get hasLocalSession => false;
 
   @override
-  Future<void> signUp({required String email, required String password}) async {
+  Future<SignUpResult> signUp({
+    required String email,
+    required String password,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    return const SignUpResult(emailConfirmationRequired: false);
+  }
+
+  @override
+  Future<void> resendSignUpConfirmation(String email) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   @override
