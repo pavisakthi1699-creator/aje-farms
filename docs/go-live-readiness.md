@@ -1,6 +1,6 @@
 # AJE Farms Go-Live Readiness
 
-Last verified: 2026-07-14.
+Last verified: 2026-08-02.
 
 This checklist tracks the remaining work before a production Android release.
 Payment provider integration is intentionally deferred to the final slice.
@@ -57,8 +57,10 @@ Payment provider integration is intentionally deferred to the final slice.
 
 4. Finalize learner-visible content.
    - Confirm which courses should appear in the launch catalog.
-   - Review any structured curriculum rows with `needs_review`.
-   - Publish approved structured curriculum only after source-link validation.
+   - The trusted admin can save a draft or publish a complete course directly.
+   - Publishing applies to the course, modules, lessons, and resources in one
+     transaction. Source documents are optional attribution metadata and do
+     not block publication.
 
 5. Run release checks with production-shaped values.
 

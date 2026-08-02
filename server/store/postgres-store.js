@@ -583,9 +583,6 @@ export class PostgresStore {
        WHERE c.status = 'published'
          AND m.status = 'published'
          AND l.status = 'published'
-         AND c.source_link_status = 'linked'
-         AND m.source_link_status = 'linked'
-         AND l.source_link_status = 'linked'
          AND l.lesson_type IN ('reading', 'video')
          AND (
            (l.lesson_type = 'reading'
@@ -600,28 +597,6 @@ export class PostgresStore {
                  AND lr.status = 'published'
                  AND (lr.external_url IS NOT NULL OR lr.storage_path IS NOT NULL)
              ))
-         )
-         AND EXISTS (
-           SELECT 1
-           FROM content_source_links csl
-           JOIN source_segments ss ON ss.id = csl.source_segment_id
-           JOIN source_documents sd ON sd.id = ss.source_document_id
-           WHERE csl.content_type = 'lesson'
-             AND csl.content_id = l.id
-             AND csl.link_status = 'linked'
-             AND ss.review_status IN ('approved', 'published')
-             AND sd.processing_status IN ('approved', 'published')
-         )
-         AND EXISTS (
-           SELECT 1
-           FROM grounding_facts gf
-           JOIN source_segments ss ON ss.id = gf.source_segment_id
-           JOIN source_documents sd ON sd.id = ss.source_document_id
-           WHERE (gf.lesson_id = l.id OR (gf.lesson_id IS NULL AND gf.course_id = c.id))
-             AND gf.status = 'published'
-             AND gf.risk_level <> 'high'
-             AND ss.review_status IN ('approved', 'published')
-             AND sd.processing_status IN ('approved', 'published')
          )
        ORDER BY c.sort_order, c.code, m.sort_order, l.sort_order`,
     );
@@ -690,31 +665,6 @@ export class PostgresStore {
          AND l.status = 'published'
          AND m.status = 'published'
          AND c.status = 'published'
-         AND c.source_link_status = 'linked'
-         AND m.source_link_status = 'linked'
-         AND l.source_link_status = 'linked'
-         AND EXISTS (
-           SELECT 1
-           FROM content_source_links csl
-           JOIN source_segments ss ON ss.id = csl.source_segment_id
-           JOIN source_documents sd ON sd.id = ss.source_document_id
-           WHERE csl.content_type = 'lesson'
-             AND csl.content_id = l.id
-             AND csl.link_status = 'linked'
-             AND ss.review_status IN ('approved', 'published')
-             AND sd.processing_status IN ('approved', 'published')
-         )
-         AND EXISTS (
-           SELECT 1
-           FROM grounding_facts gf
-           JOIN source_segments ss ON ss.id = gf.source_segment_id
-           JOIN source_documents sd ON sd.id = ss.source_document_id
-           WHERE (gf.lesson_id = l.id OR (gf.lesson_id IS NULL AND gf.course_id = c.id))
-             AND gf.status = 'published'
-             AND gf.risk_level <> 'high'
-             AND ss.review_status IN ('approved', 'published')
-             AND sd.processing_status IN ('approved', 'published')
-         )
        ORDER BY lr.created_at
        LIMIT 1`,
       [lessonId],
@@ -917,7 +867,7 @@ export class PostgresStore {
           {
             createIfMissing: true,
             failIfExists: true,
-            status: 'draft',
+            status,
             title: normalizedCourse.title,
             description: normalizedCourse.description,
             deliveryType: normalizedCourse.lessons.some(
@@ -970,7 +920,7 @@ export class PostgresStore {
             normalizedCourse.id,
             {
               createIfMissing: true,
-              status: 'draft',
+              status,
               title: normalizedCourse.title,
               description: normalizedCourse.description,
               deliveryType: normalizedCourse.lessons.some(
@@ -1217,7 +1167,6 @@ export class PostgresStore {
         [courseCode],
       );
       let courseRow = courseResult.rows[0];
-      let createdCourse = false;
       if (courseRow && curriculum.failIfExists) {
         const conflict = new Error('A course with this code already exists.');
         conflict.code = 'COURSE_ALREADY_EXISTS';
@@ -1249,7 +1198,6 @@ export class PostgresStore {
           ],
         );
         courseRow = insertedCourse.rows[0];
-        createdCourse = true;
       }
       const courseId = courseRow.id;
       if (
@@ -1264,9 +1212,7 @@ export class PostgresStore {
         throw conflict;
       }
       const structuredStatus =
-        !createdCourse && curriculum.status === 'approved'
-          ? 'published'
-          : 'draft';
+        curriculum.status === 'approved' ? 'published' : 'draft';
 
       await client.query(
         `UPDATE courses
@@ -1274,6 +1220,10 @@ export class PostgresStore {
              description_sw = $3,
              delivery_type = $4,
              status = $5::content_status,
+             source_link_status = CASE
+               WHEN $5 = 'published' THEN 'linked'::source_link_status
+               ELSE 'pending_review'::source_link_status
+             END,
              published_at = CASE
                WHEN $5 = 'published' THEN COALESCE(published_at, NOW())
                ELSE NULL
@@ -1591,6 +1541,51 @@ export class PostgresStore {
           [removedModuleIds],
         );
       }
+
+      // AJE's only publisher is the trusted admin who authored the material.
+      // Publishing therefore applies to the complete curriculum in one
+      // transaction; source documents remain optional attribution metadata,
+      // not a second-person approval gate.
+      await client.query(
+        `UPDATE course_modules
+         SET status = $2::content_status,
+             source_link_status = CASE
+               WHEN $2 = 'published' THEN 'linked'::source_link_status
+               ELSE 'pending_review'::source_link_status
+             END,
+             published_at = CASE
+               WHEN $2 = 'published' THEN COALESCE(published_at, NOW())
+               ELSE NULL
+             END,
+             updated_at = NOW()
+         WHERE course_id = $1`,
+        [courseId, structuredStatus],
+      );
+      await client.query(
+        `UPDATE lessons l
+         SET status = $2::content_status,
+             source_link_status = CASE
+               WHEN $2 = 'published' THEN 'linked'::source_link_status
+               ELSE 'pending_review'::source_link_status
+             END,
+             published_at = CASE
+               WHEN $2 = 'published' THEN COALESCE(l.published_at, NOW())
+               ELSE NULL
+             END,
+             updated_at = NOW()
+         FROM course_modules m
+         WHERE m.id = l.module_id AND m.course_id = $1`,
+        [courseId, structuredStatus],
+      );
+      await client.query(
+        `UPDATE lesson_resources lr
+         SET status = $2::content_status,
+             updated_at = NOW()
+         FROM lessons l
+         JOIN course_modules m ON m.id = l.module_id
+         WHERE lr.lesson_id = l.id AND m.course_id = $1`,
+        [courseId, structuredStatus],
+      );
 
       await client.query('COMMIT');
     } catch (error) {
@@ -3175,20 +3170,11 @@ function structuredCourseCurriculumFromRows(rows) {
     if (row.lesson_status !== 'published') {
       reasons.push('Somo bado halijachapishwa.');
     }
-    if (row.lesson_link_status !== 'linked') {
-      reasons.push('Somo halijaunganishwa na hati chanzo.');
-    }
     if (isVideo && !hasVideo) {
       reasons.push('Video ya somo haijawekwa.');
     }
     if (!isVideo && !hasBody) {
       reasons.push('Maandishi ya somo hayajajazwa.');
-    }
-    if (!row.has_source_link) {
-      reasons.push('Hakuna kiungo cha chanzo kilichothibitishwa.');
-    }
-    if (!row.has_grounding) {
-      reasons.push('Hakuna ukweli wa msingi (grounding facts) uliochapishwa.');
     }
     lessons.push({
       id: row.lesson_id,
@@ -3276,20 +3262,11 @@ function structuredContentCourseRecords(rows) {
       if (row.lesson_status !== 'published') {
         readinessReasons.push('Somo bado halijachapishwa.');
       }
-      if (row.lesson_link_status !== 'linked') {
-        readinessReasons.push('Somo halijaunganishwa na hati chanzo.');
-      }
       if (isVideo && !row.has_video) {
         readinessReasons.push('Video ya somo haijawekwa.');
       }
       if (!isVideo && !(row.lesson_body ?? '').trim()) {
         readinessReasons.push('Maandishi ya somo hayajajazwa.');
-      }
-      if (!row.has_source_link) {
-        readinessReasons.push('Hakuna kiungo cha chanzo kilichothibitishwa.');
-      }
-      if (!row.has_grounding) {
-        readinessReasons.push('Hakuna ukweli wa msingi uliochapishwa.');
       }
       record.course.lessons.push({
         id: row.lesson_id,

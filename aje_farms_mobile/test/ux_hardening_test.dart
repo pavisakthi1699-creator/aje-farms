@@ -36,7 +36,7 @@ class _OneCourseAdminService extends LocalAdminService {
               durationMinutes: 5,
               isLearnerVisible: false,
               readinessReasons: [
-                'Somo halijaunganishwa na hati chanzo.',
+                'Kozi bado haijachapishwa.',
               ],
             ),
           ],
@@ -69,82 +69,6 @@ class _RecordingCourseAdminService extends _OneCourseAdminService {
       course: course,
       updatedAt: DateTime(2026, 7, 26),
     );
-  }
-}
-
-class _SourceReviewAdminService extends _RecordingCourseAdminService {
-  String? approvedLessonId;
-  String? approvedSegmentId;
-  String? evidenceNote;
-  String? groundingFact;
-
-  @override
-  Future<List<AdminSourceSegment>> searchSourceSegments({
-    String search = '',
-  }) async {
-    return const [
-      AdminSourceSegment(
-        id: 'segment-1',
-        documentId: 'document-1',
-        documentTitle: 'Kitabu cha Kilimo cha Nyanya',
-        sectionTitle: 'Maandalizi ya kitalu',
-        locationLabel: 'Kurasa 10-12',
-        contentPreview: 'Chagua eneo safi na lenye mifereji mizuri.',
-      ),
-    ];
-  }
-
-  @override
-  Future<AdminLessonSourceReviewResult> approveLessonSource({
-    required String lessonId,
-    required String sourceSegmentId,
-    required String evidenceNote,
-    required String groundingFact,
-  }) async {
-    approvedLessonId = lessonId;
-    approvedSegmentId = sourceSegmentId;
-    this.evidenceNote = evidenceNote;
-    this.groundingFact = groundingFact;
-    return AdminLessonSourceReviewResult(
-      courseUpdatedAt: DateTime.utc(2026, 7, 26, 12),
-      contentReady: true,
-    );
-  }
-}
-
-class _ApprovedSourceReviewAdminService extends _SourceReviewAdminService {
-  @override
-  Future<List<AdminContentCourseRecord>> listContentCourses() async {
-    return [
-      AdminContentCourseRecord(
-        id: 'course-1',
-        status: 'approved',
-        updatedAt: DateTime(2026),
-        course: const Course(
-          id: 'course-1',
-          title: 'Kilimo cha Nyanya',
-          description: 'Mwongozo wa nyanya.',
-          badge: 'Msingi',
-          icon: Icons.eco_outlined,
-          progress: 0,
-          imageUrl: '',
-          outcomes: ['Msingi'],
-          lessons: [
-            Lesson(
-              id: 'lesson-1',
-              moduleId: 'module-1',
-              moduleTitle: 'Msingi',
-              title: 'Kuandaa kitalu',
-              type: LessonType.reading,
-              meta: 'Dakika 5',
-              description: 'Andaa kitalu salama.',
-              durationMinutes: 5,
-              isLearnerVisible: true,
-            ),
-          ],
-        ),
-      ),
-    ];
   }
 }
 
@@ -435,7 +359,7 @@ void main() {
 
       // Clear the pre-filled title, then attempt to save.
       await tester.enterText(find.byType(EditableText).first, '');
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       expect(find.text('Jina haliwezi kuwa tupu.'), findsOneWidget);
@@ -480,7 +404,7 @@ void main() {
       expect(find.text('Kozi mpya'), findsOneWidget);
       expect(find.text('Msimbo wa kozi'), findsOneWidget);
       expect(
-        find.textContaining('huhifadhiwa kama rasimu'),
+        find.textContaining('Wewe ndiye mwandishi na mchapishaji'),
         findsOneWidget,
       );
 
@@ -519,94 +443,21 @@ void main() {
       );
 
       await tester.scrollUntilVisible(
-        find.text('Hifadhi mtaala mzima'),
-        400,
+        find.widgetWithText(FilledButton, 'Chapisha kozi'),
+        300,
         scrollable: editorScroll,
       );
-      await tester.tap(find.text('Hifadhi mtaala mzima'));
+      await tester.drag(editorScroll, const Offset(0, -160));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Chapisha kozi'));
       await tester.pumpAndSettle();
 
       expect(service.savedCourse?.id, 'CRS-MAH-01');
       expect(service.savedCourse?.lessons.single.moduleTitle, 'Maandalizi');
       expect(service.savedCourse?.lessons.single.title, 'Chagua shamba');
-      expect(service.savedStatus, 'draft');
+      expect(service.savedStatus, 'approved');
       expect(service.savedBaseUpdatedAt, isNull);
       expect(service.savedCreateOnly, isTrue);
-    });
-
-    testWidgets('blocked lessons expose source-link and approval controls',
-        (tester) async {
-      final service = _SourceReviewAdminService();
-      await openAdminDashboard(tester, adminService: service);
-
-      await tester.tap(find.text('Kagua chanzo cha masomo 1'));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Unganisha chanzo na idhinisha'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -700),
-      );
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Unganisha chanzo na idhinisha'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Unganisha chanzo na idhinisha'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Kitabu cha Kilimo cha Nyanya'), findsOneWidget);
-      await tester.tap(find.text('Kitabu cha Kilimo cha Nyanya'));
-      await tester.pumpAndSettle();
-      Finder reviewField(String label) => find.ancestor(
-            of: find.text(label),
-            matching: find.byType(TextField),
-          );
-      await tester.enterText(
-        reviewField('Maelezo ya ushahidi'),
-        'Sehemu inaunga mkono somo.',
-      );
-      await tester.enterText(
-        reviewField('Ukweli wa msingi uliothibitishwa'),
-        'Kitalu kinahitaji eneo safi lenye mifereji mizuri.',
-      );
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Unganisha na idhinisha'),
-      );
-      await tester.pumpAndSettle();
-
-      expect(service.approvedLessonId, 'lesson-1');
-      expect(service.approvedSegmentId, 'segment-1');
-      expect(service.evidenceNote, 'Sehemu inaunga mkono somo.');
-      expect(
-        service.groundingFact,
-        'Kitalu kinahitaji eneo safi lenye mifereji mizuri.',
-      );
-      await tester.tap(find.text('Hifadhi'));
-      await tester.pumpAndSettle();
-      expect(
-        service.savedBaseUpdatedAt,
-        DateTime.utc(2026, 7, 26, 12),
-      );
-    });
-
-    testWidgets('approved lessons still expose a source review action',
-        (tester) async {
-      await openAdminDashboard(
-        tester,
-        adminService: _ApprovedSourceReviewAdminService(),
-      );
-
-      await tester.tap(find.text('Hariri maudhui na mtaala'));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Kagua au badilisha chanzo'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-
-      expect(find.text('Kagua au badilisha chanzo'), findsOneWidget);
     });
   });
 

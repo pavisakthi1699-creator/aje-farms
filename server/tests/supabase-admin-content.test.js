@@ -551,7 +551,7 @@ test(
 );
 
 test(
-  'admin upsert creates an unknown structured course as a source-review draft',
+  'trusted admin can create and publish a structured course in one save',
   withSupabaseStore(async () => {
     const calls = [];
     const courseId = '00000000-0000-0000-0000-000000000901';
@@ -608,18 +608,18 @@ test(
                 course_title: 'Kilimo cha Maharage',
                 course_description: 'Mtaala mpya wa maharage.',
                 delivery_type: 'text',
-                course_status: 'draft',
+                course_status: 'published',
                 course_updated_at: '2026-07-26T12:00:00.000Z',
                 module_id: moduleId,
                 module_title: 'Maandalizi',
-                module_status: 'draft',
+                module_status: 'published',
                 lesson_id: lessonId,
                 lesson_title: 'Chagua shamba',
                 lesson_body: 'Kagua eneo na udongo kabla ya kupanda.',
                 lesson_type: 'reading',
                 duration_minutes: 5,
-                lesson_status: 'draft',
-                lesson_link_status: 'pending_review',
+                lesson_status: 'published',
+                lesson_link_status: 'linked',
                 has_source_link: false,
                 has_grounding: false,
               },
@@ -656,12 +656,89 @@ test(
       },
     });
 
-    assert.equal(saved.status, 'draft');
-    assert.equal(saved.course.lessons[0].readiness.visible, false);
+    assert.equal(saved.status, 'approved');
+    assert.equal(saved.course.lessons[0].readiness.visible, true);
     assert.ok(calls.some(({ sql }) => /INSERT INTO courses/.test(sql)));
     assert.ok(calls.some(({ sql }) => /INSERT INTO course_modules/.test(sql)));
     assert.ok(calls.some(({ sql }) => /INSERT INTO lessons/.test(sql)));
+    assert.ok(
+      calls.some(
+        ({ sql, params }) =>
+          /UPDATE course_modules[\s\S]*status = \$2::content_status/.test(sql) &&
+          params[1] === 'published',
+      ),
+    );
+    assert.ok(
+      calls.some(
+        ({ sql, params }) =>
+          /UPDATE lessons l[\s\S]*status = \$2::content_status/.test(sql) &&
+          params[1] === 'published',
+      ),
+    );
+    assert.ok(
+      calls.some(
+        ({ sql, params }) =>
+          /UPDATE lesson_resources lr[\s\S]*status = \$2::content_status/.test(
+            sql,
+          ) && params[1] === 'published',
+      ),
+    );
+    assert.equal(
+      calls.some(
+        ({ sql }) =>
+          /UPDATE lesson_resources lr[\s\S]*published_at/.test(sql),
+      ),
+      false,
+    );
     assert.ok(calls.some(({ sql }) => sql === 'COMMIT'));
+  }),
+);
+
+test(
+  'published structured courses do not require third-party source-review rows',
+  withSupabaseStore(async () => {
+    let queryText = '';
+    const store = new PostgresStore({
+      pool: {
+        query: async (sql) => {
+          queryText = sql;
+          return {
+            rows: [
+              {
+                course_id: 'course-uuid',
+                course_code: 'AJE-ORIGINAL-001',
+                course_title: 'Kilimo cha Maharage',
+                course_description: 'Kozi iliyoandikwa na AJE.',
+                delivery_type: 'text',
+                module_id: 'module-uuid',
+                module_title: 'Maandalizi',
+                module_order: 0,
+                lesson_id: 'lesson-uuid',
+                lesson_title: 'Chagua shamba',
+                lesson_body: 'Kagua eneo na udongo kabla ya kupanda.',
+                lesson_type: 'reading',
+                duration_minutes: 5,
+                lesson_order: 0,
+                source_title: null,
+                video_url: null,
+                video_storage_path: null,
+              },
+            ],
+          };
+        },
+      },
+      catalog: {},
+      schema: 'public',
+    });
+
+    const courses = await store.approvedContentCourses();
+
+    assert.equal(courses.length, 1);
+    assert.equal(courses[0].id, 'AJE-ORIGINAL-001');
+    assert.equal(courses[0].lessons.length, 1);
+    const visibilityFilter = queryText.slice(queryText.indexOf('WHERE c.status'));
+    assert.doesNotMatch(visibilityFilter, /content_source_links/);
+    assert.doesNotMatch(visibilityFilter, /grounding_facts/);
   }),
 );
 

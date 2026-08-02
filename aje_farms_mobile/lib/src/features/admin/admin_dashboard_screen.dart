@@ -347,7 +347,6 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   late String _courseId;
   late String _title;
   late String _description;
-  late String _status;
   late DateTime _baseUpdatedAt;
   late List<_LessonDraft> _lessons;
   final Set<Key> _uploadingVideoKeys = {};
@@ -360,7 +359,6 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     _courseId = record.course.id;
     _title = record.course.title;
     _description = record.course.description;
-    _status = record.status == 'approved' ? 'approved' : 'draft';
     _baseUpdatedAt = record.updatedAt;
     _lessons = [
       for (final lesson in record.course.lessons)
@@ -485,68 +483,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     setState(() => _lessons[index].videoPath = null);
   }
 
-  Future<void> _reviewLessonSource(int index) async {
-    final lesson = _lessons[index];
-    final lessonId = lesson.id;
-    if (lessonId == null) {
-      showErrorSnack(
-        context,
-        'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
-      );
-      return;
-    }
-    final result = await showDialog<_LessonSourceReviewResult>(
-      context: context,
-      builder: (_) => _LessonSourceReviewDialog(
-        adminService: context.dependencies.adminService,
-        lessonTitle: lesson.title,
-      ),
-    );
-    if (result == null || !mounted) return;
-    try {
-      final review =
-          await context.dependencies.adminService.approveLessonSource(
-        lessonId: lessonId,
-        sourceSegmentId: result.sourceSegmentId,
-        evidenceNote: result.evidenceNote,
-        groundingFact: result.groundingFact,
-      );
-      if (!mounted) return;
-      setState(() {
-        _baseUpdatedAt = review.courseUpdatedAt;
-        const sourceReviewReasons = {
-          'Sehemu bado haijachapishwa.',
-          'Somo bado halijachapishwa.',
-          'Somo halijaunganishwa na hati chanzo.',
-          'Hakuna kiungo cha chanzo kilichothibitishwa.',
-          'Hakuna ukweli wa msingi uliochapishwa.',
-        };
-        lesson.readinessReasons = lesson.readinessReasons
-            .where(
-              (reason) =>
-                  !sourceReviewReasons.contains(reason) ||
-                  (!review.contentReady &&
-                      reason == 'Somo bado halijachapishwa.'),
-            )
-            .toList();
-        if (_status != 'approved' &&
-            !lesson.readinessReasons.contains('Kozi bado haijachapishwa.')) {
-          lesson.readinessReasons.insert(0, 'Kozi bado haijachapishwa.');
-        }
-        lesson.isLearnerVisible =
-            _status == 'approved' && lesson.readinessReasons.isEmpty;
-      });
-      showSuccessSnack(
-        context,
-        'Somo limeunganishwa na chanzo na kuidhinishwa.',
-      );
-    } on AdminException catch (error) {
-      if (!mounted) return;
-      showErrorSnack(context, error.message);
-    }
-  }
-
-  void _save() {
+  void _save({required String status}) {
     if (_uploadingVideoKeys.isNotEmpty) {
       AppFeedback.error();
       showErrorSnack(
@@ -627,7 +564,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     Navigator.of(context).pop(
       _CourseEditResult(
         course: course,
-        status: widget.isNew ? 'draft' : _status,
+        status: status,
         baseUpdatedAt: widget.isNew ? null : _baseUpdatedAt,
       ),
     );
@@ -689,9 +626,9 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         title: Text(widget.isNew ? 'Kozi mpya' : 'Hariri mtaala'),
         actions: [
           TextButton.icon(
-            onPressed: _save,
+            onPressed: () => _save(status: 'draft'),
             icon: const Icon(Icons.save_outlined),
-            label: const Text('Hifadhi'),
+            label: const Text('Hifadhi rasimu'),
           ),
         ],
       ),
@@ -754,45 +691,18 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 onSaved: (value) => _description = value ?? '',
               ),
               const SizedBox(height: AppSpacing.md),
-              if (widget.isNew)
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: AppDecorations.pastelPanel(
-                    context,
-                    context.colors.surfacePeach,
-                  ),
-                  child: const Text(
-                    'Kozi mpya huhifadhiwa kama rasimu. Masomo yataonekana '
-                    'kwa wanafunzi baada ya kuunganishwa na chanzo '
-                    'kilichothibitishwa na kukaguliwa.',
-                  ),
-                )
-              else ...[
-                Text(
-                  'Hali ya uchapishaji',
-                  style: Theme.of(context).textTheme.labelLarge,
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: AppDecorations.pastelPanel(
+                  context,
+                  context.colors.surfacePeach,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'draft',
-                      label: Text('Rasimu'),
-                      icon: Icon(Icons.edit_note_outlined),
-                    ),
-                    ButtonSegment(
-                      value: 'approved',
-                      label: Text('Chapisha'),
-                      icon: Icon(Icons.check_circle_outline),
-                    ),
-                  ],
-                  selected: {_status},
-                  onSelectionChanged: (next) {
-                    AppFeedback.selection();
-                    setState(() => _status = next.first);
-                  },
+                child: const Text(
+                  'Wewe ndiye mwandishi na mchapishaji. Hifadhi rasimu kama '
+                  'bado unaendelea, au chapisha kozi moja kwa moja ikiwa '
+                  'maudhui yako tayari.',
                 ),
-              ],
+              ),
               const SizedBox(height: AppSpacing.xl),
               Row(
                 children: [
@@ -811,9 +721,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Hariri sehemu, kichwa, maandishi, muda na video. '
-                'Buruta kadi kubadilisha mpangilio. Masomo mapya au maudhui '
-                'yaliyobadilishwa huwekwa kwenye ukaguzi wa vyanzo kabla ya '
-                'kuonekana kwa wanafunzi.',
+                'Buruta kadi kubadilisha mpangilio. Ukichapisha, kozi yote '
+                'itaonekana kwa wanafunzi mara moja.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.colors.muted,
                     ),
@@ -852,7 +761,6 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     onTypeChanged: (value) {
                       setState(() => lesson.type = value);
                     },
-                    onReviewSource: () => _reviewLessonSource(index),
                   );
                 },
               ),
@@ -873,10 +781,24 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
-              FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Hifadhi mtaala mzima'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _save(status: 'draft'),
+                      icon: const Icon(Icons.edit_note_outlined),
+                      label: const Text('Hifadhi rasimu'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _save(status: 'approved'),
+                      icon: const Icon(Icons.publish_outlined),
+                      label: const Text('Chapisha kozi'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -897,7 +819,6 @@ class _CurriculumLessonCard extends StatelessWidget {
     required this.onRemove,
     required this.onModuleTitleChanged,
     required this.onTypeChanged,
-    required this.onReviewSource,
   });
 
   final int index;
@@ -908,7 +829,6 @@ class _CurriculumLessonCard extends StatelessWidget {
   final VoidCallback onRemove;
   final ValueChanged<String> onModuleTitleChanged;
   final ValueChanged<LessonType> onTypeChanged;
-  final VoidCallback onReviewSource;
 
   @override
   Widget build(BuildContext context) {
@@ -1063,27 +983,6 @@ class _CurriculumLessonCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          if (lesson.id == null && lesson.readinessReasons.isNotEmpty)
-            Text(
-              'Hifadhi kozi kwanza, kisha unganisha somo na chanzo.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.colors.muted,
-                  ),
-            )
-          else if (lesson.id != null)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: onReviewSource,
-                icon: const Icon(Icons.fact_check_outlined),
-                label: Text(
-                  lesson.readinessReasons.isEmpty
-                      ? 'Kagua au badilisha chanzo'
-                      : 'Unganisha chanzo na idhinisha',
-                ),
-              ),
-            ),
-          const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
@@ -1345,9 +1244,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
             description: '',
             durationMinutes: 5,
             isLearnerVisible: false,
-            readinessReasons: const [
-              'Somo linahitaji kuunganishwa na hati chanzo.',
-            ],
+            readinessReasons: const [],
           ),
         ],
       ),
@@ -1361,13 +1258,15 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     try {
       await adminService.upsertContentCourse(
         course: result.course,
-        status: 'draft',
+        status: result.status,
         createOnly: true,
       );
       if (!mounted) return;
       showSuccessSnack(
         context,
-        'Kozi mpya imehifadhiwa kama rasimu kwa ukaguzi wa vyanzo.',
+        result.status == 'approved'
+            ? 'Kozi imechapishwa na sasa inaonekana kwa wanafunzi.'
+            : 'Kozi imehifadhiwa kama rasimu.',
       );
       _load();
     } on AdminException catch (error) {
@@ -1477,11 +1376,6 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                 child: Card(
                   child: Builder(
                     builder: (context) {
-                      final readyLessons = record.course.lessons
-                          .where((lesson) => lesson.isLearnerVisible)
-                          .length;
-                      final blockedLessons =
-                          record.course.lessons.length - readyLessons;
                       void openEditor() {
                         AppFeedback.tap();
                         _editCourse(record);
@@ -1528,15 +1422,6 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
                                   const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    '$readyLessons tayari · '
-                                    '$blockedLessons yanahitaji ukaguzi',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: context.colors.muted),
-                                  ),
-                                  const SizedBox(height: AppSpacing.xs),
                                   _AdminStatusPill(status: record.status),
                                 ],
                               ),
@@ -1560,22 +1445,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                               label: const Text('Hariri maudhui na mtaala'),
                             ),
                           ),
-                          if (blockedLessons > 0)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.lg,
-                                0,
-                                AppSpacing.lg,
-                                AppSpacing.md,
-                              ),
-                              child: FilledButton.tonalIcon(
-                                onPressed: openEditor,
-                                icon: const Icon(Icons.fact_check_outlined),
-                                label: Text(
-                                  'Kagua chanzo cha masomo $blockedLessons',
-                                ),
-                              ),
-                            ),
+                          const SizedBox(height: AppSpacing.sm),
                         ],
                       );
                     },
@@ -2971,232 +2841,6 @@ String _initialsFor(String value) {
     return token.substring(0, token.length >= 2 ? 2 : 1).toUpperCase();
   }
   return ('${parts.first[0]}${parts.last[0]}').toUpperCase();
-}
-
-class _LessonSourceReviewResult {
-  const _LessonSourceReviewResult({
-    required this.sourceSegmentId,
-    required this.evidenceNote,
-    required this.groundingFact,
-  });
-
-  final String sourceSegmentId;
-  final String evidenceNote;
-  final String groundingFact;
-}
-
-class _LessonSourceReviewDialog extends StatefulWidget {
-  const _LessonSourceReviewDialog({
-    required this.adminService,
-    required this.lessonTitle,
-  });
-
-  final AdminService adminService;
-  final String lessonTitle;
-
-  @override
-  State<_LessonSourceReviewDialog> createState() =>
-      _LessonSourceReviewDialogState();
-}
-
-class _LessonSourceReviewDialogState extends State<_LessonSourceReviewDialog> {
-  final _searchController = TextEditingController();
-  final _evidenceController = TextEditingController();
-  final _factController = TextEditingController();
-  List<AdminSourceSegment> _segments = const [];
-  String? _selectedSegmentId;
-  String? _error;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _search();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _evidenceController.dispose();
-    _factController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final segments = await widget.adminService.searchSourceSegments(
-        search: _searchController.text,
-      );
-      if (!mounted) return;
-      setState(() {
-        _segments = segments;
-        _loading = false;
-        if (!_segments.any((item) => item.id == _selectedSegmentId)) {
-          _selectedSegmentId = null;
-        }
-      });
-    } on AdminException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error.message;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Imeshindikana kupakia vyanzo. Jaribu tena.';
-        _loading = false;
-      });
-    }
-  }
-
-  void _submit() {
-    final evidence = _evidenceController.text.trim();
-    final fact = _factController.text.trim();
-    if (_selectedSegmentId == null || evidence.isEmpty || fact.isEmpty) {
-      setState(() {
-        _error =
-            'Chagua sehemu ya chanzo, andika ushahidi na ukweli wa msingi.';
-      });
-      return;
-    }
-    Navigator.of(context).pop(
-      _LessonSourceReviewResult(
-        sourceSegmentId: _selectedSegmentId!,
-        evidenceNote: evidence,
-        groundingFact: fact,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Unganisha chanzo'),
-      content: SizedBox(
-        width: 680,
-        height: MediaQuery.sizeOf(context).height * 0.68,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.lessonTitle,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Tafuta kitabu, sehemu au maneno',
-                suffixIcon: IconButton(
-                  tooltip: 'Tafuta chanzo',
-                  onPressed: _search,
-                  icon: const Icon(Icons.search),
-                ),
-              ),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _segments.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Hakuna sehemu ya chanzo iliyoidhinishwa.',
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _segments.length,
-                          itemBuilder: (context, index) {
-                            final segment = _segments[index];
-                            final selected = segment.id == _selectedSegmentId;
-                            return Semantics(
-                              selected: selected,
-                              button: true,
-                              label: 'Chanzo: ${segment.documentTitle}',
-                              child: ListTile(
-                                selected: selected,
-                                onTap: () {
-                                  setState(
-                                    () => _selectedSegmentId = segment.id,
-                                  );
-                                },
-                                leading: Icon(
-                                  selected
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_unchecked,
-                                  color: selected
-                                      ? context.colors.primary
-                                      : context.colors.muted,
-                                ),
-                                title: Text(segment.documentTitle),
-                                subtitle: Text(
-                                  [
-                                    if ((segment.sectionTitle ?? '').isNotEmpty)
-                                      segment.sectionTitle!,
-                                    if (segment.locationLabel.isNotEmpty)
-                                      segment.locationLabel,
-                                    segment.contentPreview,
-                                  ].join('\n'),
-                                  maxLines: 5,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _evidenceController,
-              minLines: 2,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Maelezo ya ushahidi',
-                hintText: 'Eleza jinsi sehemu hii inavyothibitisha somo.',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: _factController,
-              minLines: 2,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Ukweli wa msingi uliothibitishwa',
-                hintText: 'Andika dai salama linaloungwa mkono na chanzo.',
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                _error!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.colors.error,
-                    ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Ghairi'),
-        ),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: const Icon(Icons.fact_check_outlined),
-          label: const Text('Unganisha na idhinisha'),
-        ),
-      ],
-    );
-  }
 }
 
 class _ContentEditResult {

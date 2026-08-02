@@ -73,7 +73,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       final saved = adminService.lastUpsertedCourse;
@@ -81,6 +81,55 @@ void main() {
       expect(saved!.title, 'Kozi ya Majaribio');
       expect(saved.description, 'Maelezo ya kozi ya majaribio');
       expect(saved.id, 'CRS-TEST-01');
+    },
+  );
+
+  testWidgets(
+    'trusted admin can publish a new course in one editor submission',
+    (tester) async {
+      final adminService = _RecordingAdminService(courses: const []);
+      await _pumpAdminContent(tester, adminService);
+
+      await tester.tap(find.text('Ongeza kozi na mtaala'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Msimbo wa kozi'),
+        'CRS-PUBLISH-01',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Jina la kozi'),
+        'Kozi ya Kuchapisha',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Maelezo ya kozi'),
+        'Kozi ya AJE inayochapishwa moja kwa moja.',
+      );
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Jina la somo'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Jina la somo'),
+        'Somo la kwanza',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Maandishi ya somo'),
+        'Maudhui yaliyoandikwa na msimamizi wa AJE.',
+      );
+      await tester.scrollUntilVisible(
+        find.widgetWithText(FilledButton, 'Chapisha kozi'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Chapisha kozi'));
+      await tester.pumpAndSettle();
+
+      expect(adminService.lastUpsertedCourse?.id, 'CRS-PUBLISH-01');
+      expect(adminService.lastUpsertedStatus, 'approved');
+      expect(adminService.lastCreateOnly, true);
     },
   );
 
@@ -94,7 +143,7 @@ void main() {
       await tester.tap(find.text('Hariri maudhui na mtaala').first);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       final saved = adminService.lastUpsertedCourse;
@@ -130,7 +179,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       expect(adminService.lastUpsertedCourse?.title, 'Jina Jipya la Kozi');
@@ -166,7 +215,7 @@ void main() {
       expect(find.text('Video imepakiwa'), findsOneWidget);
       expect(find.text('vid-existing.mp4'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       final saved = adminService.lastUpsertedCourse;
@@ -199,7 +248,7 @@ void main() {
       await tester.tap(find.text('Hariri maudhui na mtaala').first);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi'));
+      await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
       await tester.pumpAndSettle();
 
       expect(adminService.lastUpsertedCourse, isNull);
@@ -275,6 +324,8 @@ class _RecordingAdminService implements AdminService {
 
   final List<AdminContentCourseRecord> courses;
   Course? lastUpsertedCourse;
+  String? lastUpsertedStatus;
+  bool? lastCreateOnly;
   String? uploadedVideoContentType;
 
   @override
@@ -288,6 +339,8 @@ class _RecordingAdminService implements AdminService {
     bool createOnly = false,
   }) async {
     lastUpsertedCourse = course;
+    lastUpsertedStatus = status;
+    lastCreateOnly = createOnly;
     return AdminContentCourseRecord(
       id: course.id,
       status: status,
