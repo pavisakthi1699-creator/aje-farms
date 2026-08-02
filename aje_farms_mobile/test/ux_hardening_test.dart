@@ -1,4 +1,5 @@
 import 'package:aje_farms_mobile/src/app.dart';
+import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -197,7 +198,8 @@ void main() {
       useTallViewport(tester);
       await tester.pumpWidget(wrapAuth());
 
-      await tester.enterText(find.byType(EditableText).at(0), 'mkulima@aje.test');
+      await tester.enterText(
+          find.byType(EditableText).at(0), 'mkulima@aje.test');
       await tester.enterText(find.byType(EditableText).at(1), '123');
       await tester.ensureVisible(find.text('Ingia Sasa'));
       await tester.tap(find.text('Ingia Sasa'));
@@ -220,7 +222,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Weka barua pepe sahihi.'), findsOneWidget);
 
-      await tester.enterText(find.byType(EditableText).first, 'mkulima@aje.test');
+      await tester.enterText(
+          find.byType(EditableText).first, 'mkulima@aje.test');
       // InputDecorator fades the error out, so settle past the animation.
       await tester.pumpAndSettle();
 
@@ -252,10 +255,13 @@ void main() {
 
   group('destructive actions require confirmation', () {
     Future<void> openProfile(
-        WidgetTester tester, AppSessionController session) async {
+      WidgetTester tester,
+      AppSessionController session, {
+      AppDependencies? dependencies,
+    }) async {
       await tester.pumpWidget(
         AjeFarmsApp(
-          dependencies: AppDependencies.demo(),
+          dependencies: dependencies ?? AppDependencies.demo(),
           sessionController: session,
         ),
       );
@@ -290,7 +296,32 @@ void main() {
     testWidgets('sign out proceeds when confirmed', (tester) async {
       final session = AppSessionController();
       await session.signInWithEmail('learner@aje.test', role: 'learner');
-      await openProfile(tester, session);
+      const seed = DemoAppRepository();
+      final cachedRepository = CachedAppRepository(
+        learningSeed: seed,
+        communitySeed: seed,
+        subscriptionSeed: seed,
+      );
+      await cachedRepository.refresh(const _DemoSnapshotCatalogService());
+      final demo = AppDependencies.demo();
+      final dependencies = AppDependencies(
+        learningRepository: cachedRepository,
+        communityRepository: cachedRepository,
+        subscriptionRepository: cachedRepository,
+        mwalimuAiService: demo.mwalimuAiService,
+        authService: demo.authService,
+        catalogService: demo.catalogService,
+        adminService: demo.adminService,
+        communityService: demo.communityService,
+        learningProgressService: demo.learningProgressService,
+        notificationService: demo.notificationService,
+        paymentService: demo.paymentService,
+        refreshCatalog: () async {},
+        refreshListenable: cachedRepository,
+      );
+      await openProfile(tester, session, dependencies: dependencies);
+
+      expect(cachedRepository.courses, isNotEmpty);
 
       await tester.scrollUntilVisible(
         find.text('Ondoka kwenye Akaunti'),
@@ -305,6 +336,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(session.isSignedIn, isFalse);
+      expect(cachedRepository.courses, isEmpty);
+      expect(cachedRepository.documents, isEmpty);
     });
   });
 
@@ -639,4 +672,23 @@ void main() {
       handle.dispose();
     });
   });
+}
+
+class _DemoSnapshotCatalogService implements CatalogService {
+  const _DemoSnapshotCatalogService();
+
+  @override
+  Future<CatalogSnapshot> loadCatalog() async {
+    const seed = DemoAppRepository();
+    return CatalogSnapshot(
+      courses: seed.courses,
+      documents: seed.documents,
+      problemCategories: seed.problemCategories,
+      communityPosts: seed.posts,
+      plans: seed.plans,
+    );
+  }
+
+  @override
+  Future<String> lessonVideoUrl(String lessonId) async => '';
 }

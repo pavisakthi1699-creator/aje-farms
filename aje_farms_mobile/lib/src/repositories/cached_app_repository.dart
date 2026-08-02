@@ -30,6 +30,7 @@ class CachedAppRepository extends ChangeNotifier
   bool _initialLoadComplete = false;
   bool _isRefreshing = false;
   bool _lastRefreshFailed = false;
+  int _contentGeneration = 0;
 
   bool get isInitialLoadPending => !_initialLoadComplete;
   bool get isRefreshing => _isRefreshing;
@@ -56,12 +57,35 @@ class CachedAppRepository extends ChangeNotifier
   @override
   Course? get suggestedCourse => _courses.isEmpty ? null : _courses.last;
 
+  /// Drops account-scoped learning data before authentication changes.
+  ///
+  /// Community, support, and plan metadata are intentionally retained because
+  /// they are not entitlement-protected. Courses and documents may contain
+  /// unlocked lesson text or resource metadata, so they must never cross an
+  /// account boundary.
+  void clearProtectedContent() {
+    _contentGeneration += 1;
+    final stateChanged = _courses.isNotEmpty ||
+        _documents.isNotEmpty ||
+        _lastRefreshFailed ||
+        _isRefreshing;
+    _courses = const [];
+    _documents = const [];
+    _isRefreshing = false;
+    _lastRefreshFailed = false;
+    if (stateChanged) {
+      notifyListeners();
+    }
+  }
+
   Future<void> refresh(CatalogService service) async {
     if (_isRefreshing) return;
+    final contentGeneration = _contentGeneration;
     _isRefreshing = true;
     notifyListeners();
     try {
       final snapshot = await service.loadCatalog();
+      if (contentGeneration != _contentGeneration) return;
       if (snapshot.problemCategories.isEmpty || snapshot.plans.isEmpty) {
         throw const CatalogException('Catalog response is missing core data.');
       }
@@ -72,13 +96,21 @@ class CachedAppRepository extends ChangeNotifier
       _plans = snapshot.plans;
       _lastRefreshFailed = false;
     } on CatalogException {
+      if (contentGeneration != _contentGeneration) return;
+      _courses = const [];
+      _documents = const [];
       _lastRefreshFailed = true;
     } catch (_) {
+      if (contentGeneration != _contentGeneration) return;
+      _courses = const [];
+      _documents = const [];
       _lastRefreshFailed = true;
     } finally {
-      _initialLoadComplete = true;
-      _isRefreshing = false;
-      notifyListeners();
+      if (contentGeneration == _contentGeneration) {
+        _initialLoadComplete = true;
+        _isRefreshing = false;
+        notifyListeners();
+      }
     }
   }
 }

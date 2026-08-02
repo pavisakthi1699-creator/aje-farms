@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aje_farms_mobile/src/repositories/cached_app_repository.dart';
 import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 import 'package:aje_farms_mobile/src/services/backend_catalog_service.dart';
@@ -103,6 +105,79 @@ void main() {
     expect(repository.suggestedCourse, isNull);
     expect(repository.lastRefreshFailed, isFalse);
   });
+
+  test('failed refresh discards previously unlocked learning content',
+      () async {
+    const unlockedCatalog = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: unlockedCatalog,
+      communitySeed: unlockedCatalog,
+      subscriptionSeed: unlockedCatalog,
+    );
+    await repository.refresh(_FakeCatalogService());
+
+    expect(repository.courses, isNotEmpty);
+    expect(repository.documents, isNotEmpty);
+    expect(
+      repository.courses
+          .expand((course) => course.lessons)
+          .any((lesson) => !lesson.isPremium),
+      isTrue,
+    );
+
+    await repository.refresh(_FailingCatalogService());
+
+    expect(repository.lastRefreshFailed, isTrue);
+    expect(repository.courses, isEmpty);
+    expect(repository.documents, isEmpty);
+    expect(repository.problemCategories, isNotEmpty);
+    expect(repository.posts, isNotEmpty);
+    expect(repository.plans, isNotEmpty);
+  });
+
+  test('account boundary clears protected content but keeps public metadata',
+      () async {
+    const seed = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: seed,
+      communitySeed: seed,
+      subscriptionSeed: seed,
+    );
+    await repository.refresh(_FakeCatalogService());
+
+    repository.clearProtectedContent();
+
+    expect(repository.courses, isEmpty);
+    expect(repository.documents, isEmpty);
+    expect(repository.isInitialLoadPending, isFalse);
+    expect(repository.lastRefreshFailed, isFalse);
+    expect(repository.problemCategories, isNotEmpty);
+    expect(repository.posts, isNotEmpty);
+    expect(repository.plans, isNotEmpty);
+  });
+
+  test('account boundary invalidates an in-flight unlocked catalog response',
+      () async {
+    const seed = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: seed,
+      communitySeed: seed,
+      subscriptionSeed: seed,
+    );
+    final unlockedSnapshot = await _FakeCatalogService().loadCatalog();
+    final deferredService = _DeferredCatalogService();
+
+    final refresh = repository.refresh(deferredService);
+    expect(repository.isRefreshing, isTrue);
+
+    repository.clearProtectedContent();
+    deferredService.complete(unlockedSnapshot);
+    await refresh;
+
+    expect(repository.isRefreshing, isFalse);
+    expect(repository.courses, isEmpty);
+    expect(repository.documents, isEmpty);
+  });
 }
 
 class _FakeCatalogService implements CatalogService {
@@ -136,6 +211,30 @@ class _EmptyCourseCatalogService implements CatalogService {
       plans: snapshot.plans,
     );
   }
+}
+
+class _FailingCatalogService implements CatalogService {
+  @override
+  Future<String> lessonVideoUrl(String lessonId) async =>
+      'https://example.test/v';
+
+  @override
+  Future<CatalogSnapshot> loadCatalog() async {
+    throw const CatalogException('Authentication required.');
+  }
+}
+
+class _DeferredCatalogService implements CatalogService {
+  final _snapshot = Completer<CatalogSnapshot>();
+
+  void complete(CatalogSnapshot snapshot) => _snapshot.complete(snapshot);
+
+  @override
+  Future<String> lessonVideoUrl(String lessonId) async =>
+      'https://example.test/v';
+
+  @override
+  Future<CatalogSnapshot> loadCatalog() => _snapshot.future;
 }
 
 const _catalogJson = '''

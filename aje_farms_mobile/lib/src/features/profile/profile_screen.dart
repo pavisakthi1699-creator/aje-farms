@@ -266,7 +266,9 @@ class ProfileScreen extends StatelessWidget {
                   isDestructive: true,
                 );
                 if (!confirmed || !context.mounted) return;
-                await context.dependencies.authService.signOut();
+                final dependencies = context.dependencies;
+                dependencies.cachedRepository?.clearProtectedContent();
+                await dependencies.authService.signOut();
                 await session.signOut();
                 if (!context.mounted) return;
                 AppNavigator.replaceWithOnboarding(context);
