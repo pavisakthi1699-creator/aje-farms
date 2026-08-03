@@ -21,8 +21,7 @@ const _adminEmail =
     String.fromEnvironment('AJE_E2E_ADMIN_EMAIL', defaultValue: '');
 const _adminPassword =
     String.fromEnvironment('AJE_E2E_ADMIN_PASSWORD', defaultValue: '');
-const _supabaseUrl =
-    String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 const _supabasePublishableKey =
     String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY', defaultValue: '');
 
@@ -57,19 +56,14 @@ void main() {
 
       await _login(tester, _standardEmail, _standardPassword);
       expect(
-        find.byType(MainShell),
+        find.byType(PendingAccessScreen),
         findsOneWidget,
         reason: 'Learner login screen: ${_screenTexts().join(' | ')}',
       );
-
-      await _openProfile(tester);
-      expect(find.text('Dashibodi ya Admin'), findsNothing);
-      await _openAccessStatus(tester);
-      expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
-      Navigator.of(tester.element(find.byType(PaywallScreen))).pop();
-      await tester.pumpAndSettle();
+      expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
+      expect(find.byType(MainShell), findsNothing);
       await _logout(tester);
-      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.byType(AuthScreen), findsOneWidget);
 
       await _login(tester, _adminEmail, _adminPassword);
       expect(
@@ -158,8 +152,7 @@ void main() {
       await tester.pumpAndSettle();
       await _resetSessionForNextLogin(tester);
       await _login(tester, _standardEmail, _standardPassword);
-      final shellContextAfterApproval =
-          tester.element(find.byType(MainShell));
+      final shellContextAfterApproval = tester.element(find.byType(MainShell));
       expect(
         shellContextAfterApproval.session.state.accountStatus,
         'active',
@@ -174,11 +167,7 @@ Future<void> _login(
   String email,
   String password,
 ) async {
-  await tester.ensureVisible(find.text('Ingia / Jisajili'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Ingia / Jisajili'));
-  await tester.pumpAndSettle();
-
+  expect(find.byType(AuthScreen), findsOneWidget);
   await tester.enterText(find.byType(EditableText).at(0), email);
   await tester.enterText(find.byType(EditableText).at(1), password);
   await tester.scrollUntilVisible(
@@ -188,7 +177,9 @@ Future<void> _login(
   );
   await tester.tap(find.text('Ingia Sasa'));
   for (var attempt = 0;
-      attempt < 20 && find.byType(MainShell).evaluate().isEmpty;
+      attempt < 20 &&
+          find.byType(MainShell).evaluate().isEmpty &&
+          find.byType(PendingAccessScreen).evaluate().isEmpty;
       attempt += 1) {
     await tester.pump(const Duration(seconds: 1));
   }
@@ -205,21 +196,13 @@ Future<void> _openProfile(WidgetTester tester) async {
   );
 }
 
-Future<void> _openAccessStatus(WidgetTester tester) async {
-  final shellContext = tester.element(find.byType(MainShell));
-  Navigator.of(shellContext).push(
-    MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
-  );
-  await tester.pumpAndSettle();
-}
-
 Future<void> _logout(WidgetTester tester) async {
   await tester.scrollUntilVisible(find.text('Ondoka kwenye Akaunti'), 220);
   await tester.tap(find.text('Ondoka kwenye Akaunti'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Ondoka'));
   for (var attempt = 0;
-      attempt < 10 && find.byType(OnboardingScreen).evaluate().isEmpty;
+      attempt < 10 && find.byType(AuthScreen).evaluate().isEmpty;
       attempt += 1) {
     await tester.pump(const Duration(seconds: 1));
   }
@@ -233,7 +216,7 @@ Future<void> _resetSessionForNextLogin(WidgetTester tester) async {
   await context.session.signOut();
   if (!context.mounted) return;
   Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+    MaterialPageRoute<void>(builder: (_) => const AuthScreen()),
     (_) => false,
   );
   await tester.pumpAndSettle();

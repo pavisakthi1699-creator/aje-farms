@@ -271,7 +271,7 @@ class ProfileScreen extends StatelessWidget {
                 await dependencies.authService.signOut();
                 await session.signOut();
                 if (!context.mounted) return;
-                AppNavigator.replaceWithOnboarding(context);
+                AppNavigator.replaceWithAuth(context);
               },
               icon: Icon(Icons.logout, color: context.colors.error),
               label: Text(

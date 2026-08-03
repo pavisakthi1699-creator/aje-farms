@@ -93,7 +93,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
     await dependencies.authService.signOut();
     await session.signOut();
     if (!mounted) return;
-    AppNavigator.replaceWithOnboarding(context);
+    AppNavigator.replaceWithAuth(context);
   }
 
   @override

@@ -239,6 +239,16 @@ class AppNavigator {
     );
   }
 
+  static Future<void> replaceWithAuth(BuildContext context) {
+    return Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: AppRoutes.auth),
+        builder: (_) => const AuthScreen(),
+      ),
+      (_) => false,
+    );
+  }
+
   static void openMainShellTab(BuildContext context, MainShellTab tab) {
     final navigation = MainShellNavigation.maybeOf(context);
     if (navigation != null) {

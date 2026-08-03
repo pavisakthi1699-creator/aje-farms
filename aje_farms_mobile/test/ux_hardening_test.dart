@@ -262,6 +262,7 @@ void main() {
       expect(session.isSignedIn, isFalse);
       expect(cachedRepository.courses, isEmpty);
       expect(cachedRepository.documents, isEmpty);
+      expect(find.byType(AuthScreen), findsOneWidget);
     });
   });
 

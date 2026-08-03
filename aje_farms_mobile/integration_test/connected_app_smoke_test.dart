@@ -9,11 +9,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // debug bypass to fall back on. This account should be `pending_activation`
 // (never had a payment approved) so the awaiting-activation screen is what's
 // under test, matching what a freshly signed-up learner actually sees.
-const _email = String.fromEnvironment('AJE_E2E_STANDARD_EMAIL', defaultValue: '');
+const _email =
+    String.fromEnvironment('AJE_E2E_STANDARD_EMAIL', defaultValue: '');
 const _password =
     String.fromEnvironment('AJE_E2E_STANDARD_PASSWORD', defaultValue: '');
-const _supabaseUrl =
-    String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 const _supabasePublishableKey =
     String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY', defaultValue: '');
 
@@ -45,8 +45,8 @@ void main() {
     await tester.pumpWidget(AjeFarmsApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Ingia / Jisajili'));
-    await tester.pumpAndSettle();
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
 
     await tester.enterText(find.byType(EditableText).at(0), _email);
     await tester.enterText(find.byType(EditableText).at(1), _password);
@@ -58,33 +58,20 @@ void main() {
     await tester.tap(find.text('Ingia Sasa'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(
-      find.byType(MainShell),
-      findsOneWidget,
-      reason: 'Current texts: ${_screenTexts(tester).join(' | ')}',
-    );
-
-    final shellContext = tester.element(find.byType(MainShell));
-    Navigator.of(shellContext).push(
-      MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
+    expect(find.byType(PendingAccessScreen), findsOneWidget,
+        reason: 'Current texts: ${_screenTexts(tester).join(' | ')}');
+    expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
+    expect(find.byType(MainShell), findsNothing);
     await tester.tap(find.text('Onyesha Hali Upya'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    Navigator.of(shellContext).pop();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.person_outline));
-    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Ondoka kwenye Akaunti'), 220);
     await tester.tap(find.text('Ondoka kwenye Akaunti'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ondoka'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.byType(AuthScreen), findsOneWidget);
   }, timeout: const Timeout(Duration(minutes: 2)));
 }
 
