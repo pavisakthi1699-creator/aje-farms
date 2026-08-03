@@ -9,11 +9,15 @@ class CourseDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heroLesson = _heroLesson(context, course);
+    final course = context.dependencies.learningRepository.courses
+        .where((candidate) => candidate.id == this.course.id)
+        .firstOrNull;
+    final currentCourse = course ?? this.course;
+    final heroLesson = _heroLesson(context, currentCourse);
 
     return Scaffold(
       body: CustomScrollView(
-        key: AppPageStorage.courseDetail(course.id),
+        key: AppPageStorage.courseDetail(currentCourse.id),
         slivers: [
           SliverAppBar(
             expandedHeight: 310,
@@ -27,7 +31,7 @@ class CourseDetailScreen extends StatelessWidget {
                 end: AppSpacing.xxxl,
               ),
               title: Text(
-                course.title,
+                currentCourse.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -38,7 +42,7 @@ class CourseDetailScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  NetworkPhoto(url: course.imageUrl),
+                  NetworkPhoto(url: currentCourse.imageUrl),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -68,7 +72,11 @@ class CourseDetailScreen extends StatelessWidget {
                                   .withValues(alpha: 0.06),
                               onTap: () {
                                 AppFeedback.tap();
-                                _openLessonPreview(context, course, heroLesson);
+                                _openLessonPreview(
+                                  context,
+                                  currentCourse,
+                                  heroLesson,
+                                );
                               },
                               child: Container(
                                 width: 76,
@@ -105,7 +113,7 @@ class CourseDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    CourseProgressSummary(course: course),
+                    CourseProgressSummary(course: currentCourse),
                     const SizedBox(height: AppSpacing.lg),
                     Card(
                       child: Padding(
@@ -114,7 +122,7 @@ class CourseDetailScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              course.badge,
+                              currentCourse.badge,
                               style: Theme.of(context)
                                   .textTheme
                                   .labelSmall
@@ -126,12 +134,12 @@ class CourseDetailScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
-                              course.title,
+                              currentCourse.title,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
-                              course.description,
+                              currentCourse.description,
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                             const SizedBox(height: AppSpacing.xl),
@@ -140,7 +148,7 @@ class CourseDetailScreen extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: AppSpacing.sm),
-                            ...course.outcomes.map(
+                            ...currentCourse.outcomes.map(
                               (outcome) => Padding(
                                 padding: const EdgeInsets.only(
                                   bottom: AppSpacing.sm,
@@ -176,26 +184,26 @@ class CourseDetailScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    ...course.lessons.map(
+                    ...currentCourse.lessons.map(
                       (lesson) => LessonTile(
                         lesson: lesson,
                         isCompleted: lesson.isCompleted ||
                             context.session.isLessonCompleted(
-                              lessonProgressKey(course, lesson),
+                              lessonProgressKey(currentCourse, lesson),
                             ),
                         onTap: () =>
-                            _openLessonPreview(context, course, lesson),
+                            _openLessonPreview(context, currentCourse, lesson),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     AskAiPanel(
-                      courseTitle: course.title,
+                      courseTitle: currentCourse.title,
                       onTap: () {
                         AppNavigator.pushAiChat(
                           context,
-                          initialPromptTopic: course.title,
+                          initialPromptTopic: currentCourse.title,
                           initialPrompt:
-                              'Ninaendelea na ${course.title}. Nisaidie kuelewa somo linalofuata.',
+                              'Ninaendelea na ${currentCourse.title}. Nisaidie kuelewa somo linalofuata.',
                         );
                       },
                     ),

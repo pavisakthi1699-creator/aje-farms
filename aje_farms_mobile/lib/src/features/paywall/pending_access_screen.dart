@@ -35,21 +35,26 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
 
   Future<void> _refreshAccess({bool silent = false}) async {
     if (_isRefreshing) return;
-    setState(() => _isRefreshing = true);
     final appSession = context.session;
+    if (appSession.state.isGuest) return;
+    setState(() => _isRefreshing = true);
     final dependencies = context.dependencies;
     try {
       final session = await dependencies.authService.getSession();
+      final willHaveAccess =
+          session.accountStatus == 'active' || session.role == 'admin';
+      if (willHaveAccess) {
+        // Load the entitled catalog before notifying AccessGate. Publishing
+        // the active state first can dispose this screen on the next frame and
+        // strand the learner with the locked snapshot fetched at sign-in.
+        await dependencies.refreshCatalog();
+      }
       await appSession.syncAccountStatusFromAuthSession(session);
       await appSession.syncRoleFromAuthSession(session);
       await appSession.syncProfileFromAuthSession(session);
       if (!mounted) return;
       if (appSession.hasActiveAccess) {
-        // The gate swaps this screen for the app as soon as the session
-        // notifies; pull the unlocked catalog in first so the learner does not
-        // land on an empty course list.
-        await dependencies.refreshCatalog();
-        if (!mounted || silent) return;
+        if (silent) return;
         // Only when the learner asked: on the startup check the app simply
         // opens, and a snack would sit over whatever they tap first.
         AppFeedback.success();

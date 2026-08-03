@@ -88,7 +88,12 @@ void main() {
     'trusted admin can publish a new course in one editor submission',
     (tester) async {
       final adminService = _RecordingAdminService(courses: const []);
-      await _pumpAdminContent(tester, adminService);
+      var catalogRefreshes = 0;
+      await _pumpAdminContent(
+        tester,
+        adminService,
+        refreshCatalog: () async => catalogRefreshes += 1,
+      );
 
       await tester.tap(find.text('Ongeza kozi na mtaala'));
       await tester.pumpAndSettle();
@@ -130,6 +135,11 @@ void main() {
       expect(adminService.lastUpsertedCourse?.id, 'CRS-PUBLISH-01');
       expect(adminService.lastUpsertedStatus, 'approved');
       expect(adminService.lastCreateOnly, true);
+      expect(
+        catalogRefreshes,
+        1,
+        reason: 'Publishing must invalidate the learner-facing catalog.',
+      );
     },
   );
 
@@ -260,14 +270,14 @@ void main() {
   );
 }
 
-Future<void> _pumpAdminContent(
-  WidgetTester tester,
-  AdminService adminService,
-) async {
+Future<void> _pumpAdminContent(WidgetTester tester, AdminService adminService,
+    {Future<void> Function()? refreshCatalog}) async {
   final session = AppSessionController();
   await session.signInWithEmail('admin@aje.test', role: 'admin');
-  final dependencies =
-      AppDependencies.demo().copyWith(adminService: adminService);
+  final dependencies = AppDependencies.demo().copyWith(
+    adminService: adminService,
+    refreshCatalog: refreshCatalog,
+  );
 
   await tester.pumpWidget(
     AppSessionScope(

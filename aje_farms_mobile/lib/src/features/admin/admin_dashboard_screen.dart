@@ -1192,7 +1192,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   }
 
   Future<void> _editCourse(AdminContentCourseRecord record) async {
-    final adminService = context.dependencies.adminService;
+    final dependencies = context.dependencies;
+    final adminService = dependencies.adminService;
     final result = await _showCourseEditor(
       context: context,
       record: record,
@@ -1204,6 +1205,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         status: result.status,
         baseUpdatedAt: result.baseUpdatedAt,
       );
+      await dependencies.refreshCatalog();
       if (!mounted) return;
       showSuccessSnack(context, 'Kozi imehifadhiwa.');
       _load();
@@ -1219,7 +1221,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   }
 
   Future<void> _createCourse() async {
-    final adminService = context.dependencies.adminService;
+    final dependencies = context.dependencies;
+    final adminService = dependencies.adminService;
     final now = DateTime.now();
     final record = AdminContentCourseRecord(
       id: 'CRS-',
@@ -1261,6 +1264,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         status: result.status,
         createOnly: true,
       );
+      await dependencies.refreshCatalog();
       if (!mounted) return;
       showSuccessSnack(
         context,
@@ -1281,7 +1285,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   }
 
   Future<void> _editDocument(AdminContentDocumentRecord record) async {
-    final adminService = context.dependencies.adminService;
+    final dependencies = context.dependencies;
+    final adminService = dependencies.adminService;
     final result = await _showContentEditor(
       context: context,
       titleLabel: 'Jina la document',
@@ -1304,6 +1309,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         ),
         status: result.status,
       );
+      await dependencies.refreshCatalog();
       if (!mounted) return;
       showSuccessSnack(context, 'Document imehifadhiwa.');
       _load();
