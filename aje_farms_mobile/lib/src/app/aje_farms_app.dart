@@ -1,5 +1,6 @@
 import '../ui.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AjeFarmsApp extends StatefulWidget {
   const AjeFarmsApp({
@@ -16,11 +17,15 @@ class AjeFarmsApp extends StatefulWidget {
 }
 
 class AjeFarmsAppState extends State<AjeFarmsApp> {
+  static const _authFlowVersionKey = 'app.auth_flow_version';
+  static const _authFlowVersion = 1;
+
   late final AppDependencies _dependencies =
       widget.dependencies ?? AppDependencies.production();
   late final AppSessionController _sessionController =
       widget.sessionController ?? AppSessionController();
   bool _appliedPendingDeepLink = false;
+  bool _isBootstrapping = true;
 
   @override
   void initState() {
@@ -84,14 +89,16 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
                     child: child ?? const SizedBox.shrink(),
                   );
                 },
-                home: _sessionController.hasStarted
-                    ? AccessGate(
-                        child: MainShell(
-                          initialTab: AppNavigator.pendingInitialTab() ??
-                              MainShellTab.home,
-                        ),
-                      )
-                    : const OnboardingScreen(),
+                home: _isBootstrapping
+                    ? const _AuthenticationBootstrapScreen()
+                    : _sessionController.hasStarted
+                        ? AccessGate(
+                            child: MainShell(
+                              initialTab: AppNavigator.pendingInitialTab() ??
+                                  MainShellTab.home,
+                            ),
+                          )
+                        : const AuthScreen(),
               );
             },
           ),
@@ -101,16 +108,25 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
   }
 
   Future<void> _restoreAndSyncSession() async {
-    await _sessionController.restore();
-    // Supabase itself already restored its session (if any) before this app
-    // widget was built (see main.dart); this only needs to check whether one
-    // exists and, if so, refresh role/accountStatus/profile from the backend.
-    if (_sessionController.state.isGuest ||
-        !_dependencies.authService.hasLocalSession) {
-      return;
-    }
-
     try {
+      await _sessionController.restore();
+
+      // Older APKs restored both SharedPreferences and Supabase Auth and then
+      // skipped the authentication form. Reset that legacy state once. New
+      // sessions created with this flow continue to survive ordinary restarts.
+      if (widget.sessionController == null &&
+          await _resetLegacyAuthenticationIfNeeded()) {
+        return;
+      }
+
+      // Supabase can retain a credential after an APK update or Android backup.
+      // It is not enough to enter the app: our own signed-in state must agree.
+      if (!_sessionController.state.hasStarted ||
+          _sessionController.state.isGuest ||
+          !_dependencies.authService.hasLocalSession) {
+        return;
+      }
+
       final session = await _dependencies.authService.getSession();
       await _sessionController.signInWithEmail(session.email,
           role: session.role);
@@ -126,6 +142,41 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
       // unreachable. Mutating actions still require backend success.
     } on LearningProgressException {
       // Progress sync should not block opening the app.
+    } finally {
+      if (mounted) {
+        setState(() => _isBootstrapping = false);
+      }
     }
+  }
+
+  Future<bool> _resetLegacyAuthenticationIfNeeded() async {
+    final preferences = await SharedPreferences.getInstance();
+    final version = preferences.getInt(_authFlowVersionKey) ?? 0;
+    if (version >= _authFlowVersion) return false;
+
+    await preferences.setInt(_authFlowVersionKey, _authFlowVersion);
+    final hadRetainedSession = _sessionController.state.hasStarted ||
+        _dependencies.authService.hasLocalSession;
+    if (!hadRetainedSession) return false;
+
+    try {
+      await _dependencies.authService.signOut();
+    } on AuthException {
+      // Local app state is still cleared below. Startup will not trust a lone
+      // Supabase credential, so an offline sign-out cannot bypass this gate.
+    }
+    await _sessionController.signOut();
+    return true;
+  }
+}
+
+class _AuthenticationBootstrapScreen extends StatelessWidget {
+  const _AuthenticationBootstrapScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
   }
 }

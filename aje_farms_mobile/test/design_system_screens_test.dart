@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Screen-level checks for the updated design system (onboarding + dark dashboard).
+/// Screen-level checks for the authentication start and dark dashboard.
 void main() {
   Widget buildDemoApp() => AjeFarmsApp(dependencies: AppDependencies.demo());
 
@@ -30,15 +30,16 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
-  testWidgets('onboarding hero renders brand mark and gradient',
+  testWidgets('authentication start renders brand mark and form',
       (tester) async {
     usePhoneViewport(tester);
     await tester.pumpWidget(buildDemoApp());
     await tester.pumpAndSettle();
 
     expect(find.byType(BrandMark), findsWidgets);
-    expect(find.text('Kilimo na Ujasiriamali'), findsOneWidget);
-    expect(find.text('Mafunzo ya vitendo'), findsOneWidget);
+    expect(find.text('Karibu tena'), findsOneWidget);
+    expect(find.text('Ingia'), findsOneWidget);
+    expect(find.text('Jisajili'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

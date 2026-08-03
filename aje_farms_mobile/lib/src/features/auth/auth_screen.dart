@@ -34,16 +34,6 @@ class AuthScreenState extends State<AuthScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && context.dependencies.authService.hasLocalSession) {
-        _completeAuthenticatedSession();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

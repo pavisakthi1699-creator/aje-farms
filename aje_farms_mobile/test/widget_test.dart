@@ -34,7 +34,6 @@ void main() {
   }
 
   Future<void> startDemoShell(WidgetTester tester) async {
-    await tester.tap(find.text('Ingia / Jisajili'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(EditableText).at(0), 'mkulima@demo.aje');
     await tester.enterText(find.byType(EditableText).at(1), 'nenosiri');
@@ -48,13 +47,16 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
-  testWidgets('renders AJE Farms onboarding', (WidgetTester tester) async {
+  testWidgets('renders authentication on a fresh launch',
+      (WidgetTester tester) async {
     await tester.pumpWidget(buildDemoApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('AJE Farms'), findsOneWidget);
-    expect(find.text('Kilimo na Ujasiriamali'), findsOneWidget);
-    expect(find.text('Ingia / Jisajili'), findsOneWidget);
-    expect(find.text('Anza Sasa'), findsNothing);
+    expect(find.text('Karibu tena'), findsOneWidget);
+    expect(find.text('Ingia'), findsOneWidget);
+    expect(find.text('Jisajili'), findsOneWidget);
+    expect(find.text('Nyumbani'), findsNothing);
   });
 
   testWidgets('starts the main learner shell', (WidgetTester tester) async {
@@ -145,13 +147,15 @@ void main() {
     );
   });
 
-  testWidgets('a suspended account is named as suspended, never as ordinary '
+  testWidgets(
+      'a suspended account is named as suspended, never as ordinary '
       'access', (WidgetTester tester) async {
     useTallViewport(tester);
     final session = AppSessionController();
     await session.signInWithEmail('msimamizi@aje.test');
     await session.syncAccountStatusFromAuthSession(
-      const AuthSession(email: 'msimamizi@aje.test', accountStatus: 'suspended'),
+      const AuthSession(
+          email: 'msimamizi@aje.test', accountStatus: 'suspended'),
     );
     await tester.pumpWidget(
       AjeFarmsApp(
@@ -230,7 +234,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Imeshindikana kusasisha maudhui mapya. Unaona taarifa za hivi karibuni.'),
+      find.text(
+          'Imeshindikana kusasisha maudhui mapya. Unaona taarifa za hivi karibuni.'),
       findsNothing,
     );
     expect(
@@ -411,10 +416,6 @@ void main() {
       (WidgetTester tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(buildDemoApp());
-
-    await tester.ensureVisible(find.text('Ingia / Jisajili'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Ingia / Jisajili'));
     await tester.pumpAndSettle();
 
     expect(find.text('Karibu tena'), findsOneWidget);

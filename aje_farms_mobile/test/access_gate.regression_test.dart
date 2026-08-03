@@ -9,6 +9,17 @@ import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 
 import 'support/stub_auth_service.dart';
 
+class _TrackingAuthService extends StubAuthService {
+  _TrackingAuthService(super.accountStatus);
+
+  int signOutCalls = 0;
+
+  @override
+  Future<void> signOut() async {
+    signOutCalls += 1;
+  }
+}
+
 void main() {
   void useTallViewport(WidgetTester tester) {
     tester.view.physicalSize = const Size(800, 1200);
@@ -33,6 +44,75 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
+  });
+
+  testWidgets('a fresh install opens directly on sign in and registration',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+
+    await tester.pumpWidget(
+      AjeFarmsApp(dependencies: AppDependencies.demo()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.text('Karibu tena'), findsOneWidget);
+    expect(find.text('Ingia'), findsOneWidget);
+    expect(find.text('Jisajili'), findsOneWidget);
+  });
+
+  testWidgets('the new auth flow clears a retained legacy session once',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    SharedPreferences.setMockInitialValues({
+      'app_session.has_started': true,
+      'app_session.email': 'legacy@aje.test',
+      'app_session.account_status': 'active',
+    });
+    final authService = _TrackingAuthService('active');
+
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          authService: authService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(authService.signOutCalls, 1);
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.textContaining('Karibu'), findsOneWidget);
+    expect(find.text('Nyumbani'), findsNothing);
+  });
+
+  testWidgets('sign in routes an unapproved account to confirmation waiting',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    final session = AppSessionController();
+
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          authService: StubAuthService('pending_activation'),
+        ),
+        sessionController: session,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthScreen), findsOneWidget);
+    await tester.enterText(
+      find.byType(EditableText).at(0),
+      'mkulima@aje.test',
+    );
+    await tester.enterText(find.byType(EditableText).at(1), 'nenosiri');
+    await tester.ensureVisible(find.text('Ingia Sasa'));
+    await tester.tap(find.text('Ingia Sasa'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
+    expect(find.text('Nyumbani'), findsNothing);
   });
 
   testWidgets(
