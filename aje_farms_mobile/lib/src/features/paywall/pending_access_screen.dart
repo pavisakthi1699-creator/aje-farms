@@ -1,0 +1,246 @@
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
+
+/// The wall an account sits behind until staff approve a recorded payment.
+///
+/// Registering creates an account, not access: the server only unlocks content
+/// once an admin approves a payment and an entitlement row exists (see
+/// `hasPaidLearningAccess` in server/api.js). Before that this screen is the
+/// whole app, so a learner is told in Swahili that the account is waiting for
+/// verification instead of being dropped into a shell whose lessons are all
+/// silently blank.
+///
+/// Wording comes from [AccountAccessStatus] so the home card, the profile card
+/// and this screen can never disagree about what state the account is in.
+class PendingAccessScreen extends StatefulWidget {
+  const PendingAccessScreen({super.key});
+
+  @override
+  State<PendingAccessScreen> createState() => PendingAccessScreenState();
+}
+
+class PendingAccessScreenState extends State<PendingAccessScreen> {
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // An approval that lands while the app is closed would otherwise leave the
+    // learner staring at this screen until they think to press the button.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshAccess(silent: true);
+    });
+  }
+
+  Future<void> _refreshAccess({bool silent = false}) async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    final appSession = context.session;
+    final dependencies = context.dependencies;
+    try {
+      final session = await dependencies.authService.getSession();
+      await appSession.syncAccountStatusFromAuthSession(session);
+      await appSession.syncRoleFromAuthSession(session);
+      await appSession.syncProfileFromAuthSession(session);
+      if (!mounted) return;
+      if (appSession.hasActiveAccess) {
+        // The gate swaps this screen for the app as soon as the session
+        // notifies; pull the unlocked catalog in first so the learner does not
+        // land on an empty course list.
+        await dependencies.refreshCatalog();
+        if (!mounted || silent) return;
+        // Only when the learner asked: on the startup check the app simply
+        // opens, and a snack would sit over whatever they tap first.
+        AppFeedback.success();
+        showSuccessSnack(context, 'Akaunti yako imewashwa. Karibu!');
+        return;
+      }
+      if (silent) return;
+      showSnack(context, 'Bado hujawashiwa akaunti. Jaribu tena baadaye.');
+    } on AuthException catch (error) {
+      if (!mounted || silent) return;
+      showErrorSnack(context, error.message);
+    } catch (_) {
+      if (!mounted || silent) return;
+      showErrorSnack(
+        context,
+        'Imeshindikana kuangalia hali ya akaunti. Angalia mtandao wako.',
+      );
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  Future<void> _signOut() async {
+    AppFeedback.tap();
+    final confirmed = await confirmAction(
+      context,
+      title: 'Ondoka kwenye akaunti?',
+      message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.',
+      confirmLabel: 'Ondoka',
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    final dependencies = context.dependencies;
+    final session = context.session;
+    dependencies.cachedRepository?.clearProtectedContent();
+    await dependencies.authService.signOut();
+    await session.signOut();
+    if (!mounted) return;
+    AppNavigator.replaceWithOnboarding(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = context.session.state;
+    final status = AccountAccessStatus.of(session);
+    final isSuspended = status == AccountAccessStatus.suspended;
+    final isGuest = status == AccountAccessStatus.guest;
+    final email = session.email;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Hali ya Akaunti'),
+        automaticallyImplyLeading: Navigator.of(context).canPop(),
+      ),
+      body: AppLayoutScroll(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+        header: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.xl),
+          child: _PendingBanner(status: status, session: session),
+        ),
+        bodyPadding: const EdgeInsets.all(AppSpacing.xl),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              status.body,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            if (!isGuest) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                isSuspended
+                    ? 'Ukishasaidiwa na timu, ufikiaji wako utarudi hapa hapa.'
+                    : 'Mafunzo yatafunguka mara tu timu ya AJE Farms '
+                        'itakapothibitisha akaunti yako.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+            ],
+            if (email != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Akaunti: $email',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            const PaymentBenefitsCard(),
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              // Nothing to re-check for someone who never signed in: send them
+              // to registration instead of to a status they do not have.
+              child: isGuest
+                  ? FilledButton.icon(
+                      onPressed: () {
+                        AppFeedback.tap();
+                        AppNavigator.pushAuth(context);
+                      },
+                      icon: const Icon(Icons.person_add_alt),
+                      label: const Text('Ingia / Jisajili'),
+                    )
+                  : FilledButton.icon(
+                      onPressed: _isRefreshing
+                          ? null
+                          : () {
+                              AppFeedback.tap();
+                              _refreshAccess();
+                            },
+                      icon: _isRefreshing
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh),
+                      label: const Text('Onyesha Hali Upya'),
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  AppFeedback.tap();
+                  AppNavigator.pushWhatsApp(context);
+                },
+                icon: const Icon(Icons.support_agent),
+                label: const Text('Pata Msaada wa Akaunti'),
+              ),
+            ),
+            if (!isGuest) ...[
+              const SizedBox(height: AppSpacing.md),
+              TextButton.icon(
+                onPressed: _signOut,
+                icon: Icon(Icons.logout, color: context.colors.error),
+                label: Text(
+                  'Ondoka kwenye Akaunti',
+                  style: TextStyle(color: context.colors.error),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingBanner extends StatelessWidget {
+  const _PendingBanner({required this.status, required this.session});
+
+  final AccountAccessStatus status;
+  final AppSessionState session;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuspended = status == AccountAccessStatus.suspended;
+    return Container(
+      height: 180,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: isSuspended ? context.colors.error : context.colors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        boxShadow: AppElevation.float(context),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Pill(
+              label: status.shortLabel,
+              color: context.colors.secondary,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              status.title(session),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: context.colors.onPrimary,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -85,9 +85,11 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
                   );
                 },
                 home: _sessionController.hasStarted
-                    ? MainShell(
-                        initialTab: AppNavigator.pendingInitialTab() ??
-                            MainShellTab.home,
+                    ? AccessGate(
+                        child: MainShell(
+                          initialTab: AppNavigator.pendingInitialTab() ??
+                              MainShellTab.home,
+                        ),
                       )
                     : const OnboardingScreen(),
               );

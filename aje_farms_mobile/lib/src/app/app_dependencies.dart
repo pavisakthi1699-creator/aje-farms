@@ -54,6 +54,7 @@ class AppDependencies {
 
   AppDependencies copyWith({
     AdminService? adminService,
+    AuthService? authService,
     CommunityService? communityService,
     CommunityRepository? communityRepository,
     MwalimuAiService? mwalimuAiService,
@@ -64,7 +65,7 @@ class AppDependencies {
       communityRepository: communityRepository ?? this.communityRepository,
       subscriptionRepository: subscriptionRepository,
       mwalimuAiService: mwalimuAiService ?? this.mwalimuAiService,
-      authService: authService,
+      authService: authService ?? this.authService,
       catalogService: catalogService,
       adminService: adminService ?? this.adminService,
       communityService: communityService ?? this.communityService,

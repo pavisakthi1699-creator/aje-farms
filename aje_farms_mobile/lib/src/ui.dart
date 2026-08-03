@@ -1,5 +1,6 @@
 export 'package:flutter/material.dart';
 
+export 'app/access_gate.dart';
 export 'app/app_dependencies.dart';
 export 'app/app_navigator.dart';
 export 'app/main_shell.dart';
@@ -24,6 +25,7 @@ export 'features/notifications/notifications_screen.dart';
 export 'features/onboarding/onboarding_screen.dart';
 export 'features/paywall/paywall_screen.dart';
 export 'features/paywall/paywall_widgets.dart';
+export 'features/paywall/pending_access_screen.dart';
 export 'features/problem/problem_screen.dart';
 export 'features/problem/problem_widgets.dart';
 export 'features/profile/profile_screen.dart';

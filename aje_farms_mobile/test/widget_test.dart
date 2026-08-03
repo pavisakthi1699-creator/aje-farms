@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aje_farms_mobile/src/app.dart';
 import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
 
+import 'support/stub_auth_service.dart';
+
 /// Stands in for the backend rejecting a learner whose account no admin has
 /// verified yet (`/api/mwalimu-chat` answers 403).
 class _UnverifiedMwalimuAiService implements MwalimuAiService {
@@ -115,12 +117,16 @@ void main() {
     await session.signInWithEmail('mkulima@aje.test');
     await tester.pumpWidget(
       AjeFarmsApp(
-        dependencies: AppDependencies.demo(),
+        dependencies: AppDependencies.demo().copyWith(
+          authService: StubAuthService('pending_activation'),
+        ),
         sessionController: session,
       ),
     );
     await tester.pumpAndSettle();
 
+    // Registering is not access: the learner is held at the wall (see
+    // AccessGate) rather than shown a shell whose lessons are all blank.
     expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
     expect(
       find.text(
@@ -139,8 +145,8 @@ void main() {
     );
   });
 
-  testWidgets('a suspended account is named as suspended on the profile card',
-      (WidgetTester tester) async {
+  testWidgets('a suspended account is named as suspended, never as ordinary '
+      'access', (WidgetTester tester) async {
     useTallViewport(tester);
     final session = AppSessionController();
     await session.signInWithEmail('msimamizi@aje.test');
@@ -149,18 +155,18 @@ void main() {
     );
     await tester.pumpWidget(
       AjeFarmsApp(
-        dependencies: AppDependencies.demo(),
+        dependencies: AppDependencies.demo().copyWith(
+          authService: StubAuthService('suspended'),
+        ),
         sessionController: session,
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Akaunti').last);
-    await tester.pumpAndSettle();
-
-    // The profile card used to key off subscriptionPlan, so a suspended
-    // account was told it had ordinary access while the home card said it was
-    // suspended. Both now derive from AccountAccessStatus.
+    // Status wording used to be derived per screen from subscriptionPlan, so a
+    // suspended account was told it had ordinary access on one card and was
+    // suspended on the next. Everything now derives from AccountAccessStatus,
+    // and a suspended account meets the wall instead of the shell.
     expect(find.text('Imesitishwa'), findsOneWidget);
     expect(find.text('Ufikiaji wa kawaida'), findsNothing);
     expect(

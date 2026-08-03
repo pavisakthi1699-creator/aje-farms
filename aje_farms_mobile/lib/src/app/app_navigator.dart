@@ -64,18 +64,18 @@ class AppNavigator {
       case AppRoutes.adminDashboard:
         return _page(settings, const AdminDashboardScreen());
       case AppRoutes.savedDocuments:
-        return _page(settings, const SavedDocumentsScreen());
+        return _gatedPage(settings, const SavedDocumentsScreen());
       case AppRoutes.assessments:
-        return _page(settings, const AssessmentsScreen());
+        return _gatedPage(settings, const AssessmentsScreen());
       case AppRoutes.fieldAssignment:
-        return _page(settings, const FieldAssignmentScreen());
+        return _gatedPage(settings, const FieldAssignmentScreen());
       case AppRoutes.whatsapp:
         return _page(settings, const WhatsAppEscalationScreen());
       case AppRoutes.createCommunityPost:
         return _page(settings, const CreateCommunityPostScreen());
       case AppRoutes.aiChatSession:
         final args = settings.arguments as AiChatRouteArgs?;
-        return _page(
+        return _gatedPage(
           settings,
           AiChatScreen(
             initialPromptTopic: args?.initialPromptTopic,
@@ -90,13 +90,21 @@ class AppNavigator {
       return MaterialPageRoute<void>(
         settings: settings,
         builder: (context) {
-          final course = _findCourse(context, courseId);
-          if (course == null) {
-            return const _DeepLinkMissingScreen(
-              message: 'Kozi haikupatikana kwa kiungo hiki.',
-            );
-          }
-          return CourseDetailScreen(course: course);
+          // Gated first: an unapproved account following a course deep link
+          // must meet the same wall as one tapping through the shell.
+          return AccessGate(
+            child: Builder(
+              builder: (context) {
+                final course = _findCourse(context, courseId);
+                if (course == null) {
+                  return const _DeepLinkMissingScreen(
+                    message: 'Kozi haikupatikana kwa kiungo hiki.',
+                  );
+                }
+                return CourseDetailScreen(course: course);
+              },
+            ),
+          );
         },
       );
     }
@@ -124,6 +132,15 @@ class AppNavigator {
       settings: settings,
       builder: (_) => child,
     );
+  }
+
+  /// A route that shows paid content, and so must never render for an account
+  /// staff have not approved yet. See [AccessGate].
+  static MaterialPageRoute<void> _gatedPage(
+    RouteSettings settings,
+    Widget child,
+  ) {
+    return _page(settings, AccessGate(child: child));
   }
 
   static Future<void> pushPaywall(BuildContext context) {
@@ -204,7 +221,9 @@ class AppNavigator {
     return Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
         settings: RouteSettings(name: AppRoutes.tabPath(tab)),
-        builder: (_) => MainShell(initialTab: tab),
+        // The sign-in flow lands here, so this is the entry point that decides
+        // whether a freshly registered account sees the app or the wall.
+        builder: (_) => AccessGate(child: MainShell(initialTab: tab)),
       ),
       (_) => false,
     );
