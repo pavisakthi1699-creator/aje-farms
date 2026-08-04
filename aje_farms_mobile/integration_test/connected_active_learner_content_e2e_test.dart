@@ -49,7 +49,21 @@ void main() {
 
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(PendingAccessScreen), findsNothing);
-    expect(dependencies.learningRepository.courses, hasLength(13));
+    expect(
+      dependencies.learningRepository.courses,
+      hasLength(greaterThanOrEqualTo(26)),
+    );
+
+    expect(
+      dependencies.learningRepository.courses.any(
+        (course) =>
+            course.id == 'CRS-MAH-15' &&
+            course.title == 'Biashara Ya Alizeti' &&
+            course.lessons.isNotEmpty,
+      ),
+      isTrue,
+      reason: 'A newly published course must reach the learner catalog.',
+    );
 
     const expectedCourseTitle = 'Kilimo Cha Pasheni';
     final course = dependencies.learningRepository.courses.singleWhere(
