@@ -492,24 +492,64 @@ class LessonPreviewSheet extends StatelessWidget {
             ),
             if (lesson.sourceTitle != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.verified_outlined,
-                    size: 18,
-                    color: context.colors.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Chanzo: ${lesson.sourceTitle}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.colors.muted,
+              Semantics(
+                button: lesson.type == LessonType.reading,
+                label: lesson.type == LessonType.reading
+                    ? 'Fungua kitabu cha chanzo ${lesson.sourceTitle}'
+                    : null,
+                child: InkWell(
+                  onTap: lesson.type == LessonType.reading
+                      ? () => _openSourceBook(context, lesson)
+                      : null,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: AppA11y.minTouchTarget,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.verified_outlined,
+                          size: 18,
+                          color: context.colors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Chanzo: ${lesson.sourceTitle}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: context.colors.muted),
+                              ),
+                              if (lesson.type == LessonType.reading)
+                                Text(
+                                  'Soma kitabu kizima',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        color: context.colors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                            ],
                           ),
+                        ),
+                        if (lesson.type == LessonType.reading)
+                          Icon(
+                            Icons.open_in_new,
+                            size: 18,
+                            color: context.colors.primary,
+                          ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ],
             if (lesson.type == LessonType.video) ...[
@@ -557,6 +597,32 @@ class LessonPreviewSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _openSourceBook(BuildContext context, Lesson lesson) async {
+  final lessonId = lesson.id;
+  final catalogService = context.dependencies.catalogService;
+  if (lessonId == null || catalogService is! BackendCatalogService) {
+    showSnack(context, 'Kitabu cha chanzo hakipatikani.');
+    return;
+  }
+
+  AppFeedback.tap();
+  String sourceUrl;
+  try {
+    sourceUrl = await catalogService.lessonSourceDocumentUrl(lessonId);
+  } on CatalogException catch (error) {
+    if (context.mounted) showSnack(context, error.message);
+    return;
+  }
+
+  final uri = Uri.tryParse(sourceUrl);
+  if (uri == null ||
+      !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (context.mounted) {
+      showSnack(context, 'Kitabu hakikuweza kufunguka. Jaribu tena baadaye.');
+    }
   }
 }
 

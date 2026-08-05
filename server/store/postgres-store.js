@@ -695,6 +695,59 @@ export class PostgresStore {
     return signedPath ? resolveSupabaseSignedUrl(supabaseUrl, signedPath) : null;
   }
 
+  async lessonSourceDocumentUrl(lessonId) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const result = await this.pool.query(
+      `SELECT sd.storage_bucket, sd.storage_path
+       FROM lessons l
+       JOIN course_modules m ON m.id = l.module_id
+       JOIN courses c ON c.id = m.course_id
+       JOIN content_source_links csl
+         ON csl.content_type = 'lesson' AND csl.content_id = l.id
+       JOIN source_segments ss ON ss.id = csl.source_segment_id
+       JOIN source_documents sd ON sd.id = ss.source_document_id
+       WHERE l.id = $1
+         AND l.lesson_type = 'reading'
+         AND l.status = 'published'
+         AND m.status = 'published'
+         AND c.status = 'published'
+         AND csl.link_status = 'linked'
+         AND ss.review_status IN ('approved', 'published')
+         AND sd.processing_status IN ('approved', 'published')
+         AND sd.storage_bucket = 'source-documents'
+         AND (
+           sd.source_kind = 'pdf'
+           OR LOWER(sd.file_name) LIKE '%.pdf'
+           OR LOWER(sd.source_type) LIKE '%pdf%'
+         )
+       ORDER BY csl.created_at
+       LIMIT 1`,
+      [lessonId],
+    );
+    const document = result.rows[0];
+    if (!document?.storage_path) return null;
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return null;
+    const response = await fetch(
+      `${supabaseUrl}/storage/v1/object/sign/${encodeURIComponent(document.storage_bucket)}/${encodeStoragePath(document.storage_path)}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 900 }),
+      },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const signedPath = payload.signedURL ?? payload.signedUrl;
+    return signedPath ? resolveSupabaseSignedUrl(supabaseUrl, signedPath) : null;
+  }
+
   async groundingSources(message) {
     if (process.env.AJE_STORE !== 'supabase') return null;
     if (requestsHighRiskDecision(message)) return [];

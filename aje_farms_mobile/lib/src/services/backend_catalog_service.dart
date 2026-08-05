@@ -79,6 +79,37 @@ class BackendCatalogService implements CatalogService {
     }
     return payload['url'] as String;
   }
+
+  Future<String> lessonSourceDocumentUrl(String lessonId) async {
+    final headers = <String, String>{};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await _client
+        .get(
+          _baseUrl.resolve(
+            '/api/lessons/${Uri.encodeComponent(lessonId)}/source-url',
+          ),
+          headers: headers,
+        )
+        .timeout(timeout);
+    final payload =
+        response.body.isEmpty ? const {} : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw CatalogException(
+        payload is Map<String, dynamic> && payload['error'] is String
+            ? payload['error'] as String
+            : 'Kitabu cha chanzo hakikuweza kufunguka.',
+      );
+    }
+    if (payload is! Map<String, dynamic> || payload['url'] is! String) {
+      throw const CatalogException(
+        'Catalog service returned an invalid source document URL.',
+      );
+    }
+    return payload['url'] as String;
+  }
 }
 
 CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {

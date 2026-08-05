@@ -135,6 +135,28 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  // Source books stay in private storage. Paid learners receive a short-lived
+  // URL only when the PDF is linked to a published reading lesson.
+  app.get(
+    '/api/lessons/:lessonId/source-url',
+    requireAuthSession(store),
+    requirePaidLearningAccess(store),
+    async (req, res) => {
+      if (typeof store.lessonSourceDocumentUrl !== 'function') {
+        res.status(404).json({ error: 'Kitabu cha chanzo hakipatikani.' });
+        return;
+      }
+      const url = await store.lessonSourceDocumentUrl(req.params.lessonId);
+      if (!url) {
+        res.status(404).json({
+          error: 'Kitabu cha chanzo hakijachapishwa au hakipatikani.',
+        });
+        return;
+      }
+      res.json({ url });
+    },
+  );
+
   app.get(
     '/api/admin/content/courses',
     requireAuthSession(store),

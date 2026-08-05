@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { REVIEWED_RICE_VIDEO_COURSE } from "../scripts/reviewed-rice-video-course.js";
-import { resolveSupabaseSignedUrl } from "../store/postgres-store.js";
+import {
+  PostgresStore,
+  resolveSupabaseSignedUrl,
+} from "../store/postgres-store.js";
 
 test("reviewed rice course is a three-lesson video course", () => {
   assert.equal(REVIEWED_RICE_VIDEO_COURSE.code, "RICE-SEED-001");
@@ -43,4 +46,72 @@ test("Supabase signed storage paths retain the storage API prefix", () => {
     "/storage/v1/object/sign/source-documents/video/rice.mp4",
   );
   assert.equal(url.searchParams.get("token"), "secret");
+});
+
+test("published reading lessons resolve their linked source book", async () => {
+  const previousStore = process.env.AJE_STORE;
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const previousFetch = globalThis.fetch;
+  let queryText = "";
+  let requestedUrl = "";
+
+  process.env.AJE_STORE = "supabase";
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test";
+  globalThis.fetch = async (url) => {
+    requestedUrl = String(url);
+    return {
+      ok: true,
+      async json() {
+        return {
+          signedURL:
+            "/object/sign/source-documents/books/Kilimo%20cha%20Mpunga.pdf?token=secret",
+        };
+      },
+    };
+  };
+
+  const store = new PostgresStore({
+    pool: {
+      async query(text, values) {
+        queryText = text;
+        assert.deepEqual(values, ["lesson-1"]);
+        return {
+          rows: [
+            {
+              storage_bucket: "source-documents",
+              storage_path: "books/Kilimo cha Mpunga.pdf",
+            },
+          ],
+        };
+      },
+    },
+    catalog: {},
+    schema: "public",
+  });
+
+  try {
+    const url = await store.lessonSourceDocumentUrl("lesson-1");
+
+    assert.match(queryText, /l\.lesson_type = 'reading'/);
+    assert.match(queryText, /csl\.link_status = 'linked'/);
+    assert.match(queryText, /sd\.processing_status IN \('approved', 'published'\)/);
+    assert.equal(
+      requestedUrl,
+      "https://project.supabase.co/storage/v1/object/sign/source-documents/books/Kilimo%20cha%20Mpunga.pdf",
+    );
+    assert.equal(
+      url,
+      "https://project.supabase.co/storage/v1/object/sign/source-documents/books/Kilimo%20cha%20Mpunga.pdf?token=secret",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousStore == null) delete process.env.AJE_STORE;
+    else process.env.AJE_STORE = previousStore;
+    if (previousUrl == null) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousUrl;
+    if (previousKey == null) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  }
 });
