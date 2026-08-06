@@ -434,166 +434,170 @@ class LessonPreviewSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          AppSpacing.md,
-          AppSpacing.xl,
-          AppSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.colors.borderSubtle,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: context.colors.primaryContainer,
-                  child: Icon(lesson.type.icon, color: context.colors.primary),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        lesson.title,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                      Text(
-                        '$courseTitle - ${lesson.type.label}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: context.colors.muted,
-                            ),
-                      ),
-                    ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.colors.borderSubtle,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              lesson.description,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            if (lesson.sourceTitle != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Semantics(
-                button: lesson.type == LessonType.reading,
-                label: lesson.type == LessonType.reading
-                    ? 'Fungua kitabu cha chanzo ${lesson.sourceTitle}'
-                    : null,
-                child: InkWell(
-                  onTap: lesson.type == LessonType.reading
-                      ? () => _openSourceBook(context, lesson)
-                      : null,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: AppA11y.minTouchTarget,
-                    ),
-                    child: Row(
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: context.colors.primaryContainer,
+                    child:
+                        Icon(lesson.type.icon, color: context.colors.primary),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.verified_outlined,
-                          size: 18,
-                          color: context.colors.primary,
+                        Text(
+                          lesson.title,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Chanzo: ${lesson.sourceTitle}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: context.colors.muted),
-                              ),
-                              if (lesson.type == LessonType.reading)
-                                Text(
-                                  'Soma kitabu kizima',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
-                                      ?.copyWith(
-                                        color: context.colors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                            ],
-                          ),
+                        Text(
+                          '$courseTitle - ${lesson.type.label}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
                         ),
-                        if (lesson.type == LessonType.reading)
-                          Icon(
-                            Icons.open_in_new,
-                            size: 18,
-                            color: context.colors.primary,
-                          ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-            if (lesson.type == LessonType.video) ...[
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                lesson.description,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              if (lesson.sourceTitle != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Semantics(
+                  button: lesson.type == LessonType.reading,
+                  label: lesson.type == LessonType.reading
+                      ? 'Fungua kitabu cha chanzo ${lesson.sourceTitle}'
+                      : null,
+                  child: InkWell(
+                    onTap: lesson.type == LessonType.reading
+                        ? () => _openSourceBook(context, lesson)
+                        : null,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: AppA11y.minTouchTarget,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.verified_outlined,
+                            size: 18,
+                            color: context.colors.primary,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Chanzo: ${lesson.sourceTitle}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: context.colors.muted),
+                                ),
+                                if (lesson.type == LessonType.reading)
+                                  Text(
+                                    'Soma kitabu kizima',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: context.colors.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (lesson.type == LessonType.reading)
+                            Icon(
+                              Icons.open_in_new,
+                              size: 18,
+                              color: context.colors.primary,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (lesson.type == LessonType.video) ...[
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton.icon(
+                  onPressed: lesson.resourceUrl == null
+                      ? null
+                      : () => _openVideo(context, lesson),
+                  icon: const Icon(Icons.play_circle_outline),
+                  label: Text(
+                    lesson.resourceUrl == null
+                        ? 'Video bado haijachapishwa'
+                        : 'Tazama Video',
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               FilledButton.icon(
-                onPressed: lesson.resourceUrl == null
-                    ? null
-                    : () => _openVideo(context, lesson),
-                icon: const Icon(Icons.play_circle_outline),
-                label: Text(
-                  lesson.resourceUrl == null
-                      ? 'Video bado haijachapishwa'
-                      : 'Tazama Video',
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            FilledButton.icon(
-              onPressed: () async {
-                AppFeedback.tap();
-                final session = context.session;
-                final learningProgressService =
-                    context.dependencies.learningProgressService;
-                await session.markLessonCompleted(lessonProgressKey);
-                if (session.isSignedIn) {
-                  try {
-                    await learningProgressService.markLessonCompleted(
-                      courseId: courseId,
-                      lessonId: lessonId,
-                    );
-                  } on LearningProgressException catch (error) {
-                    if (context.mounted) {
-                      showSnack(context, error.message);
+                onPressed: () async {
+                  AppFeedback.tap();
+                  final session = context.session;
+                  final learningProgressService =
+                      context.dependencies.learningProgressService;
+                  await session.markLessonCompleted(lessonProgressKey);
+                  if (session.isSignedIn) {
+                    try {
+                      await learningProgressService.markLessonCompleted(
+                        courseId: courseId,
+                        lessonId: lessonId,
+                      );
+                    } on LearningProgressException catch (error) {
+                      if (context.mounted) {
+                        showSnack(context, error.message);
+                      }
                     }
                   }
-                }
-                if (!context.mounted) return;
-                Navigator.of(context).pop();
-                showSnack(context, '${lesson.type.label}: ${lesson.title}');
-              },
-              icon: Icon(lesson.type.icon),
-              label: const Text('Kamilisha Somo'),
-            ),
-          ],
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  showSnack(context, '${lesson.type.label}: ${lesson.title}');
+                },
+                icon: Icon(lesson.type.icon),
+                label: const Text('Kamilisha Somo'),
+              ),
+            ],
+          ),
         ),
       ),
     );
