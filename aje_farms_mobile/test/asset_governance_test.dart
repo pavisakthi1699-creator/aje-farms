@@ -9,12 +9,13 @@ const _minPhotoWidth = 800;
 const _minPhotoHeight = 600;
 
 void main() {
-  final expectedPhotos = [
-    File('$_assetRoot/courses/pasheni.jpg'),
-    File('$_assetRoot/courses/nyanya.jpg'),
-    File('$_assetRoot/courses/kuku.jpg'),
+  final expectedPhotos = <File>[
+    ...Directory('$_assetRoot/courses')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => file.path.toLowerCase().endsWith('.jpg')),
     File('$_assetRoot/hero/farm-field.jpg'),
-  ];
+  ]..sort((a, b) => a.path.compareTo(b.path));
 
   test('photo asset directories are registered in pubspec', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();

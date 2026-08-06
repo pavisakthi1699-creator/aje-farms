@@ -3417,8 +3417,27 @@ function structuredContentDocumentFromRow(row) {
   };
 }
 
+const sourceCourseCoverByCode = new Map([
+  ['CRS-001', 'assets/images/courses/crs-001.jpg'],
+  ['CRS-ALZ-01', 'assets/images/courses/crs-alz-01.jpg'],
+  ['CRS-CHK-01', 'assets/images/courses/crs-chk-01.jpg'],
+  ['CRS-KUK-01', 'assets/images/courses/crs-kuk-01.jpg'],
+  ['CRS-KUK-02', 'assets/images/courses/crs-kuk-02.jpg'],
+  ['CRS-MGB-01', 'assets/images/courses/crs-mgb-01.jpg'],
+  ['CRS-MHG-01', 'assets/images/courses/crs-mhg-01.jpg'],
+  ['CRS-MPU-01', 'assets/images/courses/crs-mpu-01.jpg'],
+  ['CRS-NAN-01', 'assets/images/courses/crs-nan-01.jpg'],
+  ['CRS-NYN-01', 'assets/images/courses/crs-nyn-01.jpg'],
+  ['CRS-PSH-01', 'assets/images/courses/crs-psh-01.jpg'],
+  ['CRS-USH-01', 'assets/images/courses/crs-ush-01.jpg'],
+]);
+
 export function courseImageForCode(code) {
-  const normalized = String(code ?? '').toLowerCase();
+  const exactCode = String(code ?? '').trim().toUpperCase();
+  const sourceCover = sourceCourseCoverByCode.get(exactCode);
+  if (sourceCover) return sourceCover;
+
+  const normalized = exactCode.toLowerCase();
   if (normalized.includes('kuku') || normalized.includes('kuk')) {
     return 'assets/images/courses/kuku.jpg';
   }
