@@ -161,6 +161,8 @@ AppDocument _documentFromJson(Map<String, dynamic> json) {
     type: json['type'] as String? ?? 'pdf',
     sizeLabel: json['sizeLabel'] as String? ?? '',
     url: json['url'] as String?,
+    imageUrl: json['imageUrl'] as String?,
+    introVideoUrl: json['introVideoUrl'] as String?,
     isPremium: json['isPremium'] as bool? ?? false,
   );
 }
@@ -174,6 +176,7 @@ Course _courseFromJson(Map<String, dynamic> json, Uri baseUrl) {
     icon: _iconFromWire(json['icon'] as String),
     progress: (json['progress'] as num).toDouble(),
     imageUrl: json['imageUrl'] as String,
+    introVideoUrl: json['introVideoUrl'] as String?,
     outcomes: (json['outcomes'] as List<dynamic>).cast<String>(),
     lessons: (json['lessons'] as List<dynamic>)
         .cast<Map<String, dynamic>>()

@@ -7,6 +7,9 @@ import pg from 'pg';
 
 import {
   approvedCoursesFromCatalog,
+  contentMediaBucket,
+  contentMediaPrefix,
+  contentMediaPublicUrl,
   communityPostImageUrl,
   communityPostImagesBucket,
   createId,
@@ -14,6 +17,7 @@ import {
   defaultHomeTopics,
   defaultCommunityTopics,
   extensionForImageContentType,
+  extensionForContentMedia,
   extensionForVideoContentType,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
@@ -641,6 +645,8 @@ export class PostgresStore {
          c.code AS course_code,
          c.title_sw AS course_title,
          COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+         c.cover_image_url,
+         c.intro_video_url,
          COALESCE(c.delivery_type, 'text') AS delivery_type,
          m.id::text AS module_id,
          m.title_sw AS module_title,
@@ -720,7 +726,8 @@ export class PostgresStore {
               : 'Kozi ya maandishi',
           icon: row.delivery_type === 'video' ? 'play_circle' : 'menu_book',
           progress: 0,
-          imageUrl: courseImageForCode(row.course_code),
+          imageUrl: row.cover_image_url || courseImageForCode(row.course_code),
+          introVideoUrl: row.intro_video_url || null,
           outcomes: [],
           lessons: [],
         };
@@ -927,6 +934,8 @@ export class PostgresStore {
            c.code AS course_code,
            c.title_sw AS course_title,
            COALESCE(c.description_sw, c.summary_sw, '') AS course_description,
+           c.cover_image_url,
+           c.intro_video_url,
            COALESCE(c.delivery_type, 'text') AS delivery_type,
            c.status AS course_status,
            c.updated_at AS course_updated_at,
@@ -1028,6 +1037,8 @@ export class PostgresStore {
             status,
             title: normalizedCourse.title,
             description: normalizedCourse.description,
+            imageUrl: normalizedCourse.imageUrl,
+            introVideoUrl: normalizedCourse.introVideoUrl ?? null,
             deliveryType: normalizedCourse.lessons.some(
               (lesson) => lesson.type === 'video',
             )
@@ -1059,6 +1070,8 @@ export class PostgresStore {
            SET title_sw = $2,
                description_sw = $3,
                status = $4::content_status,
+               cover_image_url = $5,
+               intro_video_url = $6,
                published_at = CASE
                  WHEN $4 = 'published' THEN COALESCE(published_at, NOW())
                  ELSE NULL
@@ -1071,6 +1084,8 @@ export class PostgresStore {
             normalizedCourse.title,
             normalizedCourse.description,
             structuredStatus,
+            normalizedCourse.imageUrl,
+            normalizedCourse.introVideoUrl ?? null,
           ],
         );
         if (result.rows.length === 0) {
@@ -1128,6 +1143,7 @@ export class PostgresStore {
           badge: normalizedCourse.badge,
           icon: normalizedCourse.icon,
           imageUrl: normalizedCourse.imageUrl,
+          introVideoUrl: normalizedCourse.introVideoUrl ?? null,
           lessons: normalizedCourse.lessons.map((lesson) => ({
             id: lesson.id,
             moduleId: lesson.moduleId ?? null,
@@ -1378,6 +1394,8 @@ export class PostgresStore {
              description_sw = $3,
              delivery_type = $4,
              status = $5::content_status,
+             cover_image_url = $6,
+             intro_video_url = $7,
              source_link_status = CASE
                WHEN $5 = 'published' THEN 'linked'::source_link_status
                ELSE 'pending_review'::source_link_status
@@ -1394,6 +1412,8 @@ export class PostgresStore {
           curriculum.description,
           curriculum.deliveryType === 'video' ? 'video' : 'text',
           structuredStatus,
+          curriculum.imageUrl ?? null,
+          curriculum.introVideoUrl ?? null,
         ],
       );
 
@@ -2045,7 +2065,7 @@ export class PostgresStore {
   async contentDocumentsForAdmin() {
     if (process.env.AJE_STORE === 'supabase') {
       const result = await this.pool.query(
-        `SELECT id::text, title, source_type, file_name, page_count,
+        `SELECT id::text, title, source_type, file_name, page_count, metadata,
                 processing_status, updated_at
          FROM source_documents
          ORDER BY updated_at DESC`,
@@ -2069,10 +2089,12 @@ export class PostgresStore {
         `UPDATE source_documents
          SET title = $2,
              processing_status = $3::content_status,
+             metadata = metadata || $4::jsonb,
              updated_at = NOW()
          WHERE id = $1::uuid
          RETURNING id::text, processing_status, updated_at`,
-        [normalizedDocument.id, normalizedDocument.title, structuredStatus],
+        [normalizedDocument.id, normalizedDocument.title, structuredStatus,
+          JSON.stringify({ imageUrl: normalizedDocument.imageUrl, introVideoUrl: normalizedDocument.introVideoUrl })],
       );
       const row = result.rows[0];
       if (!row) {
@@ -2792,6 +2814,35 @@ export class PostgresStore {
     };
   }
 
+  async createContentMediaUploadUrl({ contentType, kind }) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const extension = extensionForContentMedia(contentType, kind);
+    if (!supabaseUrl || !serviceRoleKey || !extension) return null;
+    const mediaPath = `${contentMediaPrefix}/${kind}-${createId('media')}.${extension}`;
+    const response = await fetch(
+      `${supabaseUrl}/storage/v1/object/upload/sign/${contentMediaBucket}/${encodeStoragePath(mediaPath)}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 3600 }),
+      },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const signedPath = payload.url ?? payload.signedURL ?? payload.signedUrl;
+    if (!signedPath) return null;
+    return {
+      uploadUrl: resolveSupabaseSignedUrl(supabaseUrl, signedPath),
+      publicUrl: contentMediaPublicUrl(mediaPath),
+    };
+  }
+
   async communityPostAuthorUserId(postId) {
     const result = await this.pool.query(
       `SELECT author_user_id FROM community_posts WHERE id = $1`,
@@ -3359,7 +3410,8 @@ function structuredCourseCurriculumFromRows(rows) {
       description: first.course_description,
       badge: first.delivery_type === 'video' ? 'Kozi ya video' : 'Kozi ya maandishi',
       icon: first.delivery_type === 'video' ? 'play_circle' : 'menu_book',
-      imageUrl: courseImageForCode(first.course_code),
+      imageUrl: first.cover_image_url || courseImageForCode(first.course_code),
+      introVideoUrl: first.intro_video_url || null,
       deliveryType: first.delivery_type,
       lessons,
     },
@@ -3390,7 +3442,8 @@ function structuredContentCourseRecords(rows) {
             : 'Kozi ya maandishi',
         icon: row.delivery_type === 'video' ? 'play_circle' : 'menu_book',
         progress: 0,
-        imageUrl: courseImageForCode(row.course_code),
+        imageUrl: row.cover_image_url || courseImageForCode(row.course_code),
+        introVideoUrl: row.intro_video_url || null,
         outcomes: [],
         lessons: [],
       };
@@ -3517,6 +3570,8 @@ function structuredContentDocumentFromRow(row) {
       type: row.source_type === 'pdf' ? 'pdf' : row.source_type,
       sizeLabel: row.page_count ? `Kurasa ${row.page_count}` : '',
       url: null,
+      imageUrl: row.metadata?.imageUrl ?? null,
+      introVideoUrl: row.metadata?.introVideoUrl ?? null,
       isPremium: false,
     }),
     updatedAt: new Date(row.updated_at).toISOString(),

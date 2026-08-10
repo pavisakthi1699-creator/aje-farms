@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'package:url_launcher/url_launcher.dart';
+
 import "../../ui.dart";
 
 class CourseDetailScreen extends StatelessWidget {
@@ -114,6 +116,23 @@ class CourseDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     CourseProgressSummary(course: currentCourse),
+                    if (currentCourse.introVideoUrl != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Card(
+                        child: ListTile(
+                          leading: Icon(Icons.play_circle_fill_outlined, color: context.colors.primary),
+                          title: const Text('Tazama video fupi ya utangulizi'),
+                          subtitle: const Text('Utangulizi wa kozi hii'),
+                          trailing: const Icon(Icons.open_in_new),
+                          onTap: () async {
+                            final uri = Uri.tryParse(currentCourse.introVideoUrl!);
+                            if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                              if (context.mounted) showErrorSnack(context, 'Imeshindikana kufungua video.');
+                            }
+                          },
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
                     Card(
                       child: Padding(

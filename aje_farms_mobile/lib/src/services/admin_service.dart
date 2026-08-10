@@ -39,6 +39,12 @@ abstract interface class AdminService {
     required Uint8List bytes,
     required String contentType,
   });
+  /// Uploads public preview media for a course or source book.
+  Future<String> uploadContentMedia({
+    required Uint8List bytes,
+    required String contentType,
+    required String kind,
+  });
   Future<List<AdminContentDocumentRecord>> listContentDocuments();
   Future<AdminContentDocumentRecord> upsertContentDocument({
     required AppDocument document,

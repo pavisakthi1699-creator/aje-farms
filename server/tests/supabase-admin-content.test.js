@@ -962,6 +962,7 @@ test(
                   source_type: 'pdf',
                   file_name: 'mwongozo.pdf',
                   page_count: 12,
+                  metadata: { imageUrl: 'https://example.test/book.jpg', introVideoUrl: 'https://example.test/book.mp4' },
                   processing_status: 'approved',
                   updated_at: '2026-07-26T10:00:00.000Z',
                 },
@@ -973,6 +974,7 @@ test(
             '00000000-0000-0000-0000-000000000001',
             'Mwongozo Mpya',
             'published',
+            JSON.stringify({ imageUrl: 'https://example.test/book.jpg', introVideoUrl: 'https://example.test/book.mp4' }),
           ]);
           return {
             rows: [
@@ -991,6 +993,7 @@ test(
 
     const documents = await store.contentDocumentsForAdmin();
     assert.equal(documents[0].document.sizeLabel, 'Kurasa 12');
+    assert.equal(documents[0].document.imageUrl, 'https://example.test/book.jpg');
 
     const saved = await store.upsertContentDocument({
       status: 'approved',

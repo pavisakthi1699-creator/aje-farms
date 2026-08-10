@@ -198,6 +198,8 @@ export function normalizeContentDocument(document) {
     type: String(document.type ?? 'pdf'),
     sizeLabel: String(document.sizeLabel ?? ''),
     url: document.url ? String(document.url) : null,
+    imageUrl: document.imageUrl ? String(document.imageUrl) : null,
+    introVideoUrl: document.introVideoUrl ? String(document.introVideoUrl) : null,
     isPremium: Boolean(document.isPremium),
   };
 }
@@ -296,6 +298,8 @@ export function communityPostImageUrl(imagePath) {
 // request so playback stays behind a paid session.
 export const lessonVideosBucket = 'source-documents';
 export const lessonVideosPrefix = 'lesson-videos';
+export const contentMediaBucket = 'content-media';
+export const contentMediaPrefix = 'previews';
 
 export function extensionForVideoContentType(contentType) {
   const normalized = String(contentType ?? '')
@@ -312,6 +316,18 @@ export function extensionForVideoContentType(contentType) {
     default:
       return null;
   }
+}
+
+export function extensionForContentMedia(contentType, kind) {
+  if (kind === 'image') return extensionForImageContentType(contentType);
+  if (kind === 'video') return extensionForVideoContentType(contentType);
+  return null;
+}
+
+export function contentMediaPublicUrl(mediaPath) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl || !mediaPath) return null;
+  return `${supabaseUrl}/storage/v1/object/public/${contentMediaBucket}/${encodeURIComponent(mediaPath)}`;
 }
 
 const lessonVideoPathPattern = new RegExp(

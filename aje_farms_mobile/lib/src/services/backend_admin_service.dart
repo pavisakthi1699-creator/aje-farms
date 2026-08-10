@@ -251,6 +251,32 @@ class BackendAdminService implements AdminService {
   }
 
   @override
+  Future<String> uploadContentMedia({
+    required Uint8List bytes,
+    required String contentType,
+    required String kind,
+  }) async {
+    final payload = await _post('/api/admin/content/media/upload-url', {
+      'contentType': contentType,
+      'kind': kind,
+    });
+    final uploadUrl = payload['uploadUrl'];
+    final publicUrl = payload['publicUrl'];
+    if (uploadUrl is! String || publicUrl is! String) {
+      throw const AdminException('Admin service returned an invalid media upload target.');
+    }
+    final response = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: {'Content-Type': contentType},
+      body: bytes,
+    ).timeout(videoUploadTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const AdminException('Imeshindikana kupakia media. Jaribu tena.');
+    }
+    return publicUrl;
+  }
+
+  @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async {
     final payload = await _get('/api/admin/content/documents');
     final rows = (payload['documents'] as List<dynamic>? ?? const <dynamic>[])
@@ -623,6 +649,7 @@ Course _courseFromJson(Map<String, dynamic> json) {
     icon: _iconFromWire(json['icon'] as String),
     progress: (json['progress'] as num).toDouble(),
     imageUrl: json['imageUrl'] as String,
+    introVideoUrl: json['introVideoUrl'] as String?,
     outcomes: (json['outcomes'] as List<dynamic>).cast<String>(),
     lessons: (json['lessons'] as List<dynamic>)
         .cast<Map<String, dynamic>>()
@@ -665,6 +692,8 @@ AppDocument _documentFromJson(Map<String, dynamic> json) {
     type: json['type'] as String? ?? 'pdf',
     sizeLabel: json['sizeLabel'] as String? ?? '',
     url: json['url'] as String?,
+    imageUrl: json['imageUrl'] as String?,
+    introVideoUrl: json['introVideoUrl'] as String?,
     isPremium: json['isPremium'] as bool? ?? false,
   );
 }
@@ -711,6 +740,7 @@ Map<String, dynamic> _courseToJson(Course course) {
     'icon': _iconToWire(course.icon),
     'progress': course.progress,
     'imageUrl': course.imageUrl,
+    if (course.introVideoUrl != null) 'introVideoUrl': course.introVideoUrl,
     'outcomes': course.outcomes,
     'lessons': course.lessons.map(_lessonToJson).toList(),
   };
@@ -746,6 +776,8 @@ Map<String, dynamic> _documentToJson(AppDocument document) {
     'type': document.type,
     'sizeLabel': document.sizeLabel,
     if (document.url != null) 'url': document.url,
+    if (document.imageUrl != null) 'imageUrl': document.imageUrl,
+    if (document.introVideoUrl != null) 'introVideoUrl': document.introVideoUrl,
     'isPremium': document.isPremium,
   };
 }

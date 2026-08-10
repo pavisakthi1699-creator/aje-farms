@@ -539,6 +539,13 @@ class _RecordingAdminService implements AdminService {
   }
 
   @override
+  Future<String> uploadContentMedia({
+    required Uint8List bytes,
+    required String contentType,
+    required String kind,
+  }) async => 'https://example.test/content-media/$kind-test';
+
+  @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async =>
       const [];
 

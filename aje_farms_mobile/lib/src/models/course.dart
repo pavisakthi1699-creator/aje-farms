@@ -63,6 +63,7 @@ class Course {
     required this.icon,
     required this.progress,
     required this.imageUrl,
+    this.introVideoUrl,
     required this.outcomes,
     required this.lessons,
   });
@@ -74,6 +75,8 @@ class Course {
   final IconData icon;
   final double progress;
   final String imageUrl;
+  /// A short, public orientation video shown on the course preview.
+  final String? introVideoUrl;
   final List<String> outcomes;
   final List<Lesson> lessons;
 }

@@ -90,6 +90,15 @@ class LocalAdminService implements AdminService {
   }
 
   @override
+  Future<String> uploadContentMedia({
+    required Uint8List bytes,
+    required String contentType,
+    required String kind,
+  }) async {
+    throw const AdminException('Upload ya media inahitaji backend iliyounganishwa.');
+  }
+
+  @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async {
     return const [];
   }

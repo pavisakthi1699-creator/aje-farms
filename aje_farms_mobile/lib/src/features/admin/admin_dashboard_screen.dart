@@ -211,10 +211,14 @@ Future<_ContentEditResult?> _showContentEditor({
   required String titleLabel,
   required String initialTitle,
   required String initialStatus,
+  String? initialImageUrl,
+  String? initialIntroVideoUrl,
 }) async {
   final titleController = TextEditingController(text: initialTitle);
   var status = initialStatus == 'approved' ? 'approved' : 'draft';
   String? titleError;
+  var imageUrl = initialImageUrl ?? '';
+  var introVideoUrl = initialIntroVideoUrl ?? '';
   try {
     return await showModalBottomSheet<_ContentEditResult>(
       context: context,
@@ -254,6 +258,29 @@ Future<_ContentEditResult?> _showContentEditor({
                         }
                       },
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text('Media ya kitabu', style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final url = await _pickContentMedia(context, video: false);
+                          if (url != null) setSheetState(() => imageUrl = url);
+                        },
+                        icon: const Icon(Icons.image_outlined),
+                        label: Text(imageUrl.isEmpty ? 'Ongeza picha' : 'Badilisha picha'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final url = await _pickContentMedia(context, video: true);
+                          if (url != null) setSheetState(() => introVideoUrl = url);
+                        },
+                        icon: const Icon(Icons.video_library_outlined),
+                        label: Text(introVideoUrl.isEmpty ? 'Ongeza video fupi' : 'Badilisha video'),
+                      ),
+                      if (introVideoUrl.isNotEmpty)
+                        TextButton(onPressed: () => setSheetState(() => introVideoUrl = ''), child: const Text('Ondoa video')),
+                    ]),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Hali ya uchapishaji',
@@ -297,7 +324,7 @@ Future<_ContentEditResult?> _showContentEditor({
                         }
                         AppFeedback.tap();
                         Navigator.of(context).pop(
-                          _ContentEditResult(title: title, status: status),
+                          _ContentEditResult(title: title, status: status, imageUrl: imageUrl, introVideoUrl: introVideoUrl),
                         );
                       },
                       icon: const Icon(Icons.save_outlined),
@@ -313,6 +340,32 @@ Future<_ContentEditResult?> _showContentEditor({
     );
   } finally {
     titleController.dispose();
+  }
+}
+
+Future<String?> _pickContentMedia(BuildContext context, {required bool video}) async {
+  final adminService = context.dependencies.adminService;
+  final file = video
+      ? await ImagePicker().pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3))
+      : await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 86);
+  if (file == null || !context.mounted) return null;
+  final contentType = video ? _contentTypeForVideo(file) : _contentTypeForImage(file);
+  if (contentType == null) {
+    showErrorSnack(context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+    return null;
+  }
+  try {
+    final bytes = await file.readAsBytes();
+    if (!context.mounted) return null;
+    if (bytes.lengthInBytes > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
+      throw const AdminException('Faili ni kubwa mno.');
+    }
+    return await adminService.uploadContentMedia(
+      bytes: bytes, contentType: contentType, kind: video ? 'video' : 'image',
+    );
+  } on AdminException catch (error) {
+    if (context.mounted) showErrorSnack(context, error.message);
+    return null;
   }
 }
 
@@ -348,9 +401,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   late String _courseId;
   late String _title;
   late String _description;
+  late String _imageUrl;
+  late String _introVideoUrl;
   late DateTime _baseUpdatedAt;
   late List<_LessonDraft> _lessons;
   final Set<Key> _uploadingVideoKeys = {};
+  bool _uploadingPreviewMedia = false;
   bool _showValidation = false;
 
   @override
@@ -360,6 +416,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     _courseId = record.course.id;
     _title = record.course.title;
     _description = record.course.description;
+    _imageUrl = record.course.imageUrl;
+    _introVideoUrl = record.course.introVideoUrl ?? '';
     _baseUpdatedAt = record.updatedAt;
     _lessons = [
       for (final lesson in record.course.lessons)
@@ -441,6 +499,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     setState(() => _uploadingVideoKeys.add(lesson.key));
     try {
       final bytes = await picked.readAsBytes();
+      if (!mounted) return;
       if (bytes.lengthInBytes > _maxVideoBytes) {
         if (!mounted) return;
         showErrorSnack(
@@ -476,6 +535,43 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       if (mounted) {
         setState(() => _uploadingVideoKeys.remove(lesson.key));
       }
+    }
+  }
+
+  Future<void> _pickPreviewMedia({required bool video}) async {
+    if (_uploadingPreviewMedia) return;
+    final adminService = context.dependencies.adminService;
+    final picked = video
+        ? await ImagePicker().pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3))
+        : await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 86);
+    if (picked == null || !mounted) return;
+    final contentType = video ? _contentTypeForVideo(picked) : _contentTypeForImage(picked);
+    if (contentType == null) {
+      showErrorSnack(context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+      return;
+    }
+    setState(() => _uploadingPreviewMedia = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      if (bytes.lengthInBytes > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
+        throw const AdminException('Faili ni kubwa mno kwa preview hii.');
+      }
+      final url = await adminService.uploadContentMedia(
+        bytes: bytes, contentType: contentType, kind: video ? 'video' : 'image',
+      );
+      if (!mounted) return;
+      setState(() {
+        if (video) {
+          _introVideoUrl = url;
+        } else {
+          _imageUrl = url;
+        }
+      });
+      showSuccessSnack(context, video ? 'Video ya utangulizi imepakiwa.' : 'Picha ya jalada imepakiwa.');
+    } on AdminException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _uploadingPreviewMedia = false);
     }
   }
 
@@ -539,7 +635,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       badge: original.badge,
       icon: original.icon,
       progress: original.progress,
-      imageUrl: original.imageUrl,
+      imageUrl: _imageUrl.trim().isEmpty ? original.imageUrl : _imageUrl.trim(),
+      introVideoUrl: _introVideoUrl.trim().isEmpty ? null : _introVideoUrl.trim(),
       outcomes: outcomes,
       lessons: [
         for (final draft in _lessons)
@@ -690,6 +787,39 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 validator: _requiredField('Maelezo hayawezi kuwa tupu.'),
                 onChanged: (value) => _description = value,
                 onSaved: (value) => _description = value ?? '',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Card(
+                child: ExpansionTile(
+                  title: const Text('Media ya preview'),
+                  subtitle: Text(_introVideoUrl.isEmpty ? 'Picha ya jalada na video fupi' : 'Picha na video vimewekwa'),
+                  childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+                  children: [
+                    Text('Weka picha halisi ya jalada na video fupi ya utangulizi.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.colors.muted)),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
+                  OutlinedButton.icon(
+                    onPressed: _uploadingPreviewMedia ? null : () => _pickPreviewMedia(video: false),
+                    icon: const Icon(Icons.image_outlined),
+                    label: Text(_imageUrl.startsWith('http') ? 'Badilisha picha' : 'Ongeza picha'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _uploadingPreviewMedia ? null : () => _pickPreviewMedia(video: true),
+                    icon: const Icon(Icons.video_library_outlined),
+                    label: Text(_introVideoUrl.isEmpty ? 'Ongeza video fupi' : 'Badilisha video'),
+                  ),
+                  if (_introVideoUrl.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => setState(() => _introVideoUrl = ''),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Ondoa video'),
+                    ),
+                    ]),
+                    if (_uploadingPreviewMedia) const Padding(
+                      padding: EdgeInsets.only(top: AppSpacing.sm), child: LinearProgressIndicator(),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Container(
@@ -1020,6 +1150,17 @@ String? _contentTypeForVideo(XFile file) {
     'mp4' || 'm4v' => 'video/mp4',
     'mov' => 'video/quicktime',
     'webm' => 'video/webm',
+    _ => null,
+  };
+}
+
+String? _contentTypeForImage(XFile file) {
+  final declared = file.mimeType?.toLowerCase();
+  if (declared != null && const {'image/jpeg', 'image/png', 'image/webp'}.contains(declared)) return declared;
+  return switch (file.name.toLowerCase().split('.').last) {
+    'jpg' || 'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'webp' => 'image/webp',
     _ => null,
   };
 }
@@ -1376,6 +1517,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       titleLabel: 'Jina la document',
       initialTitle: record.document.title,
       initialStatus: record.status,
+      initialImageUrl: record.document.imageUrl,
+      initialIntroVideoUrl: record.document.introVideoUrl,
     );
     if (result == null || result.title.isEmpty) return;
     try {
@@ -1389,6 +1532,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
           type: record.document.type,
           sizeLabel: record.document.sizeLabel,
           url: record.document.url,
+          imageUrl: result.imageUrl.isEmpty ? null : result.imageUrl,
+          introVideoUrl: result.introVideoUrl.isEmpty ? null : result.introVideoUrl,
           isPremium: record.document.isPremium,
         ),
         status: result.status,
@@ -3200,10 +3345,14 @@ class _ContentEditResult {
   const _ContentEditResult({
     required this.title,
     required this.status,
+    required this.imageUrl,
+    required this.introVideoUrl,
   });
 
   final String title;
   final String status;
+  final String imageUrl;
+  final String introVideoUrl;
 }
 
 class _CourseEditResult {

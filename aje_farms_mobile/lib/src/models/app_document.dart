@@ -8,6 +8,8 @@ class AppDocument {
     required this.type,
     required this.sizeLabel,
     this.url,
+    this.imageUrl,
+    this.introVideoUrl,
     this.isPremium = false,
   });
 
@@ -19,5 +21,7 @@ class AppDocument {
   final String type;
   final String sizeLabel;
   final String? url;
+  final String? imageUrl;
+  final String? introVideoUrl;
   final bool isPremium;
 }

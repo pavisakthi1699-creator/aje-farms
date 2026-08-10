@@ -266,6 +266,35 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  app.post(
+    '/api/admin/content/media/upload-url',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const { contentType, kind } = req.body ?? {};
+      const normalizedType = String(contentType ?? '').split(';')[0].trim().toLowerCase();
+      const allowed = kind === 'image'
+        ? ['image/jpeg', 'image/png', 'image/webp']
+        : kind === 'video'
+          ? ['video/mp4', 'video/quicktime', 'video/webm']
+          : [];
+      if (!allowed.includes(normalizedType)) {
+        res.status(400).json({ error: 'Aina ya faili haikubaliki.' });
+        return;
+      }
+      if (typeof store.createContentMediaUploadUrl !== 'function') {
+        res.status(501).json({ error: 'Upload ya media haipatikani kwenye mazingira haya.' });
+        return;
+      }
+      const upload = await store.createContentMediaUploadUrl({ contentType: normalizedType, kind });
+      if (!upload) {
+        res.status(501).json({ error: 'Upload ya media haipatikani kwenye mazingira haya.' });
+        return;
+      }
+      res.json(upload);
+    },
+  );
+
   app.get(
     '/api/admin/content/source-segments',
     requireAuthSession(store),
@@ -1334,6 +1363,12 @@ function normalizeContentCourseRequest(courseId, rawCourse) {
       throw new Error(`Course ${field} is required.`);
     }
   }
+  if (
+    rawCourse.introVideoUrl != null &&
+    (typeof rawCourse.introVideoUrl !== 'string' || rawCourse.introVideoUrl.trim() === '')
+  ) {
+    throw new Error('Course introVideoUrl must be a non-empty string when provided.');
+  }
   if (!Array.isArray(rawCourse.outcomes) || rawCourse.outcomes.length === 0) {
     throw new Error('Course outcomes are required.');
   }
@@ -1433,6 +1468,14 @@ function normalizeContentDocumentRequest(documentId, rawDocument) {
     (typeof rawDocument.url !== 'string' || rawDocument.url.trim() === '')
   ) {
     throw new Error('Document url must be a non-empty string when provided.');
+  }
+  for (const field of ['imageUrl', 'introVideoUrl']) {
+    if (
+      rawDocument[field] != null &&
+      (typeof rawDocument[field] !== 'string' || rawDocument[field].trim() === '')
+    ) {
+      throw new Error(`Document ${field} must be a non-empty string when provided.`);
+    }
   }
   return normalizeContentDocument(rawDocument);
 }
