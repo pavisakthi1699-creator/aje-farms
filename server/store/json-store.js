@@ -14,6 +14,7 @@ import {
   normalizeContentDocument,
   normalizeEmail,
   normalizeHomeTopics,
+  mergeLegacyHomeTopics,
 } from './utils.js';
 import {
   createSessionToken,
@@ -57,9 +58,29 @@ export class JsonStore {
   }
 
   async updateHomeTopics(topics) {
+    const previous = this.state.homeTopics;
     this.state.homeTopics = normalizeHomeTopics(topics);
-    this.#saveAll();
-    return this.homeTopics();
+    try {
+      this.#saveAll();
+      return this.homeTopics();
+    } catch (error) {
+      this.state.homeTopics = previous;
+      throw error;
+    }
+  }
+
+  async updateLegacyHomeTopics(topics) {
+    const previous = this.state.homeTopics;
+    this.state.homeTopics = normalizeHomeTopics(
+      mergeLegacyHomeTopics(this.state.homeTopics, topics),
+    );
+    try {
+      this.#saveAll();
+      return this.homeTopics();
+    } catch (error) {
+      this.state.homeTopics = previous;
+      throw error;
+    }
   }
 
   activePlans() {

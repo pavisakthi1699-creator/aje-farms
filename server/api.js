@@ -21,6 +21,8 @@ import {
   normalizeContentDocument,
   normalizeEmail,
   normalizeHomeTopics,
+  defaultHomeTopics,
+  legacyHomeTopics,
 } from './store/utils.js';
 
 function devModeEnabled() {
@@ -89,11 +91,12 @@ export async function registerApiRoutes(app) {
     requireAuthSession(store),
     async (req, res) => {
       const snapshot = await store.catalogSnapshot();
+      const compatibleSnapshot = withCompatibleHomeTopics(snapshot);
       if (await hasPaidLearningAccess(store, req.userId)) {
-        res.json(snapshot);
+        res.json(compatibleSnapshot);
         return;
       }
-      res.json(lockedCatalogSnapshot(snapshot));
+      res.json(lockedCatalogSnapshot(compatibleSnapshot));
     },
   );
 
@@ -382,12 +385,12 @@ export async function registerApiRoutes(app) {
     requireAuthSession(store),
     requireAdminSession(store),
     async (_req, res) => {
-      res.json({ topics: await store.homeTopics() });
+      res.json(homeTopicsPayload(await store.homeTopics()));
     },
   );
 
   app.put(
-    '/api/admin/settings/home-topics',
+    '/api/admin/settings/home-topics-v2',
     requireAuthSession(store),
     requireAdminSession(store),
     async (req, res) => {
@@ -404,9 +407,50 @@ export async function registerApiRoutes(app) {
         return;
       }
       try {
-        res.json({ topics: await store.updateHomeTopics(topics) });
+        res.json(homeTopicsPayload(await store.updateHomeTopics(topics)));
       } catch (error) {
         console.error('Failed to update home topics:', error);
+        res.status(500).json({ error: 'Failed to update home topics.' });
+      }
+    },
+  );
+
+  app.put(
+    '/api/admin/settings/home-topics',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      let legacyTopics;
+      try {
+        if (
+          !Array.isArray(req.body?.topics) ||
+          req.body.topics.length !== defaultHomeTopics.length
+        ) {
+          throw new Error('Legacy home topics must contain four labels.');
+        }
+        legacyTopics = normalizeHomeTopics(req.body.topics);
+      } catch (error) {
+        res.status(400).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Home topics are invalid.',
+        });
+        return;
+      }
+      try {
+        res.json(
+          homeTopicsPayload(await store.updateLegacyHomeTopics(legacyTopics)),
+        );
+      } catch (error) {
+        const isConflict =
+          error instanceof Error &&
+          error.message === 'Home topic labels must be unique.';
+        if (isConflict) {
+          res.status(409).json({ error: error.message });
+          return;
+        }
+        console.error('Failed to update legacy home topics:', error);
         res.status(500).json({ error: 'Failed to update home topics.' });
       }
     },
@@ -1179,6 +1223,21 @@ function lockedCatalogSnapshot(snapshot) {
       url: null,
       isPremium: true,
     })),
+  };
+}
+
+function homeTopicsPayload(topics) {
+  return {
+    topics: legacyHomeTopics(topics),
+    topicsV2: topics,
+  };
+}
+
+function withCompatibleHomeTopics(snapshot) {
+  return {
+    ...snapshot,
+    homeTopics: legacyHomeTopics(snapshot.homeTopics),
+    homeTopicsV2: snapshot.homeTopics,
   };
 }
 

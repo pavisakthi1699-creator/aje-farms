@@ -60,7 +60,7 @@ void main() {
       client: MockClient((request) async {
         requests.add(request);
         return http.Response(
-          '{"topics":["Matunda na Mbogamboga","Nafaka","Mifugo","Mengineyo"]}',
+          '{"topics":["Matunda na Mbogamboga","Nafaka","Mifugo","Mengineyo"],"topicsV2":["Matunda na Mbogamboga","Nafaka","Mifugo","Mengineyo","Teknolojia"]}',
           200,
         );
       }),
@@ -72,8 +72,54 @@ void main() {
     expect(saved, loaded);
     expect(requests.map((request) => request.method), ['GET', 'PUT']);
     expect(requests.first.url.path, '/api/admin/settings/home-topics');
+    expect(requests.last.url.path, '/api/admin/settings/home-topics-v2');
     expect(requests.last.headers['Authorization'], 'Bearer token-admin');
     expect(jsonDecode(requests.last.body), {'topics': loaded});
+  });
+
+  test('falls back to valid legacy topics when V2 topics are malformed',
+      () async {
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient(
+        (_) async => http.Response(
+          '{"topics":["Mazao","Nafaka","Mifugo","Soko"],"topicsV2":[]}',
+          200,
+        ),
+      ),
+    );
+
+    expect(
+      await service.getHomeTopics(),
+      const ['Mazao', 'Nafaka', 'Mifugo', 'Soko'],
+    );
+  });
+
+  test('fails safely when the V2 topic endpoint is unavailable', () async {
+    late http.Request captured;
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient(
+        (request) async {
+          captured = request;
+          return http.Response('{"error":"Not found"}', 404);
+        },
+      ),
+    );
+
+    await expectLater(
+      service.updateHomeTopics(
+        const ['Mazao', 'Nafaka', 'Mifugo', 'Soko', 'Teknolojia'],
+      ),
+      throwsA(isA<AdminException>()),
+    );
+    expect(captured.url.path, '/api/admin/settings/home-topics-v2');
+    expect(
+      jsonDecode(captured.body),
+      {
+        'topics': ['Mazao', 'Nafaka', 'Mifugo', 'Soko', 'Teknolojia'],
+      },
+    );
   });
 
   test('rejects a malformed home-topic response', () async {

@@ -1601,52 +1601,174 @@ Future<List<String>?> _showHomeTopicsEditor({
   required BuildContext context,
   required List<String> initialTopics,
 }) async {
-  final topics = List.generate(
-    4,
-    (index) => index < initialTopics.length ? initialTopics[index] : '',
-  );
-  final formKey = GlobalKey<FormState>();
   return showDialog<List<String>>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (_) => _HomeTopicsEditorDialog(initialTopics: initialTopics),
+  );
+}
+
+class _EditableHomeTopic {
+  _EditableHomeTopic({required this.id, required this.value});
+
+  final int id;
+  String value;
+}
+
+class _HomeTopicsEditorDialog extends StatefulWidget {
+  const _HomeTopicsEditorDialog({required this.initialTopics});
+
+  final List<String> initialTopics;
+
+  @override
+  State<_HomeTopicsEditorDialog> createState() =>
+      _HomeTopicsEditorDialogState();
+}
+
+class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final List<_EditableHomeTopic> _topics;
+  int _nextId = 0;
+  bool _hasAttemptedSave = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial =
+        widget.initialTopics.isEmpty ? defaultHomeTopics : widget.initialTopics;
+    _topics = [
+      for (final topic in initial)
+        _EditableHomeTopic(id: _nextId++, value: topic),
+    ];
+  }
+
+  void _addTopic() {
+    if (_topics.length >= maxHomeTopics) return;
+    setState(() {
+      _topics.add(_EditableHomeTopic(id: _nextId++, value: ''));
+    });
+    _revalidateAfterListChange();
+  }
+
+  void _removeTopic(int index) {
+    if (_topics.length <= minHomeTopics) return;
+    setState(() => _topics.removeAt(index));
+    _revalidateAfterListChange();
+  }
+
+  void _revalidateAfterListChange() {
+    if (!_hasAttemptedSave) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _formKey.currentState?.validate();
+    });
+  }
+
+  void _moveTopic(int index, int offset) {
+    final destination = index + offset;
+    if (destination < 0 || destination >= _topics.length) return;
+    setState(() {
+      final topic = _topics.removeAt(index);
+      _topics.insert(destination, topic);
+    });
+  }
+
+  void _save() {
+    _hasAttemptedSave = true;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.pop(
+      context,
+      _topics.map((topic) => topic.value.trim()).toList(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       title: const Text('Hariri Mada za Kujifunza'),
       content: SizedBox(
         width: 420,
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Mada hizi zinaonekana kwenye ukurasa wa mwanzo na humsaidia mwanafunzi kuanza utafutaji.',
+                  'Ongeza, ondoa au panga mada kulingana na hadhira yako. Mada hizi zinaonekana kwenye ukurasa wa mwanzo.',
                 ),
                 const SizedBox(height: AppSpacing.md),
-                for (var index = 0; index < topics.length; index++) ...[
-                  TextFormField(
-                    initialValue: topics[index],
-                    decoration: InputDecoration(
-                      labelText: 'Mada ya ${index + 1}',
+                for (var index = 0; index < _topics.length; index++) ...[
+                  Padding(
+                    key: ValueKey(_topics[index].id),
+                    padding: EdgeInsets.only(
+                      bottom: index < _topics.length - 1 ? AppSpacing.sm : 0,
                     ),
-                    maxLength: 40,
-                    onChanged: (value) => topics[index] = value,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Andika jina la mada.';
-                      }
-                      final normalized = value.trim().toLowerCase();
-                      final matches = topics.where(
-                        (topic) => topic.trim().toLowerCase() == normalized,
-                      );
-                      if (matches.length > 1) {
-                        return 'Kila mada lazima iwe tofauti.';
-                      }
-                      return null;
-                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: _topics[index].value,
+                            decoration: InputDecoration(
+                              labelText: 'Mada ya ${index + 1}',
+                            ),
+                            maxLength: maxHomeTopicLength,
+                            onChanged: (value) => _topics[index].value = value,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Andika jina la mada.';
+                              }
+                              final normalized = value.trim().toLowerCase();
+                              final matches = _topics.where(
+                                (topic) =>
+                                    topic.value.trim().toLowerCase() ==
+                                    normalized,
+                              );
+                              if (matches.length > 1) {
+                                return 'Kila mada lazima iwe tofauti.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        Column(
+                          children: [
+                            IconButton(
+                              tooltip: 'Hamisha mada ya ${index + 1} juu',
+                              onPressed: index == 0
+                                  ? null
+                                  : () => _moveTopic(index, -1),
+                              icon: const Icon(Icons.arrow_upward),
+                            ),
+                            IconButton(
+                              tooltip: 'Hamisha mada ya ${index + 1} chini',
+                              onPressed: index == _topics.length - 1
+                                  ? null
+                                  : () => _moveTopic(index, 1),
+                              icon: const Icon(Icons.arrow_downward),
+                            ),
+                            IconButton(
+                              tooltip: 'Ondoa mada ya ${index + 1}',
+                              onPressed: _topics.length <= minHomeTopics
+                                  ? null
+                                  : () => _removeTopic(index),
+                              icon: const Icon(Icons.delete_outline),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  if (index < topics.length - 1)
-                    const SizedBox(height: AppSpacing.sm),
                 ],
+                const SizedBox(height: AppSpacing.md),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _topics.length >= maxHomeTopics ? null : _addTopic,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ongeza mada'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1654,20 +1776,16 @@ Future<List<String>?> _showHomeTopicsEditor({
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
+          onPressed: () => Navigator.pop(context),
           child: const Text('Ghairi'),
         ),
         FilledButton(
-          onPressed: () {
-            if (!(formKey.currentState?.validate() ?? false)) return;
-            final normalized = topics.map((topic) => topic.trim()).toList();
-            Navigator.pop(dialogContext, normalized);
-          },
+          onPressed: _save,
           child: const Text('Hifadhi mada'),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class _AdminModerationTab extends StatefulWidget {

@@ -135,17 +135,14 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {
         .cast<Map<String, dynamic>>()
         .map(_planFromJson)
         .toList(),
-    homeTopics: _homeTopicsFromJson(json['homeTopics']),
+    homeTopics: _homeTopicsFromJson(json),
   );
 }
 
-List<String> _homeTopicsFromJson(Object? value) {
-  if (value is! List<dynamic>) return defaultHomeTopics;
-  final topics = value.whereType<String>().map((item) => item.trim()).toList();
-  if (topics.length != 4 || topics.any((item) => item.isEmpty)) {
-    return defaultHomeTopics;
-  }
-  return topics;
+List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
+  return parseHomeTopics(payload['homeTopicsV2']) ??
+      parseHomeTopics(payload['homeTopics']) ??
+      defaultHomeTopics;
 }
 
 AppDocument _documentFromJson(Map<String, dynamic> json) {

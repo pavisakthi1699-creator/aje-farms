@@ -7,18 +7,73 @@ export const defaultHomeTopics = [
   'Mengineyo',
 ];
 
+export const minHomeTopics = 1;
+export const maxHomeTopics = 12;
+export const maxHomeTopicLength = 40;
+
+export function legacyHomeTopics(topics) {
+  const legacy = topics.slice(0, defaultHomeTopics.length);
+  const normalized = new Set(
+    legacy.map((topic) => topic.toLocaleLowerCase('sw')),
+  );
+  for (const fallback of defaultHomeTopics) {
+    if (legacy.length >= defaultHomeTopics.length) break;
+    const key = fallback.toLocaleLowerCase('sw');
+    if (normalized.has(key)) continue;
+    legacy.push(fallback);
+    normalized.add(key);
+  }
+  return legacy;
+}
+
+export function mergeLegacyHomeTopics(current, submitted) {
+  const merged = current.map(
+    (topic, index) => submitted[index] ?? topic,
+  );
+  if (current.length >= defaultHomeTopics.length) return merged;
+
+  const projection = legacyHomeTopics(current);
+  let lastChangedPadding = -1;
+  for (let index = current.length; index < submitted.length; index += 1) {
+    if (submitted[index] !== projection[index]) lastChangedPadding = index;
+  }
+  for (
+    let index = current.length;
+    index <= lastChangedPadding;
+    index += 1
+  ) {
+    merged.push(submitted[index]);
+  }
+  return merged;
+}
+
 export function normalizeHomeTopics(value) {
-  if (!Array.isArray(value) || value.length !== 4) {
-    throw new Error('Home topics must contain exactly four labels.');
+  if (
+    !Array.isArray(value) ||
+    value.length < minHomeTopics ||
+    value.length > maxHomeTopics
+  ) {
+    throw new Error(
+      `Home topics must contain ${minHomeTopics}–${maxHomeTopics} labels.`,
+    );
   }
   if (value.some((item) => typeof item !== 'string')) {
     throw new Error('Each home topic must be text.');
   }
   const topics = value.map((item) => item.trim());
-  if (topics.some((item) => item.length === 0 || item.length > 40)) {
-    throw new Error('Each home topic must contain 1–40 characters.');
+  if (
+    topics.some(
+      (item) => item.length === 0 || item.length > maxHomeTopicLength,
+    )
+  ) {
+    throw new Error(
+      `Each home topic must contain 1–${maxHomeTopicLength} characters.`,
+    );
   }
-  if (new Set(topics.map((item) => item.toLocaleLowerCase('sw'))).size !== 4) {
+  if (
+    new Set(topics.map((item) => item.toLocaleLowerCase('sw'))).size !==
+    topics.length
+  ) {
     throw new Error('Home topic labels must be unique.');
   }
   return topics;

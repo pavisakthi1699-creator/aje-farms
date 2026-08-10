@@ -158,6 +158,13 @@ test('admin can change learner home topics and catalog returns the update', asyn
       await authHeaders(learner.sessionToken),
     );
     assert.equal(deniedUpdate.response.status, 403);
+    const deniedV2Update = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics-v2',
+      { topics: ['Mazao', 'Biashara', 'Ufugaji', 'Teknolojia'] },
+      await authHeaders(learner.sessionToken),
+    );
+    assert.equal(deniedV2Update.response.status, 403);
 
     const admin = await signIn(baseUrl, ADMIN_EMAIL);
     const headers = await authHeaders(admin.sessionToken);
@@ -173,22 +180,71 @@ test('admin can change learner home topics and catalog returns the update', asyn
       'Mifugo',
       'Mengineyo',
     ]);
+    assert.deepEqual(initial.payload.topicsV2, initial.payload.topics);
 
     const invalid = await putJson(
       baseUrl,
-      '/api/admin/settings/home-topics',
-      { topics: ['Moja', 'Mbili'] },
+      '/api/admin/settings/home-topics-v2',
+      { topics: [] },
       headers,
     );
     assert.equal(invalid.response.status, 400);
 
     const nonText = await putJson(
       baseUrl,
-      '/api/admin/settings/home-topics',
+      '/api/admin/settings/home-topics-v2',
       { topics: ['Mazao', 12, 'Ufugaji', 'Teknolojia'] },
       headers,
     );
     assert.equal(nonText.response.status, 400);
+
+    const tooMany = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics-v2',
+      { topics: Array.from({ length: 13 }, (_, index) => `Mada ${index}`) },
+      headers,
+    );
+    assert.equal(tooMany.response.status, 400);
+
+    for (const boundaryTopics of [
+      ['Mada moja'],
+      Array.from({ length: 12 }, (_, index) => `Mada ${index + 1}`),
+    ]) {
+      const accepted = await putJson(
+        baseUrl,
+        '/api/admin/settings/home-topics-v2',
+        { topics: boundaryTopics },
+        headers,
+      );
+      assert.equal(accepted.response.status, 200);
+      assert.deepEqual(accepted.payload.topicsV2, boundaryTopics);
+      assert.equal(accepted.payload.topics.length, 4);
+
+      const legacyRoundTrip = await putJson(
+        baseUrl,
+        '/api/admin/settings/home-topics',
+        { topics: accepted.payload.topics },
+        headers,
+      );
+      assert.equal(legacyRoundTrip.response.status, 200);
+      assert.deepEqual(legacyRoundTrip.payload.topicsV2, boundaryTopics);
+
+      if (boundaryTopics.length === 1) {
+        const editedProjection = [...accepted.payload.topics];
+        editedProjection[1] = 'Mada mbili';
+        const legacyExpanded = await putJson(
+          baseUrl,
+          '/api/admin/settings/home-topics',
+          { topics: editedProjection },
+          headers,
+        );
+        assert.equal(legacyExpanded.response.status, 200);
+        assert.deepEqual(legacyExpanded.payload.topicsV2, [
+          boundaryTopics[0],
+          'Mada mbili',
+        ]);
+      }
+    }
 
     for (const invalidTopics of [
       ['Mazao', 'Biashara', 'Ufugaji', ' '],
@@ -197,26 +253,58 @@ test('admin can change learner home topics and catalog returns the update', asyn
     ]) {
       const rejected = await putJson(
         baseUrl,
-        '/api/admin/settings/home-topics',
+        '/api/admin/settings/home-topics-v2',
         { topics: invalidTopics },
         headers,
       );
       assert.equal(rejected.response.status, 400);
     }
 
-    const topics = ['Mazao', 'Biashara', 'Ufugaji', 'Teknolojia'];
+    const topics = [
+      'Mazao',
+      'Biashara',
+      'Ufugaji',
+      'Teknolojia',
+      'Kilimo Hai',
+    ];
     const updated = await putJson(
       baseUrl,
-      '/api/admin/settings/home-topics',
+      '/api/admin/settings/home-topics-v2',
       { topics },
       headers,
     );
     assert.equal(updated.response.status, 200);
-    assert.deepEqual(updated.payload.topics, topics);
+    assert.deepEqual(updated.payload.topics, topics.slice(0, 4));
+    assert.deepEqual(updated.payload.topicsV2, topics);
+
+    const conflictingLegacyEdit = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics: ['Kilimo Hai', 'Biashara', 'Ufugaji', 'Teknolojia'] },
+      headers,
+    );
+    assert.equal(conflictingLegacyEdit.response.status, 409);
+
+    const legacyEdit = ['Mazao mapya', 'Biashara', 'Ufugaji', 'Teknolojia'];
+    const legacyUpdated = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics: legacyEdit },
+      headers,
+    );
+    assert.equal(legacyUpdated.response.status, 200);
+    assert.deepEqual(legacyUpdated.payload.topicsV2, [
+      ...legacyEdit,
+      'Kilimo Hai',
+    ]);
 
     const catalog = await getJson(baseUrl, '/api/catalog', headers);
     assert.equal(catalog.response.status, 200);
-    assert.deepEqual(catalog.payload.homeTopics, topics);
+    assert.deepEqual(catalog.payload.homeTopics, legacyEdit);
+    assert.deepEqual(catalog.payload.homeTopicsV2, [
+      ...legacyEdit,
+      'Kilimo Hai',
+    ]);
   });
 });
 

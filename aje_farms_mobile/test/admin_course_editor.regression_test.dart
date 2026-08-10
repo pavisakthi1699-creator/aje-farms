@@ -33,7 +33,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('admin can change the four learner home topics', (tester) async {
+  testWidgets('admin can rename learner home topics', (tester) async {
     final adminService = _RecordingAdminService(courses: const []);
     var refreshCount = 0;
     await _pumpAdminContent(
@@ -58,6 +58,55 @@ void main() {
     expect(adminService.homeTopics, hasLength(4));
     expect(refreshCount, 1);
     expect(find.textContaining('Mazao ya Biashara'), findsOneWidget);
+  });
+
+  testWidgets('admin can add, reorder, and remove learner home topics',
+      (tester) async {
+    final adminService = _RecordingAdminService(courses: const []);
+    await _pumpAdminContent(
+      tester,
+      adminService,
+      refreshCatalog: () async {},
+    );
+
+    await tester.tap(find.text('Hariri mada za utafutaji'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Ongeza mada'));
+    await tester.tap(find.text('Ongeza mada'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mada ya 5'),
+      'Teknolojia',
+    );
+    await tester.tap(find.byTooltip('Hamisha mada ya 5 juu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hifadhi mada'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.homeTopics, hasLength(5));
+    expect(adminService.homeTopics[3], 'Teknolojia');
+
+    await tester.tap(find.text('Hariri mada za utafutaji'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mada ya 4'),
+      'Nafaka',
+    );
+    await tester.tap(find.text('Hifadhi mada'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kila mada lazima iwe tofauti.'), findsNWidgets(2));
+
+    final deleteFourth = find.byTooltip('Ondoa mada ya 4');
+    await tester.ensureVisible(deleteFourth);
+    await tester.pumpAndSettle();
+    await tester.tap(deleteFourth);
+    await tester.pumpAndSettle();
+    expect(find.text('Kila mada lazima iwe tofauti.'), findsNothing);
+    await tester.tap(find.text('Hifadhi mada'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.homeTopics, hasLength(4));
+    expect(adminService.homeTopics, isNot(contains('Teknolojia')));
   });
 
   testWidgets('content tools still load when topic settings are unavailable',

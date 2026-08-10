@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -9,6 +10,7 @@ import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
+import '../models/home_topics.dart';
 import 'admin_service.dart';
 import 'backend_session_storage.dart';
 
@@ -37,23 +39,27 @@ class BackendAdminService implements AdminService {
 
   @override
   Future<List<String>> updateHomeTopics(List<String> topics) async {
+    final normalized = parseHomeTopics(topics);
+    if (normalized == null) {
+      throw const AdminException('Learning topics are invalid.');
+    }
     final payload = await _put(
-      '/api/admin/settings/home-topics',
-      {'topics': topics},
+      '/api/admin/settings/home-topics-v2',
+      {'topics': normalized},
     );
-    return _homeTopicsFromJson(payload);
+    final saved = _homeTopicsFromJson(payload);
+    if (!listEquals(saved, normalized)) {
+      throw const AdminException(
+        'Admin service must be updated before saving this topic list.',
+      );
+    }
+    return saved;
   }
 
   List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
-    final topics = payload['topics'];
-    if (topics is! List || topics.length != 4) {
-      throw const AdminException(
-        'Admin service returned invalid learning topics.',
-      );
-    }
-    final parsed =
-        topics.whereType<String>().map((topic) => topic.trim()).toList();
-    if (parsed.length != 4 || parsed.any((topic) => topic.isEmpty)) {
+    final parsed = parseHomeTopics(payload['topicsV2']) ??
+        parseHomeTopics(payload['topics']);
+    if (parsed == null) {
       throw const AdminException(
         'Admin service returned invalid learning topics.',
       );

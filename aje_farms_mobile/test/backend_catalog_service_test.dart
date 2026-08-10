@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:aje_farms_mobile/src/repositories/cached_app_repository.dart';
 import 'package:aje_farms_mobile/src/repositories/demo_app_repository.dart';
@@ -68,8 +69,29 @@ void main() {
     expect(catalog.plans.single.recommended, isTrue);
     expect(
       catalog.homeTopics,
-      ['Matunda na Mbogamboga', 'Nafaka', 'Mifugo', 'Mengineyo'],
+      [
+        'Matunda na Mbogamboga',
+        'Nafaka',
+        'Mifugo',
+        'Mengineyo',
+        'Teknolojia',
+      ],
     );
+  });
+
+  test('uses valid legacy topics when V2 catalog topics are malformed',
+      () async {
+    final payload = jsonDecode(_catalogJson) as Map<String, dynamic>;
+    payload['homeTopicsV2'] = <String>[];
+    payload['homeTopics'] = ['Mazao', 'Nafaka', 'Mifugo', 'Soko'];
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async => http.Response(jsonEncode(payload), 200)),
+    );
+
+    final catalog = await service.loadCatalog();
+
+    expect(catalog.homeTopics, ['Mazao', 'Nafaka', 'Mifugo', 'Soko']);
   });
 
   test('cached repository keeps fallback then notifies after refresh',
@@ -249,6 +271,13 @@ const _catalogJson = '''
     "Nafaka",
     "Mifugo",
     "Mengineyo"
+  ],
+  "homeTopicsV2": [
+    "Matunda na Mbogamboga",
+    "Nafaka",
+    "Mifugo",
+    "Mengineyo",
+    "Teknolojia"
   ],
   "courses": [
     {

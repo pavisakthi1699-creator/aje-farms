@@ -182,7 +182,10 @@ class TrendingTopics extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(_icons[index], color: itemColors[index]),
+                    Icon(
+                      _icons[index % _icons.length],
+                      color: itemColors[index % itemColors.length],
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       topic,

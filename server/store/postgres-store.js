@@ -18,6 +18,7 @@ import {
   isLearnerReadyCourse,
   lessonVideosBucket,
   lessonVideosPrefix,
+  mergeLegacyHomeTopics,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizeEmail,
@@ -141,6 +142,47 @@ export class PostgresStore {
       [JSON.stringify(normalized)],
     );
     return normalized;
+  }
+
+  async updateLegacyHomeTopics(topics) {
+    const normalizedLegacy = normalizeHomeTopics(topics);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO app_settings (key, value, updated_at)
+         VALUES ('home_topics', $1, NOW())
+         ON CONFLICT (key) DO NOTHING`,
+        [JSON.stringify(defaultHomeTopics)],
+      );
+      const result = await client.query(
+        `SELECT value FROM app_settings
+         WHERE key = 'home_topics'
+         FOR UPDATE`,
+      );
+      let current;
+      try {
+        current = normalizeHomeTopics(result.rows[0].value);
+      } catch (_) {
+        current = [...defaultHomeTopics];
+      }
+      const merged = normalizeHomeTopics(
+        mergeLegacyHomeTopics(current, normalizedLegacy),
+      );
+      await client.query(
+        `UPDATE app_settings
+         SET value = $1, updated_at = NOW()
+         WHERE key = 'home_topics'`,
+        [JSON.stringify(merged)],
+      );
+      await client.query('COMMIT');
+      return merged;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async activePlans() {
