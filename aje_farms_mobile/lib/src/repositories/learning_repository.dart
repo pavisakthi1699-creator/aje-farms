@@ -6,6 +6,7 @@ abstract interface class LearningRepository {
   List<Course> get courses;
   List<AppDocument> get documents;
   List<ProblemCategory> get problemCategories;
+  List<String> get homeTopics;
 
   Course? get featuredCourse;
   Course? get suggestedCourse;

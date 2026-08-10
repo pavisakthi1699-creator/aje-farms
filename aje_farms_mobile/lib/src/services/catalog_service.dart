@@ -11,6 +11,7 @@ class CatalogSnapshot {
     required this.problemCategories,
     required this.communityPosts,
     required this.plans,
+    required this.homeTopics,
   });
 
   final List<Course> courses;
@@ -18,6 +19,7 @@ class CatalogSnapshot {
   final List<ProblemCategory> problemCategories;
   final List<CommunityPost> communityPosts;
   final List<PlanOption> plans;
+  final List<String> homeTopics;
 }
 
 abstract interface class CatalogService {

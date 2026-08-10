@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
+import '../models/home_topics.dart';
 import '../models/plan_option.dart';
 import '../models/problem_category.dart';
 import 'backend_session_storage.dart';
@@ -134,7 +135,17 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {
         .cast<Map<String, dynamic>>()
         .map(_planFromJson)
         .toList(),
+    homeTopics: _homeTopicsFromJson(json['homeTopics']),
   );
+}
+
+List<String> _homeTopicsFromJson(Object? value) {
+  if (value is! List<dynamic>) return defaultHomeTopics;
+  final topics = value.whereType<String>().map((item) => item.trim()).toList();
+  if (topics.length != 4 || topics.any((item) => item.isEmpty)) {
+    return defaultHomeTopics;
+  }
+  return topics;
 }
 
 AppDocument _documentFromJson(Map<String, dynamic> json) {

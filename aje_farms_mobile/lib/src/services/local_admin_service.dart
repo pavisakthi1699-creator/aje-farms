@@ -4,10 +4,21 @@ import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
+import '../models/home_topics.dart';
 import 'admin_service.dart';
 
 class LocalAdminService implements AdminService {
   const LocalAdminService();
+
+  @override
+  Future<List<String>> getHomeTopics() async => defaultHomeTopics;
+
+  @override
+  Future<List<String>> updateHomeTopics(List<String> topics) async {
+    throw const AdminException(
+      'Kubadilisha mada kunahitaji backend iliyounganishwa.',
+    );
+  }
 
   @override
   Future<List<AdminContentCourseRecord>> listContentCourses() async {

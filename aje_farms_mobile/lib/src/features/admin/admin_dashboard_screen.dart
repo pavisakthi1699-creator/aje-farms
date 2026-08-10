@@ -1148,6 +1148,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   String? _error;
   List<AdminContentCourseRecord> _courses = const [];
   List<AdminContentDocumentRecord> _documents = const [];
+  List<String> _homeTopics = defaultHomeTopics;
+  bool _savingHomeTopics = false;
 
   @override
   void didChangeDependencies() {
@@ -1168,12 +1170,19 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     });
     try {
       final service = context.dependencies.adminService;
-      final courses = await service.listContentCourses();
-      final documents = await service.listContentDocuments();
+      final results = await Future.wait<Object>([
+        _loadHomeTopicsOrDefaults(service),
+        service.listContentCourses(),
+        service.listContentDocuments(),
+      ]);
+      final homeTopics = results[0] as List<String>;
+      final courses = results[1] as List<AdminContentCourseRecord>;
+      final documents = results[2] as List<AdminContentDocumentRecord>;
       if (!mounted) return;
       setState(() {
         _courses = courses;
         _documents = documents;
+        _homeTopics = homeTopics;
         _loading = false;
       });
     } on AdminException catch (error) {
@@ -1188,6 +1197,38 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         _error = 'Imeshindikana kupakia content ya admin.';
         _loading = false;
       });
+    }
+  }
+
+  Future<List<String>> _loadHomeTopicsOrDefaults(AdminService service) async {
+    try {
+      return await service.getHomeTopics();
+    } on AdminException {
+      return defaultHomeTopics;
+    }
+  }
+
+  Future<void> _editHomeTopics() async {
+    if (_savingHomeTopics) return;
+    final topics = await _showHomeTopicsEditor(
+      context: context,
+      initialTopics: _homeTopics,
+    );
+    if (topics == null || !mounted) return;
+    final dependencies = context.dependencies;
+    setState(() => _savingHomeTopics = true);
+    try {
+      final saved = await dependencies.adminService.updateHomeTopics(topics);
+      dependencies.cachedRepository?.replaceHomeTopics(saved);
+      await dependencies.refreshCatalog();
+      if (!mounted) return;
+      setState(() => _homeTopics = saved);
+      showSuccessSnack(context, 'Mada za kujifunza zimehifadhiwa.');
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _savingHomeTopics = false);
     }
   }
 
@@ -1348,6 +1389,36 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
+          _AdminSectionHeader(
+            title: 'Mada za Kujifunza',
+            count: _homeTopics.length,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _homeTopics.join(' · '),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.tonalIcon(
+                    onPressed: _savingHomeTopics ? null : _editHomeTopics,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text(
+                      _savingHomeTopics
+                          ? 'Inahifadhi...'
+                          : 'Hariri mada za utafutaji',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _AdminSectionHeader(
             title: 'Kozi',
             count: _courses.length,
@@ -1524,6 +1595,79 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       ),
     );
   }
+}
+
+Future<List<String>?> _showHomeTopicsEditor({
+  required BuildContext context,
+  required List<String> initialTopics,
+}) async {
+  final topics = List.generate(
+    4,
+    (index) => index < initialTopics.length ? initialTopics[index] : '',
+  );
+  final formKey = GlobalKey<FormState>();
+  return showDialog<List<String>>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Hariri Mada za Kujifunza'),
+      content: SizedBox(
+        width: 420,
+        child: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Mada hizi zinaonekana kwenye ukurasa wa mwanzo na humsaidia mwanafunzi kuanza utafutaji.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                for (var index = 0; index < topics.length; index++) ...[
+                  TextFormField(
+                    initialValue: topics[index],
+                    decoration: InputDecoration(
+                      labelText: 'Mada ya ${index + 1}',
+                    ),
+                    maxLength: 40,
+                    onChanged: (value) => topics[index] = value,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Andika jina la mada.';
+                      }
+                      final normalized = value.trim().toLowerCase();
+                      final matches = topics.where(
+                        (topic) => topic.trim().toLowerCase() == normalized,
+                      );
+                      if (matches.length > 1) {
+                        return 'Kila mada lazima iwe tofauti.';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (index < topics.length - 1)
+                    const SizedBox(height: AppSpacing.sm),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Ghairi'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!(formKey.currentState?.validate() ?? false)) return;
+            final normalized = topics.map((topic) => topic.trim()).toList();
+            Navigator.pop(dialogContext, normalized);
+          },
+          child: const Text('Hifadhi mada'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AdminModerationTab extends StatefulWidget {

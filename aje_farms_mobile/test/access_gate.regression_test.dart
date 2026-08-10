@@ -334,6 +334,7 @@ class _SingleCourseCatalogService implements CatalogService {
   Future<CatalogSnapshot> loadCatalog() async {
     const seed = DemoAppRepository();
     return CatalogSnapshot(
+      homeTopics: seed.homeTopics,
       courses: [course],
       documents: seed.documents,
       problemCategories: seed.problemCategories,

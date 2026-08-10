@@ -531,13 +531,13 @@ void main() {
     await tester.pumpWidget(buildDemoApp());
     await startDemoShell(tester);
 
-    await tester.ensureVisible(find.text('Maji'));
-    await tester.tap(find.text('Maji'));
+    await tester.ensureVisible(find.text('Matunda na Mbogamboga'));
+    await tester.tap(find.text('Matunda na Mbogamboga'));
     await tester.pumpAndSettle();
 
     expect(find.text('Mwalimu AI'), findsWidgets);
     expect(find.text('Muktadha uliotumwa'), findsOneWidget);
-    expect(find.text('Maji'), findsWidgets);
+    expect(find.text('Matunda na Mbogamboga'), findsWidgets);
   });
 
   testWidgets('bottom navigation shows Swahili labels',

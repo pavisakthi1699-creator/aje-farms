@@ -142,6 +142,84 @@ test('health endpoint reports development readiness', async () => {
   });
 });
 
+test('admin can change learner home topics and catalog returns the update', async () => {
+  await withTestServer(async (baseUrl) => {
+    const learner = await signIn(baseUrl, 'learner-topics@aje.test');
+    const denied = await getJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      await authHeaders(learner.sessionToken),
+    );
+    assert.equal(denied.response.status, 403);
+    const deniedUpdate = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics: ['Mazao', 'Biashara', 'Ufugaji', 'Teknolojia'] },
+      await authHeaders(learner.sessionToken),
+    );
+    assert.equal(deniedUpdate.response.status, 403);
+
+    const admin = await signIn(baseUrl, ADMIN_EMAIL);
+    const headers = await authHeaders(admin.sessionToken);
+    const initial = await getJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      headers,
+    );
+    assert.equal(initial.response.status, 200);
+    assert.deepEqual(initial.payload.topics, [
+      'Matunda na Mbogamboga',
+      'Nafaka',
+      'Mifugo',
+      'Mengineyo',
+    ]);
+
+    const invalid = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics: ['Moja', 'Mbili'] },
+      headers,
+    );
+    assert.equal(invalid.response.status, 400);
+
+    const nonText = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics: ['Mazao', 12, 'Ufugaji', 'Teknolojia'] },
+      headers,
+    );
+    assert.equal(nonText.response.status, 400);
+
+    for (const invalidTopics of [
+      ['Mazao', 'Biashara', 'Ufugaji', ' '],
+      ['M'.repeat(41), 'Biashara', 'Ufugaji', 'Teknolojia'],
+      ['Nafaka', ' nafaka ', 'Ufugaji', 'Teknolojia'],
+    ]) {
+      const rejected = await putJson(
+        baseUrl,
+        '/api/admin/settings/home-topics',
+        { topics: invalidTopics },
+        headers,
+      );
+      assert.equal(rejected.response.status, 400);
+    }
+
+    const topics = ['Mazao', 'Biashara', 'Ufugaji', 'Teknolojia'];
+    const updated = await putJson(
+      baseUrl,
+      '/api/admin/settings/home-topics',
+      { topics },
+      headers,
+    );
+    assert.equal(updated.response.status, 200);
+    assert.deepEqual(updated.payload.topics, topics);
+
+    const catalog = await getJson(baseUrl, '/api/catalog', headers);
+    assert.equal(catalog.response.status, 200);
+    assert.deepEqual(catalog.payload.homeTopics, topics);
+  });
+});
+
 test('liveness endpoint reports a running API independently of providers', async () => {
   await withTestServer(async (baseUrl) => {
     const health = await getJson(baseUrl, '/api/health/live');

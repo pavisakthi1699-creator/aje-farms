@@ -1,5 +1,29 @@
 import crypto from 'node:crypto';
 
+export const defaultHomeTopics = [
+  'Matunda na Mbogamboga',
+  'Nafaka',
+  'Mifugo',
+  'Mengineyo',
+];
+
+export function normalizeHomeTopics(value) {
+  if (!Array.isArray(value) || value.length !== 4) {
+    throw new Error('Home topics must contain exactly four labels.');
+  }
+  if (value.some((item) => typeof item !== 'string')) {
+    throw new Error('Each home topic must be text.');
+  }
+  const topics = value.map((item) => item.trim());
+  if (topics.some((item) => item.length === 0 || item.length > 40)) {
+    throw new Error('Each home topic must contain 1–40 characters.');
+  }
+  if (new Set(topics.map((item) => item.toLocaleLowerCase('sw'))).size !== 4) {
+    throw new Error('Home topic labels must be unique.');
+  }
+  return topics;
+}
+
 export function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

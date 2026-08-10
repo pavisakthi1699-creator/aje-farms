@@ -18,6 +18,7 @@ import 'package:aje_farms_mobile/src/models/admin_models.dart';
 import 'package:aje_farms_mobile/src/models/app_document.dart';
 import 'package:aje_farms_mobile/src/models/community_post.dart';
 import 'package:aje_farms_mobile/src/models/course.dart';
+import 'package:aje_farms_mobile/src/models/home_topics.dart';
 import 'package:aje_farms_mobile/src/services/admin_service.dart';
 import 'package:aje_farms_mobile/src/state/app_session.dart';
 import 'package:aje_farms_mobile/src/theme/app_theme.dart';
@@ -30,6 +31,47 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('admin can change the four learner home topics', (tester) async {
+    final adminService = _RecordingAdminService(courses: const []);
+    var refreshCount = 0;
+    await _pumpAdminContent(
+      tester,
+      adminService,
+      refreshCatalog: () async {
+        refreshCount++;
+      },
+    );
+
+    await tester.tap(find.text('Hariri mada za utafutaji'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mada ya 1'),
+      'Mazao ya Biashara',
+    );
+    await tester.tap(find.text('Hifadhi mada'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.homeTopics.first, 'Mazao ya Biashara');
+    expect(adminService.homeTopics, hasLength(4));
+    expect(refreshCount, 1);
+    expect(find.textContaining('Mazao ya Biashara'), findsOneWidget);
+  });
+
+  testWidgets('content tools still load when topic settings are unavailable',
+      (tester) async {
+    final adminService = _RecordingAdminService(
+      courses: const [],
+      failHomeTopics: true,
+    );
+
+    await _pumpAdminContent(tester, adminService);
+
+    expect(find.text('Ongeza kozi na mtaala'), findsOneWidget);
+    expect(find.textContaining('Matunda na Mbogamboga'), findsOneWidget);
+    expect(find.text('Imeshindikana kupakia'), findsNothing);
   });
 
   testWidgets(
@@ -330,13 +372,27 @@ AdminContentCourseRecord _courseRecord({
 }
 
 class _RecordingAdminService implements AdminService {
-  _RecordingAdminService({required this.courses});
+  _RecordingAdminService({required this.courses, this.failHomeTopics = false});
 
   final List<AdminContentCourseRecord> courses;
+  final bool failHomeTopics;
   Course? lastUpsertedCourse;
   String? lastUpsertedStatus;
   bool? lastCreateOnly;
   String? uploadedVideoContentType;
+  List<String> homeTopics = defaultHomeTopics;
+
+  @override
+  Future<List<String>> getHomeTopics() async {
+    if (failHomeTopics) throw const AdminException('not available');
+    return homeTopics;
+  }
+
+  @override
+  Future<List<String>> updateHomeTopics(List<String> topics) async {
+    homeTopics = topics;
+    return homeTopics;
+  }
 
   @override
   Future<List<AdminContentCourseRecord>> listContentCourses() async => courses;

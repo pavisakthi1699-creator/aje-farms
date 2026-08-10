@@ -30,6 +30,38 @@ class BackendAdminService implements AdminService {
   final Duration videoUploadTimeout;
 
   @override
+  Future<List<String>> getHomeTopics() async {
+    final payload = await _get('/api/admin/settings/home-topics');
+    return _homeTopicsFromJson(payload);
+  }
+
+  @override
+  Future<List<String>> updateHomeTopics(List<String> topics) async {
+    final payload = await _put(
+      '/api/admin/settings/home-topics',
+      {'topics': topics},
+    );
+    return _homeTopicsFromJson(payload);
+  }
+
+  List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
+    final topics = payload['topics'];
+    if (topics is! List || topics.length != 4) {
+      throw const AdminException(
+        'Admin service returned invalid learning topics.',
+      );
+    }
+    final parsed =
+        topics.whereType<String>().map((topic) => topic.trim()).toList();
+    if (parsed.length != 4 || parsed.any((topic) => topic.isEmpty)) {
+      throw const AdminException(
+        'Admin service returned invalid learning topics.',
+      );
+    }
+    return parsed;
+  }
+
+  @override
   Future<List<AdminContentCourseRecord>> listContentCourses() async {
     final payload = await _get('/api/admin/content/courses');
     final rows = (payload['courses'] as List<dynamic>? ?? const <dynamic>[])
@@ -130,7 +162,9 @@ class BackendAdminService implements AdminService {
     );
     final updatedAt = payload['courseUpdatedAt'];
     final parsed = updatedAt is String ? DateTime.tryParse(updatedAt) : null;
-    if (parsed == null) throw const AdminException('Invalid video evidence response.');
+    if (parsed == null) {
+      throw const AdminException('Invalid video evidence response.');
+    }
     return AdminLessonSourceReviewResult(courseUpdatedAt: parsed, contentReady: payload['contentReady'] == true);
   }
 

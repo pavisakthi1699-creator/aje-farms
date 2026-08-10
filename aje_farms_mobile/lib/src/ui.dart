@@ -34,6 +34,7 @@ export 'models/app_document.dart';
 export 'models/admin_models.dart';
 export 'models/community_post.dart';
 export 'models/course.dart';
+export 'models/home_topics.dart';
 export 'models/plan_option.dart';
 export 'models/problem_category.dart';
 export 'repositories/cached_app_repository.dart';

@@ -11,6 +11,7 @@ import {
   communityPostImagesBucket,
   createId,
   documentsFromCourses,
+  defaultHomeTopics,
   extensionForImageContentType,
   extensionForVideoContentType,
   hasApprovedLessonInCourses,
@@ -20,6 +21,7 @@ import {
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizeEmail,
+  normalizeHomeTopics,
   paymentFromRow,
   userFromRow,
 } from './utils.js';
@@ -99,13 +101,46 @@ export class PostgresStore {
   }
 
   async catalogSnapshot() {
+    const [courses, documents, plans, communityPosts, homeTopics] =
+      await Promise.all([
+        this.approvedContentCourses(),
+        this.approvedContentDocuments(),
+        this.activePlans(),
+        this.communityPosts(),
+        this.homeTopics(),
+      ]);
     return {
-      courses: await this.approvedContentCourses(),
-      documents: await this.approvedContentDocuments(),
+      courses,
+      documents,
       problemCategories: this.catalog.problemCategories,
-      plans: await this.activePlans(),
-      communityPosts: await this.communityPosts(),
+      plans,
+      communityPosts,
+      homeTopics,
     };
+  }
+
+  async homeTopics() {
+    const result = await this.pool.query(
+      `SELECT value FROM app_settings WHERE key = 'home_topics'`,
+    );
+    if (result.rows.length === 0) return [...defaultHomeTopics];
+    try {
+      return normalizeHomeTopics(result.rows[0].value);
+    } catch (_) {
+      return [...defaultHomeTopics];
+    }
+  }
+
+  async updateHomeTopics(topics) {
+    const normalized = normalizeHomeTopics(topics);
+    await this.pool.query(
+      `INSERT INTO app_settings (key, value, updated_at)
+       VALUES ('home_topics', $1, NOW())
+       ON CONFLICT (key) DO UPDATE
+       SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
+      [JSON.stringify(normalized)],
+    );
+    return normalized;
   }
 
   async activePlans() {
@@ -2846,6 +2881,7 @@ export class PostgresStore {
         notifications,
         content_documents,
         content_courses,
+        app_settings,
         payment_transactions,
         audit_events,
         entitlements,

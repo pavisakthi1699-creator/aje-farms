@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/course.dart';
+import '../models/home_topics.dart';
 import '../models/plan_option.dart';
 import '../models/problem_category.dart';
 import 'community_repository.dart';
@@ -21,6 +22,9 @@ class DemoAppRepository
 
   @override
   List<ProblemCategory> get problemCategories => _problemCategories;
+
+  @override
+  List<String> get homeTopics => defaultHomeTopics;
 
   @override
   List<CommunityPost> get posts => _communityPosts;

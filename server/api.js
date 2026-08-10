@@ -20,6 +20,7 @@ import {
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizeEmail,
+  normalizeHomeTopics,
 } from './store/utils.js';
 
 function devModeEnabled() {
@@ -372,6 +373,41 @@ export async function registerApiRoutes(app) {
         res.json(await store.registerUploadedVideoEvidence({ lessonId: req.params.lessonId, transcript, evidenceNote, groundingFact, reviewerActorId: reviewer?.id ?? null }));
       } catch (error) {
         res.status(400).json({ error: error instanceof Error ? error.message : 'Video evidence could not be saved.' });
+      }
+    },
+  );
+
+  app.get(
+    '/api/admin/settings/home-topics',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ topics: await store.homeTopics() });
+    },
+  );
+
+  app.put(
+    '/api/admin/settings/home-topics',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      let topics;
+      try {
+        topics = normalizeHomeTopics(req.body?.topics);
+      } catch (error) {
+        res.status(400).json({
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Home topics are invalid.',
+        });
+        return;
+      }
+      try {
+        res.json({ topics: await store.updateHomeTopics(topics) });
+      } catch (error) {
+        console.error('Failed to update home topics:', error);
+        res.status(500).json({ error: 'Failed to update home topics.' });
       }
     },
   );

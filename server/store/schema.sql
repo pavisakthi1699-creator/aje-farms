@@ -172,6 +172,12 @@ CREATE TABLE IF NOT EXISTS content_documents (
 CREATE INDEX IF NOT EXISTS idx_content_documents_status
   ON content_documents (status);
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS community_posts (
   id TEXT PRIMARY KEY,
   author TEXT NOT NULL,
@@ -254,6 +260,7 @@ ALTER TABLE notification_devices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reported_community_posts ENABLE ROW LEVEL SECURITY;
@@ -314,6 +321,12 @@ CREATE POLICY deny_direct_client_access ON content_courses
 
 DROP POLICY IF EXISTS deny_direct_client_access ON content_documents;
 CREATE POLICY deny_direct_client_access ON content_documents
+  FOR ALL TO public
+  USING (false)
+  WITH CHECK (false);
+
+DROP POLICY IF EXISTS deny_direct_client_access ON app_settings;
+CREATE POLICY deny_direct_client_access ON app_settings
   FOR ALL TO public
   USING (false)
   WITH CHECK (false);

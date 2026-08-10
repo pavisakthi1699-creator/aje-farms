@@ -181,6 +181,9 @@ class _EmptyLearningRepository implements LearningRepository {
       const DemoAppRepository().problemCategories;
 
   @override
+  List<String> get homeTopics => const DemoAppRepository().homeTopics;
+
+  @override
   Course? get featuredCourse => null;
 
   @override

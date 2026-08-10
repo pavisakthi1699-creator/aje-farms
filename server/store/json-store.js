@@ -7,11 +7,13 @@ import {
   approvedCoursesFromCatalog,
   createId,
   documentsFromCourses,
+  defaultHomeTopics,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizeEmail,
+  normalizeHomeTopics,
 } from './utils.js';
 import {
   createSessionToken,
@@ -46,7 +48,18 @@ export class JsonStore {
       problemCategories: this.catalog.problemCategories,
       plans: this.activePlans(),
       communityPosts: this.community.communityPosts(),
+      homeTopics: this.homeTopics(),
     };
+  }
+
+  homeTopics() {
+    return [...this.state.homeTopics];
+  }
+
+  async updateHomeTopics(topics) {
+    this.state.homeTopics = normalizeHomeTopics(topics);
+    this.#saveAll();
+    return this.homeTopics();
   }
 
   activePlans() {
@@ -951,6 +964,7 @@ export class JsonStore {
       paymentRecords: this.state.paymentRecords,
       entitlements: this.state.entitlements,
       auditEvents: this.state.auditEvents,
+      homeTopics: this.state.homeTopics,
     };
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const tmpPath = `${this.filePath}.tmp`;
@@ -1012,6 +1026,7 @@ function initialMutableState() {
     paymentRecords: [],
     entitlements: [],
     auditEvents: [],
+    homeTopics: [...defaultHomeTopics],
   };
 }
 
@@ -1055,6 +1070,13 @@ function normalizeMutableState(raw) {
     auditEvents: Array.isArray(raw.auditEvents)
       ? raw.auditEvents
       : seed.auditEvents,
+    homeTopics: (() => {
+      try {
+        return normalizeHomeTopics(raw.homeTopics);
+      } catch (_) {
+        return seed.homeTopics;
+      }
+    })(),
   };
 }
 

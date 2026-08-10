@@ -51,6 +51,42 @@ void main() {
     );
   });
 
+  test('gets and updates learner home topics with admin authorization',
+      () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    final requests = <http.Request>[];
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        requests.add(request);
+        return http.Response(
+          '{"topics":["Matunda na Mbogamboga","Nafaka","Mifugo","Mengineyo"]}',
+          200,
+        );
+      }),
+    );
+
+    final loaded = await service.getHomeTopics();
+    final saved = await service.updateHomeTopics(loaded);
+
+    expect(saved, loaded);
+    expect(requests.map((request) => request.method), ['GET', 'PUT']);
+    expect(requests.first.url.path, '/api/admin/settings/home-topics');
+    expect(requests.last.headers['Authorization'], 'Bearer token-admin');
+    expect(jsonDecode(requests.last.body), {'topics': loaded});
+  });
+
+  test('rejects a malformed home-topic response', () async {
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient(
+        (_) async => http.Response('{"topics":["Moja",12,"Tatu","Nne"]}', 200),
+      ),
+    );
+
+    expect(service.getHomeTopics(), throwsA(isA<AdminException>()));
+  });
+
   test('round-trips complete curriculum fields for admin editing', () async {
     late http.Request saveRequest;
     final service = BackendAdminService(

@@ -127,36 +127,29 @@ class UnknownProblemTile extends StatelessWidget {
 class TrendingTopics extends StatelessWidget {
   const TrendingTopics();
 
-  static const _items = [
-    (
-      Icons.water_drop,
-      'Maji',
-      'Nahitaji ushauri kuhusu maji kwenye shamba langu.'
-    ),
-    (
-      Icons.bug_report,
-      'Wadudu',
-      'Nahitaji ushauri kuhusu wadudu kwenye shamba langu.'
-    ),
-    (
-      Icons.eco,
-      'Mbolea',
-      'Nisaidie kuandaa taarifa za udongo kabla ya kuchagua mbolea.'
-    ),
-    (Icons.trending_up, 'Soko', 'Nahitaji ushauri kuhusu soko la mazao yangu.'),
+  static const _icons = [
+    Icons.local_florist,
+    Icons.grass,
+    Icons.pets,
+    Icons.more_horiz,
   ];
 
-  void _openTopic(BuildContext context, String topic, String prompt) {
+  void _openTopic(BuildContext context, String topic) {
     AppFeedback.tap();
     AppNavigator.pushAiChat(
       context,
       initialPromptTopic: topic,
-      initialPrompt: prompt,
+      initialPrompt: 'Nahitaji ushauri kuhusu $topic.',
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final topics = context.dependencies.learningRepository.homeTopics;
+    final accessibilityScale =
+        (MediaQuery.textScalerOf(context).scale(1) - 1).clamp(0.0, 1.0);
+    final cardWidth = 132 + (88 * accessibilityScale);
+    final cardHeight = 120 + (80 * accessibilityScale);
     final itemColors = [
       context.colors.primary,
       context.colors.error,
@@ -164,22 +157,22 @@ class TrendingTopics extends StatelessWidget {
       context.colors.secondary,
     ];
     return SizedBox(
-      height: 104,
+      height: cardHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _items.length,
+        itemCount: topics.length,
         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
         itemBuilder: (_, index) {
-          final item = _items[index];
+          final topic = topics[index];
           return AccessibleTappable(
-            label: item.$2,
-            hint: 'Uliza Mwalimu AI kuhusu ${item.$2.toLowerCase()}',
-            onTap: () => _openTopic(context, item.$2, item.$3),
+            label: topic,
+            hint: 'Uliza Mwalimu AI kuhusu ${topic.toLowerCase()}',
+            onTap: () => _openTopic(context, topic),
             child: InteractiveInk(
               borderRadius: AppRadius.lg,
-              onTap: () => _openTopic(context, item.$2, item.$3),
+              onTap: () => _openTopic(context, topic),
               child: Container(
-                width: 96,
+                width: cardWidth,
                 decoration: BoxDecoration(
                   color: context.colors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -189,10 +182,13 @@ class TrendingTopics extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(item.$1, color: itemColors[index]),
+                    Icon(_icons[index], color: itemColors[index]),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      item.$2,
+                      topic,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),

@@ -19,12 +19,14 @@ class CachedAppRepository extends ChangeNotifier
   })  : _courses = learningSeed.courses,
         _documents = learningSeed.documents,
         _problemCategories = learningSeed.problemCategories,
+        _homeTopics = learningSeed.homeTopics,
         _posts = communitySeed.posts,
         _plans = subscriptionSeed.plans;
 
   List<Course> _courses;
   List<AppDocument> _documents;
   List<ProblemCategory> _problemCategories;
+  List<String> _homeTopics;
   List<CommunityPost> _posts;
   List<PlanOption> _plans;
   bool _initialLoadComplete = false;
@@ -44,6 +46,14 @@ class CachedAppRepository extends ChangeNotifier
 
   @override
   List<ProblemCategory> get problemCategories => _problemCategories;
+
+  @override
+  List<String> get homeTopics => _homeTopics;
+
+  void replaceHomeTopics(List<String> topics) {
+    _homeTopics = List.unmodifiable(topics);
+    notifyListeners();
+  }
 
   @override
   List<CommunityPost> get posts => _posts;
@@ -92,6 +102,7 @@ class CachedAppRepository extends ChangeNotifier
       _courses = snapshot.courses;
       _documents = snapshot.documents;
       _problemCategories = snapshot.problemCategories;
+      _homeTopics = snapshot.homeTopics;
       _posts = snapshot.communityPosts;
       _plans = snapshot.plans;
       _lastRefreshFailed = false;

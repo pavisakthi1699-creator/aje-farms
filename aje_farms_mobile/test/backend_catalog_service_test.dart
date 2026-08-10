@@ -66,6 +66,10 @@ void main() {
     expect(catalog.problemCategories.single.color, const Color(0xFFE15241));
     expect(catalog.communityPosts.single.replies.single.isExpert, isTrue);
     expect(catalog.plans.single.recommended, isTrue);
+    expect(
+      catalog.homeTopics,
+      ['Matunda na Mbogamboga', 'Nafaka', 'Mifugo', 'Mengineyo'],
+    );
   });
 
   test('cached repository keeps fallback then notifies after refresh',
@@ -204,6 +208,7 @@ class _EmptyCourseCatalogService implements CatalogService {
   Future<CatalogSnapshot> loadCatalog() async {
     final snapshot = await _FakeCatalogService().loadCatalog();
     return CatalogSnapshot(
+      homeTopics: snapshot.homeTopics,
       courses: const [],
       documents: const [],
       problemCategories: snapshot.problemCategories,
@@ -239,6 +244,12 @@ class _DeferredCatalogService implements CatalogService {
 
 const _catalogJson = '''
 {
+  "homeTopics": [
+    "Matunda na Mbogamboga",
+    "Nafaka",
+    "Mifugo",
+    "Mengineyo"
+  ],
   "courses": [
     {
       "id": "pilipili",

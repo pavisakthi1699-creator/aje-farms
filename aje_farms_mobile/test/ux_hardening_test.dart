@@ -533,6 +533,7 @@ class _DemoSnapshotCatalogService implements CatalogService {
   Future<CatalogSnapshot> loadCatalog() async {
     const seed = DemoAppRepository();
     return CatalogSnapshot(
+      homeTopics: seed.homeTopics,
       courses: seed.courses,
       documents: seed.documents,
       problemCategories: seed.problemCategories,
