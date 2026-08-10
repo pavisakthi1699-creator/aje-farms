@@ -95,6 +95,37 @@ void main() {
     );
   });
 
+  test('gets and updates community topics', () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        if (request.method == 'PUT') {
+          expect(request.url.path, '/api/admin/settings/community-topics');
+          expect(
+            jsonDecode(request.body),
+            {
+              'topics': ['Mifugo', 'Matunda', 'Teknolojia'],
+            },
+          );
+        }
+        return http.Response(
+          '{"topics":["Mifugo","Matunda","Teknolojia"]}',
+          200,
+        );
+      }),
+    );
+
+    expect(await service.getCommunityTopics(),
+        ['Mifugo', 'Matunda', 'Teknolojia']);
+    expect(
+      await service.updateCommunityTopics(
+        const ['Mifugo', 'Matunda', 'Teknolojia'],
+      ),
+      ['Mifugo', 'Matunda', 'Teknolojia'],
+    );
+  });
+
   test('fails safely when the V2 topic endpoint is unavailable', () async {
     late http.Request captured;
     final service = BackendAdminService(

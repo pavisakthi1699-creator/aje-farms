@@ -21,6 +21,7 @@ import {
   normalizeContentDocument,
   normalizeEmail,
   normalizeHomeTopics,
+  normalizeCommunityTopics,
   defaultHomeTopics,
   legacyHomeTopics,
 } from './store/utils.js';
@@ -386,6 +387,36 @@ export async function registerApiRoutes(app) {
     requireAdminSession(store),
     async (_req, res) => {
       res.json(homeTopicsPayload(await store.homeTopics()));
+    },
+  );
+
+  app.put(
+    '/api/admin/settings/community-topics',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      let topics;
+      try {
+        topics = normalizeCommunityTopics(req.body?.topics);
+      } catch (error) {
+        res.status(400).json({ error: error instanceof Error ? error.message : 'Community topics are invalid.' });
+        return;
+      }
+      try {
+        res.json({ topics: await store.updateCommunityTopics(topics) });
+      } catch (error) {
+        console.error('Failed to update community topics:', error);
+        res.status(500).json({ error: 'Failed to update community topics.' });
+      }
+    },
+  );
+
+  app.get(
+    '/api/admin/settings/community-topics',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ topics: await store.communityTopics() });
     },
   );
 

@@ -308,6 +308,42 @@ test('admin can change learner home topics and catalog returns the update', asyn
   });
 });
 
+test('admin can change community topics and catalog returns the update', async () => {
+  await withTestServer(async (baseUrl) => {
+    const learner = await signIn(baseUrl, 'learner-community@aje.test');
+    const denied = await getJson(
+      baseUrl,
+      '/api/admin/settings/community-topics',
+      await authHeaders(learner.sessionToken),
+    );
+    assert.equal(denied.response.status, 403);
+
+    const admin = await signIn(baseUrl, ADMIN_EMAIL);
+    const headers = await authHeaders(admin.sessionToken);
+    const topics = ['Matunda', 'Mifugo', 'Teknolojia'];
+    const updated = await putJson(
+      baseUrl,
+      '/api/admin/settings/community-topics',
+      { topics },
+      headers,
+    );
+    assert.equal(updated.response.status, 200);
+    assert.deepEqual(updated.payload.topics, topics);
+
+    const catalog = await getJson(baseUrl, '/api/catalog', headers);
+    assert.equal(catalog.response.status, 200);
+    assert.deepEqual(catalog.payload.communityTopics, topics);
+
+    const reserved = await putJson(
+      baseUrl,
+      '/api/admin/settings/community-topics',
+      { topics: ['Zote'] },
+      headers,
+    );
+    assert.equal(reserved.response.status, 400);
+  });
+});
+
 test('liveness endpoint reports a running API independently of providers', async () => {
   await withTestServer(async (baseUrl) => {
     const health = await getJson(baseUrl, '/api/health/live');

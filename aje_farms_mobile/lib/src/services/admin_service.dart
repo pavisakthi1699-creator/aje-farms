@@ -8,6 +8,8 @@ import '../models/course.dart';
 abstract interface class AdminService {
   Future<List<String>> getHomeTopics();
   Future<List<String>> updateHomeTopics(List<String> topics);
+  Future<List<String>> getCommunityTopics();
+  Future<List<String>> updateCommunityTopics(List<String> topics);
   Future<List<AdminContentCourseRecord>> listContentCourses();
   Future<AdminContentCourseRecord> upsertContentCourse({
     required Course course,

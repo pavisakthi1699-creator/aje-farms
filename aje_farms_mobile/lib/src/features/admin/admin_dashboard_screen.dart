@@ -3,6 +3,7 @@
 import 'package:image_picker/image_picker.dart';
 
 import "../../ui.dart";
+import '../../models/community_topics.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -1149,7 +1150,9 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   List<AdminContentCourseRecord> _courses = const [];
   List<AdminContentDocumentRecord> _documents = const [];
   List<String> _homeTopics = defaultHomeTopics;
+  List<String> _communityTopics = defaultCommunityTopics;
   bool _savingHomeTopics = false;
+  bool _savingCommunityTopics = false;
 
   @override
   void didChangeDependencies() {
@@ -1172,17 +1175,20 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       final service = context.dependencies.adminService;
       final results = await Future.wait<Object>([
         _loadHomeTopicsOrDefaults(service),
+        _loadCommunityTopicsOrDefaults(service),
         service.listContentCourses(),
         service.listContentDocuments(),
       ]);
       final homeTopics = results[0] as List<String>;
-      final courses = results[1] as List<AdminContentCourseRecord>;
-      final documents = results[2] as List<AdminContentDocumentRecord>;
+      final communityTopics = results[1] as List<String>;
+      final courses = results[2] as List<AdminContentCourseRecord>;
+      final documents = results[3] as List<AdminContentDocumentRecord>;
       if (!mounted) return;
       setState(() {
         _courses = courses;
         _documents = documents;
         _homeTopics = homeTopics;
+        _communityTopics = communityTopics;
         _loading = false;
       });
     } on AdminException catch (error) {
@@ -1208,6 +1214,15 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     }
   }
 
+  Future<List<String>> _loadCommunityTopicsOrDefaults(
+      AdminService service) async {
+    try {
+      return await service.getCommunityTopics();
+    } on AdminException {
+      return defaultCommunityTopics;
+    }
+  }
+
   Future<void> _editHomeTopics() async {
     if (_savingHomeTopics) return;
     final topics = await _showHomeTopicsEditor(
@@ -1229,6 +1244,34 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       showErrorSnack(context, error.message);
     } finally {
       if (mounted) setState(() => _savingHomeTopics = false);
+    }
+  }
+
+  Future<void> _editCommunityTopics() async {
+    if (_savingCommunityTopics) return;
+    final topics = await _showHomeTopicsEditor(
+      context: context,
+      initialTopics: _communityTopics,
+      title: 'Hariri Mada za Jamii',
+      description:
+          'Ongeza, ondoa au panga mada za kuchuja machapisho na kuchagua unapoweka swali.',
+    );
+    if (topics == null || !mounted) return;
+    final dependencies = context.dependencies;
+    setState(() => _savingCommunityTopics = true);
+    try {
+      final saved =
+          await dependencies.adminService.updateCommunityTopics(topics);
+      dependencies.cachedRepository?.replaceCommunityTopics(saved);
+      await dependencies.refreshCatalog();
+      if (!mounted) return;
+      setState(() => _communityTopics = saved);
+      showSuccessSnack(context, 'Mada za jamii zimehifadhiwa.');
+    } on AdminException catch (error) {
+      if (!mounted) return;
+      showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _savingCommunityTopics = false);
     }
   }
 
@@ -1591,6 +1634,37 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                   ),
                 ),
               ),
+          const SizedBox(height: AppSpacing.lg),
+          _AdminSectionHeader(
+            title: 'Mada za Jamii',
+            count: _communityTopics.length,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _communityTopics.join(' · '),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.tonalIcon(
+                    onPressed:
+                        _savingCommunityTopics ? null : _editCommunityTopics,
+                    icon: const Icon(Icons.forum_outlined),
+                    label: Text(
+                      _savingCommunityTopics
+                          ? 'Inahifadhi...'
+                          : 'Hariri mada za jamii',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1600,10 +1674,17 @@ class _AdminContentTabState extends State<_AdminContentTab> {
 Future<List<String>?> _showHomeTopicsEditor({
   required BuildContext context,
   required List<String> initialTopics,
+  String title = 'Hariri Mada za Kujifunza',
+  String description =
+      'Ongeza, ondoa au panga mada kulingana na hadhira yako. Mada hizi zinaonekana kwenye ukurasa wa mwanzo.',
 }) async {
   return showDialog<List<String>>(
     context: context,
-    builder: (_) => _HomeTopicsEditorDialog(initialTopics: initialTopics),
+    builder: (_) => _HomeTopicsEditorDialog(
+      initialTopics: initialTopics,
+      title: title,
+      description: description,
+    ),
   );
 }
 
@@ -1615,9 +1696,15 @@ class _EditableHomeTopic {
 }
 
 class _HomeTopicsEditorDialog extends StatefulWidget {
-  const _HomeTopicsEditorDialog({required this.initialTopics});
+  const _HomeTopicsEditorDialog({
+    required this.initialTopics,
+    required this.title,
+    required this.description,
+  });
 
   final List<String> initialTopics;
+  final String title;
+  final String description;
 
   @override
   State<_HomeTopicsEditorDialog> createState() =>
@@ -1683,7 +1770,7 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Hariri Mada za Kujifunza'),
+      title: Text(widget.title),
       content: SizedBox(
         width: 420,
         child: Form(
@@ -1692,9 +1779,7 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Ongeza, ondoa au panga mada kulingana na hadhira yako. Mada hizi zinaonekana kwenye ukurasa wa mwanzo.',
-                ),
+                Text(widget.description),
                 const SizedBox(height: AppSpacing.md),
                 for (var index = 0; index < _topics.length; index++) ...[
                   Padding(

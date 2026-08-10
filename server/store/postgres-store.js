@@ -12,6 +12,7 @@ import {
   createId,
   documentsFromCourses,
   defaultHomeTopics,
+  defaultCommunityTopics,
   extensionForImageContentType,
   extensionForVideoContentType,
   hasApprovedLessonInCourses,
@@ -23,6 +24,7 @@ import {
   normalizeContentDocument,
   normalizeEmail,
   normalizeHomeTopics,
+  normalizeCommunityTopics,
   paymentFromRow,
   userFromRow,
 } from './utils.js';
@@ -102,13 +104,14 @@ export class PostgresStore {
   }
 
   async catalogSnapshot() {
-    const [courses, documents, plans, communityPosts, homeTopics] =
+    const [courses, documents, plans, communityPosts, homeTopics, communityTopics] =
       await Promise.all([
         this.approvedContentCourses(),
         this.approvedContentDocuments(),
         this.activePlans(),
         this.communityPosts(),
         this.homeTopics(),
+        this.communityTopics(),
       ]);
     return {
       courses,
@@ -117,6 +120,7 @@ export class PostgresStore {
       plans,
       communityPosts,
       homeTopics,
+      communityTopics,
     };
   }
 
@@ -137,6 +141,30 @@ export class PostgresStore {
     await this.pool.query(
       `INSERT INTO app_settings (key, value, updated_at)
        VALUES ('home_topics', $1, NOW())
+       ON CONFLICT (key) DO UPDATE
+       SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
+      [JSON.stringify(normalized)],
+    );
+    return normalized;
+  }
+
+  async communityTopics() {
+    const result = await this.pool.query(
+      `SELECT value FROM app_settings WHERE key = 'community_topics'`,
+    );
+    if (result.rows.length === 0) return [...defaultCommunityTopics];
+    try {
+      return normalizeCommunityTopics(result.rows[0].value);
+    } catch (_) {
+      return [...defaultCommunityTopics];
+    }
+  }
+
+  async updateCommunityTopics(topics) {
+    const normalized = normalizeCommunityTopics(topics);
+    await this.pool.query(
+      `INSERT INTO app_settings (key, value, updated_at)
+       VALUES ('community_topics', $1, NOW())
        ON CONFLICT (key) DO UPDATE
        SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
       [JSON.stringify(normalized)],

@@ -534,6 +534,7 @@ class _DemoSnapshotCatalogService implements CatalogService {
     const seed = DemoAppRepository();
     return CatalogSnapshot(
       homeTopics: seed.homeTopics,
+      communityTopics: seed.communityTopics,
       courses: seed.courses,
       documents: seed.documents,
       problemCategories: seed.problemCategories,

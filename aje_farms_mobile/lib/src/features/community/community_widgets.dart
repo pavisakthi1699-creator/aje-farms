@@ -216,16 +216,18 @@ class CommunityPostCard extends StatelessWidget {
 
 class CommunityFilters extends StatelessWidget {
   const CommunityFilters({
+    required this.topics,
     required this.selectedFilter,
     required this.onSelected,
   });
 
+  final List<String> topics;
   final String selectedFilter;
   final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    const filters = ['Zote', 'Magonjwa', 'Mifugo', 'Masoko', 'Kuku', 'Nyanya'];
+    final filters = ['Zote', ...topics];
     return SizedBox(
       height: 42,
       child: ListView.separated(

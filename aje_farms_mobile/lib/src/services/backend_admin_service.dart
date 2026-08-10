@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
+import '../models/community_topics.dart';
 import '../models/course.dart';
 import '../models/home_topics.dart';
 import 'admin_service.dart';
@@ -56,12 +57,41 @@ class BackendAdminService implements AdminService {
     return saved;
   }
 
+  @override
+  Future<List<String>> getCommunityTopics() async {
+    final payload = await _get('/api/admin/settings/community-topics');
+    return _communityTopicsFromJson(payload);
+  }
+
+  @override
+  Future<List<String>> updateCommunityTopics(List<String> topics) async {
+    final normalized = parseCommunityTopics(topics);
+    if (normalized == null) {
+      throw const AdminException('Community topics are invalid.');
+    }
+    final payload = await _put(
+      '/api/admin/settings/community-topics',
+      {'topics': normalized},
+    );
+    return _communityTopicsFromJson(payload);
+  }
+
   List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
     final parsed = parseHomeTopics(payload['topicsV2']) ??
         parseHomeTopics(payload['topics']);
     if (parsed == null) {
       throw const AdminException(
         'Admin service returned invalid learning topics.',
+      );
+    }
+    return parsed;
+  }
+
+  List<String> _communityTopicsFromJson(Map<String, dynamic> payload) {
+    final parsed = parseCommunityTopics(payload['topics']);
+    if (parsed == null) {
+      throw const AdminException(
+        'Admin service returned invalid community topics.',
       );
     }
     return parsed;

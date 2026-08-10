@@ -8,12 +8,14 @@ import {
   createId,
   documentsFromCourses,
   defaultHomeTopics,
+  defaultCommunityTopics,
   hasApprovedLessonInCourses,
   isLearnerReadyCourse,
   normalizeApprovedCourse,
   normalizeContentDocument,
   normalizeEmail,
   normalizeHomeTopics,
+  normalizeCommunityTopics,
   mergeLegacyHomeTopics,
 } from './utils.js';
 import {
@@ -50,11 +52,16 @@ export class JsonStore {
       plans: this.activePlans(),
       communityPosts: this.community.communityPosts(),
       homeTopics: this.homeTopics(),
+      communityTopics: this.communityTopics(),
     };
   }
 
   homeTopics() {
     return [...this.state.homeTopics];
+  }
+
+  communityTopics() {
+    return [...this.state.communityTopics];
   }
 
   async updateHomeTopics(topics) {
@@ -65,6 +72,18 @@ export class JsonStore {
       return this.homeTopics();
     } catch (error) {
       this.state.homeTopics = previous;
+      throw error;
+    }
+  }
+
+  async updateCommunityTopics(topics) {
+    const previous = this.state.communityTopics;
+    this.state.communityTopics = normalizeCommunityTopics(topics);
+    try {
+      this.#saveAll();
+      return this.communityTopics();
+    } catch (error) {
+      this.state.communityTopics = previous;
       throw error;
     }
   }
@@ -1048,6 +1067,7 @@ function initialMutableState() {
     entitlements: [],
     auditEvents: [],
     homeTopics: [...defaultHomeTopics],
+    communityTopics: [...defaultCommunityTopics],
   };
 }
 
@@ -1096,6 +1116,13 @@ function normalizeMutableState(raw) {
         return normalizeHomeTopics(raw.homeTopics);
       } catch (_) {
         return seed.homeTopics;
+      }
+    })(),
+    communityTopics: (() => {
+      try {
+        return normalizeCommunityTopics(raw.communityTopics);
+      } catch (_) {
+        return seed.communityTopics;
       }
     })(),
   };

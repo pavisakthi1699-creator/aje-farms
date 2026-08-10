@@ -19,6 +19,26 @@ class _UnverifiedMwalimuAiService implements MwalimuAiService {
   }
 }
 
+class _RecordingCommunityService extends LocalCommunityService {
+  List<String>? submittedTags;
+
+  @override
+  Future<CommunityPost> createPost({
+    required String content,
+    required String location,
+    required List<String> tags,
+    String? imagePath,
+  }) async {
+    submittedTags = tags;
+    return super.createPost(
+      content: content,
+      location: location,
+      tags: tags,
+      imagePath: imagePath,
+    );
+  }
+}
+
 void main() {
   Widget buildDemoApp() {
     return AjeFarmsApp(dependencies: AppDependencies.demo());
@@ -463,6 +483,47 @@ void main() {
       find.text('Majani ya nyanya yana madoa ya njano na nataka ushauri.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('submits only currently configured community topics',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    const fallback = DemoAppRepository();
+    final cachedRepository = CachedAppRepository(
+      learningSeed: fallback,
+      communitySeed: fallback,
+      subscriptionSeed: fallback,
+    );
+    final communityService = _RecordingCommunityService();
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          communityRepository: cachedRepository,
+          communityService: communityService,
+        ),
+      ),
+    );
+    await startDemoShell(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.groups_outlined),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).first,
+      'Ninatafuta ushauri wa matunda kwa shamba langu la nyumbani.',
+    );
+    await tester.enterText(find.byType(TextField).last, 'Morogoro');
+
+    cachedRepository.replaceCommunityTopics(['Matunda']);
+    await tester.tap(find.text('Tuma kwenye Jamii'));
+    await tester.pumpAndSettle();
+
+    expect(communityService.submittedTags, ['Matunda']);
   });
 
   testWidgets('keeps reading lessons available when subscription is active',

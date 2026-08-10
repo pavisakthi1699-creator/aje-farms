@@ -77,6 +77,7 @@ void main() {
         'Teknolojia',
       ],
     );
+    expect(catalog.communityTopics, ['Mifugo', 'Matunda', 'Teknolojia']);
   });
 
   test('uses valid legacy topics when V2 catalog topics are malformed',
@@ -231,6 +232,7 @@ class _EmptyCourseCatalogService implements CatalogService {
     final snapshot = await _FakeCatalogService().loadCatalog();
     return CatalogSnapshot(
       homeTopics: snapshot.homeTopics,
+      communityTopics: snapshot.communityTopics,
       courses: const [],
       documents: const [],
       problemCategories: snapshot.problemCategories,
@@ -279,6 +281,7 @@ const _catalogJson = '''
     "Mengineyo",
     "Teknolojia"
   ],
+  "communityTopics": ["Mifugo", "Matunda", "Teknolojia"],
   "courses": [
     {
       "id": "pilipili",

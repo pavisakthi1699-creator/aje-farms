@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
+import '../models/community_topics.dart';
 import '../models/course.dart';
 import '../models/home_topics.dart';
 import 'admin_service.dart';
@@ -17,6 +18,16 @@ class LocalAdminService implements AdminService {
   Future<List<String>> updateHomeTopics(List<String> topics) async {
     throw const AdminException(
       'Kubadilisha mada kunahitaji backend iliyounganishwa.',
+    );
+  }
+
+  @override
+  Future<List<String>> getCommunityTopics() async => defaultCommunityTopics;
+
+  @override
+  Future<List<String>> updateCommunityTopics(List<String> topics) async {
+    throw const AdminException(
+      'Kubadilisha mada za jamii kunahitaji backend iliyounganishwa.',
     );
   }
 

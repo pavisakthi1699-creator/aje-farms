@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/app_document.dart';
 import '../models/community_post.dart';
+import '../models/community_topics.dart';
 import '../models/course.dart';
 import '../models/home_topics.dart';
 import '../models/plan_option.dart';
@@ -136,6 +137,7 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {
         .map(_planFromJson)
         .toList(),
     homeTopics: _homeTopicsFromJson(json),
+    communityTopics: _communityTopicsFromJson(json['communityTopics']),
   );
 }
 
@@ -143,6 +145,10 @@ List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
   return parseHomeTopics(payload['homeTopicsV2']) ??
       parseHomeTopics(payload['homeTopics']) ??
       defaultHomeTopics;
+}
+
+List<String> _communityTopicsFromJson(Object? value) {
+  return parseCommunityTopics(value) ?? defaultCommunityTopics;
 }
 
 AppDocument _documentFromJson(Map<String, dynamic> json) {

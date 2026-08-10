@@ -7,6 +7,14 @@ export const defaultHomeTopics = [
   'Mengineyo',
 ];
 
+export const defaultCommunityTopics = [
+  'Magonjwa',
+  'Mifugo',
+  'Masoko',
+  'Kuku',
+  'Nyanya',
+];
+
 export const minHomeTopics = 1;
 export const maxHomeTopics = 12;
 export const maxHomeTopicLength = 40;
@@ -75,6 +83,14 @@ export function normalizeHomeTopics(value) {
     topics.length
   ) {
     throw new Error('Home topic labels must be unique.');
+  }
+  return topics;
+}
+
+export function normalizeCommunityTopics(value) {
+  const topics = normalizeHomeTopics(value);
+  if (topics.some((topic) => topic.toLocaleLowerCase('sw') === 'zote')) {
+    throw new Error('Community topics cannot use the reserved label Zote.');
   }
   return topics;
 }

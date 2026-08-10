@@ -17,6 +17,7 @@ import 'package:aje_farms_mobile/src/features/admin/admin_dashboard_screen.dart'
 import 'package:aje_farms_mobile/src/models/admin_models.dart';
 import 'package:aje_farms_mobile/src/models/app_document.dart';
 import 'package:aje_farms_mobile/src/models/community_post.dart';
+import 'package:aje_farms_mobile/src/models/community_topics.dart';
 import 'package:aje_farms_mobile/src/models/course.dart';
 import 'package:aje_farms_mobile/src/models/home_topics.dart';
 import 'package:aje_farms_mobile/src/services/admin_service.dart';
@@ -107,6 +108,34 @@ void main() {
 
     expect(adminService.homeTopics, hasLength(4));
     expect(adminService.homeTopics, isNot(contains('Teknolojia')));
+  });
+
+  testWidgets('admin can change community topics', (tester) async {
+    final adminService = _RecordingAdminService(courses: const []);
+    await _pumpAdminContent(
+      tester,
+      adminService,
+      refreshCatalog: () async {},
+    );
+
+    final editCommunityTopics = find.text('Hariri mada za jamii');
+    for (var attempt = 0;
+        attempt < 10 && editCommunityTopics.evaluate().isEmpty;
+        attempt++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+    }
+    expect(editCommunityTopics, findsOneWidget);
+    await tester.tap(editCommunityTopics);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Mada ya 1'),
+      'Matunda',
+    );
+    await tester.tap(find.text('Hifadhi mada'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.communityTopics.first, 'Matunda');
   });
 
   testWidgets('content tools still load when topic settings are unavailable',
@@ -430,6 +459,7 @@ class _RecordingAdminService implements AdminService {
   bool? lastCreateOnly;
   String? uploadedVideoContentType;
   List<String> homeTopics = defaultHomeTopics;
+  List<String> communityTopics = defaultCommunityTopics;
 
   @override
   Future<List<String>> getHomeTopics() async {
@@ -441,6 +471,15 @@ class _RecordingAdminService implements AdminService {
   Future<List<String>> updateHomeTopics(List<String> topics) async {
     homeTopics = topics;
     return homeTopics;
+  }
+
+  @override
+  Future<List<String>> getCommunityTopics() async => communityTopics;
+
+  @override
+  Future<List<String>> updateCommunityTopics(List<String> topics) async {
+    communityTopics = topics;
+    return communityTopics;
   }
 
   @override

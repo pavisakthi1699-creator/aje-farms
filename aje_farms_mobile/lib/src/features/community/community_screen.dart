@@ -21,8 +21,14 @@ class CommunityScreenState extends State<CommunityScreen> {
     final posts = session.state.communityPostsMergedWith(
       context.dependencies.communityRepository.posts,
     );
-    if (_selectedFilter == 'Zote') return posts;
-    return posts.where((post) => post.tags.contains(_selectedFilter)).toList();
+    final selected = _effectiveFilter(context);
+    if (selected == 'Zote') return posts;
+    return posts.where((post) => post.tags.contains(selected)).toList();
+  }
+
+  String _effectiveFilter(BuildContext context) {
+    final topics = context.dependencies.communityRepository.communityTopics;
+    return topics.contains(_selectedFilter) ? _selectedFilter : 'Zote';
   }
 
   Future<void> _handleRefresh() async {
@@ -61,6 +67,7 @@ class CommunityScreenState extends State<CommunityScreen> {
             final allPosts = context.session.state.communityPostsMergedWith(
               dependencies.communityRepository.posts,
             );
+            final selectedFilter = _effectiveFilter(context);
             final posts = _filteredPosts(context);
 
             return FadeInContent(
@@ -77,7 +84,9 @@ class CommunityScreenState extends State<CommunityScreen> {
                           CommunitySummaryCard(posts: allPosts),
                           const SizedBox(height: AppSpacing.lg),
                           CommunityFilters(
-                            selectedFilter: _selectedFilter,
+                            topics: dependencies
+                                .communityRepository.communityTopics,
+                            selectedFilter: selectedFilter,
                             onSelected: (filter) =>
                                 setState(() => _selectedFilter = filter),
                           ),
@@ -93,17 +102,17 @@ class CommunityScreenState extends State<CommunityScreen> {
                         sliver: SliverToBoxAdapter(
                           child: EmptyState(
                             icon: Icons.forum_outlined,
-                            title: _selectedFilter == 'Zote'
+                            title: selectedFilter == 'Zote'
                                 ? 'Hakuna machapisho bado'
                                 : 'Hakuna machapisho kwa "$_selectedFilter"',
-                            body: _selectedFilter == 'Zote'
+                            body: selectedFilter == 'Zote'
                                 ? 'Kuwa wa kwanza kuuliza swali au shiriki uzoefu wako na wakulima wengine.'
                                 : 'Jaribu chaguo lingine la mada au angalia machapisho yote.',
-                            actionLabel: _selectedFilter == 'Zote'
+                            actionLabel: selectedFilter == 'Zote'
                                 ? 'Tuma Swali'
                                 : 'Ona Zote',
                             onAction: () {
-                              if (_selectedFilter == 'Zote') {
+                              if (selectedFilter == 'Zote') {
                                 AppNavigator.pushCreateCommunityPost(context);
                                 return;
                               }
@@ -334,7 +343,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   final _locationController = TextEditingController();
   final _contentFocus = FocusNode();
   final _locationFocus = FocusNode();
-  final Set<String> _tags = {'Magonjwa'};
+  final Set<String> _tags = {};
   bool _initializedLocation = false;
   bool _isSubmitting = false;
   String? _contentError;
@@ -342,23 +351,19 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   Uint8List? _pickedImageBytes;
   String? _pickedImageContentType;
 
-  static const _availableTags = [
-    'Magonjwa',
-    'Wadudu',
-    'Mbolea',
-    'Maji',
-    'Masoko',
-    'Kuku',
-    'Nyanya',
-    'Pasheni',
-  ];
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_initializedLocation) return;
-    _locationController.text = context.session.state.preferredLocation ?? '';
-    _initializedLocation = true;
+    if (!_initializedLocation) {
+      _locationController.text = context.session.state.preferredLocation ?? '';
+      _initializedLocation = true;
+    }
+    _reconcileTags(context.dependencies.communityRepository.communityTopics);
+  }
+
+  void _reconcileTags(List<String> topics) {
+    _tags.removeWhere((tag) => !topics.contains(tag));
+    if (_tags.isEmpty) _tags.add(topics.first);
   }
 
   @override
@@ -400,6 +405,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    _reconcileTags(context.dependencies.communityRepository.communityTopics);
     final content = _contentController.text.trim();
     final location = _locationController.text.trim();
     // Validate both fields in one pass so the user sees every problem at once,
@@ -522,7 +528,8 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
-                for (final tag in _availableTags)
+                for (final tag
+                    in context.dependencies.communityRepository.communityTopics)
                   FilterChip(
                     selected: _tags.contains(tag),
                     selectedColor: context.colors.primaryContainer,

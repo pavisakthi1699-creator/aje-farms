@@ -335,6 +335,7 @@ class _SingleCourseCatalogService implements CatalogService {
     const seed = DemoAppRepository();
     return CatalogSnapshot(
       homeTopics: seed.homeTopics,
+      communityTopics: seed.communityTopics,
       courses: [course],
       documents: seed.documents,
       problemCategories: seed.problemCategories,

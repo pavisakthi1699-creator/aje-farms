@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/app_document.dart';
 import '../models/community_post.dart';
+import '../models/community_topics.dart';
 import '../models/course.dart';
 import '../models/home_topics.dart';
 import '../models/plan_option.dart';
@@ -28,6 +29,9 @@ class DemoAppRepository
 
   @override
   List<CommunityPost> get posts => _communityPosts;
+
+  @override
+  List<String> get communityTopics => defaultCommunityTopics;
 
   @override
   List<PlanOption> get plans => _plans;

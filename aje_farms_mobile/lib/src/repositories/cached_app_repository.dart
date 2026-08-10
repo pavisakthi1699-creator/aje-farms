@@ -21,6 +21,7 @@ class CachedAppRepository extends ChangeNotifier
         _problemCategories = learningSeed.problemCategories,
         _homeTopics = learningSeed.homeTopics,
         _posts = communitySeed.posts,
+        _communityTopics = communitySeed.communityTopics,
         _plans = subscriptionSeed.plans;
 
   List<Course> _courses;
@@ -28,6 +29,7 @@ class CachedAppRepository extends ChangeNotifier
   List<ProblemCategory> _problemCategories;
   List<String> _homeTopics;
   List<CommunityPost> _posts;
+  List<String> _communityTopics;
   List<PlanOption> _plans;
   bool _initialLoadComplete = false;
   bool _isRefreshing = false;
@@ -57,6 +59,14 @@ class CachedAppRepository extends ChangeNotifier
 
   @override
   List<CommunityPost> get posts => _posts;
+
+  @override
+  List<String> get communityTopics => _communityTopics;
+
+  void replaceCommunityTopics(List<String> topics) {
+    _communityTopics = List.unmodifiable(topics);
+    notifyListeners();
+  }
 
   @override
   List<PlanOption> get plans => _plans;
@@ -104,6 +114,7 @@ class CachedAppRepository extends ChangeNotifier
       _problemCategories = snapshot.problemCategories;
       _homeTopics = snapshot.homeTopics;
       _posts = snapshot.communityPosts;
+      _communityTopics = snapshot.communityTopics;
       _plans = snapshot.plans;
       _lastRefreshFailed = false;
     } on CatalogException {
