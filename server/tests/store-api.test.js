@@ -1104,7 +1104,7 @@ test('admin content courses can be drafted and published into catalog', async ()
   });
 });
 
-test('admin content documents can be drafted and published into catalog', async () => {
+test('standalone admin source documents can be drafted and published', async () => {
   await withTestServer(async (baseUrl) => {
     const { sessionToken: adminSessionToken } = await signIn(baseUrl, ADMIN_EMAIL);
     const adminHeaders = await authHeaders(adminSessionToken);
@@ -1115,8 +1115,8 @@ test('admin content documents can be drafted and published into catalog', async 
     const document = {
       id: 'admin-document-test',
       title: 'Nyaraka ya Majaribio',
-      courseId: 'pasheni',
-      courseTitle: 'Kilimo cha Pasheni',
+      courseId: '',
+      courseTitle: 'Chanzo cha mafunzo',
       description: 'Nyaraka ya kuthibitisha mzunguko wa uhariri.',
       type: 'pdf',
       sizeLabel: 'PDF',

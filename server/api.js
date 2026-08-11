@@ -1816,7 +1816,6 @@ function normalizeContentDocumentRequest(documentId, rawDocument) {
   const requiredStrings = [
     'id',
     'title',
-    'courseId',
     'courseTitle',
     'description',
     'type',
@@ -1829,6 +1828,12 @@ function normalizeContentDocumentRequest(documentId, rawDocument) {
     ) {
       throw new Error(`Document ${field} is required.`);
     }
+  }
+  // Source books can exist independently of a course. The live admin list
+  // represents that supported state with an empty courseId, so the update
+  // endpoint must accept its own response payload unchanged.
+  if (typeof rawDocument.courseId !== 'string') {
+    throw new Error('Document courseId must be a string.');
   }
   if (
     rawDocument.url != null &&
