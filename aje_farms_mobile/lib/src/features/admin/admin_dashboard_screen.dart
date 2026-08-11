@@ -213,154 +213,151 @@ Future<_ContentEditResult?> _showContentEditor({
   String? initialImageUrl,
   String? initialIntroVideoUrl,
 }) async {
-  final titleController = TextEditingController(text: initialTitle);
+  var title = initialTitle;
   var status = initialStatus == 'approved' ? 'approved' : 'draft';
   String? titleError;
   var imageUrl = initialImageUrl ?? '';
   var introVideoUrl = initialIntroVideoUrl ?? '';
-  try {
-    return await showModalBottomSheet<_ContentEditResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.md,
-                  AppSpacing.xl,
-                  MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Hariri content',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    TextField(
-                      controller: titleController,
-                      autofocus: true,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: titleLabel,
-                        errorText: titleError,
-                      ),
-                      onChanged: (_) {
-                        if (titleError != null) {
-                          setSheetState(() => titleError = null);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text('Media ya kitabu',
-                        style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: AppSpacing.sm),
-                    Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              final url = await _pickContentMedia(context,
-                                  video: false);
-                              if (url != null) {
-                                setSheetState(() => imageUrl = url);
-                              }
-                            },
-                            icon: const Icon(Icons.image_outlined),
-                            label: Text(imageUrl.isEmpty
-                                ? 'Ongeza picha'
-                                : 'Badilisha picha'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              final url =
-                                  await _pickContentMedia(context, video: true);
-                              if (url != null) {
-                                setSheetState(() => introVideoUrl = url);
-                              }
-                            },
-                            icon: const Icon(Icons.video_library_outlined),
-                            label: Text(introVideoUrl.isEmpty
-                                ? 'Ongeza video fupi'
-                                : 'Badilisha video'),
-                          ),
-                          if (introVideoUrl.isNotEmpty)
-                            TextButton(
-                                onPressed: () =>
-                                    setSheetState(() => introVideoUrl = ''),
-                                child: const Text('Ondoa video')),
-                        ]),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Hali ya uchapishaji',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: context.colors.muted,
-                          ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(
-                          value: 'draft',
-                          label: Text('Rasimu'),
-                          icon: Icon(Icons.edit_note_outlined),
-                        ),
-                        ButtonSegment(
-                          value: 'approved',
-                          label: Text('Idhinisha'),
-                          icon: Icon(Icons.check_circle_outline),
-                        ),
-                      ],
-                      selected: {status},
-                      onSelectionChanged: (next) {
-                        AppFeedback.selection();
-                        setSheetState(() => status = next.first);
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    FilledButton.icon(
-                      onPressed: () {
-                        final title = titleController.text.trim();
-                        if (title.isEmpty) {
-                          // Previously this returned silently, leaving the
-                          // admin tapping Save with no indication why nothing
-                          // happened.
-                          AppFeedback.error();
-                          setSheetState(
-                            () => titleError = 'Jina haliwezi kuwa tupu.',
-                          );
-                          return;
-                        }
-                        AppFeedback.tap();
-                        Navigator.of(context).pop(
-                          _ContentEditResult(
-                              title: title,
-                              status: status,
-                              imageUrl: imageUrl,
-                              introVideoUrl: introVideoUrl),
-                        );
-                      },
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Hifadhi'),
-                    ),
-                  ],
-                ),
+  return showModalBottomSheet<_ContentEditResult>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setSheetState) {
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.xl,
+                MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
               ),
-            );
-          },
-        );
-      },
-    );
-  } finally {
-    titleController.dispose();
-  }
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Hariri content',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    initialValue: initialTitle,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: titleLabel,
+                      errorText: titleError,
+                    ),
+                    onChanged: (value) {
+                      title = value;
+                      if (titleError != null) {
+                        setSheetState(() => titleError = null);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text('Media ya kitabu',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: AppSpacing.sm),
+                  Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final url =
+                                await _pickContentMedia(context, video: false);
+                            if (url != null) {
+                              setSheetState(() => imageUrl = url);
+                            }
+                          },
+                          icon: const Icon(Icons.image_outlined),
+                          label: Text(imageUrl.isEmpty
+                              ? 'Ongeza picha'
+                              : 'Badilisha picha'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final url =
+                                await _pickContentMedia(context, video: true);
+                            if (url != null) {
+                              setSheetState(() => introVideoUrl = url);
+                            }
+                          },
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: Text(introVideoUrl.isEmpty
+                              ? 'Ongeza video fupi'
+                              : 'Badilisha video'),
+                        ),
+                        if (introVideoUrl.isNotEmpty)
+                          TextButton(
+                              onPressed: () =>
+                                  setSheetState(() => introVideoUrl = ''),
+                              child: const Text('Ondoa video')),
+                      ]),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Hali ya uchapishaji',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: context.colors.muted,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'draft',
+                        label: Text('Rasimu'),
+                        icon: Icon(Icons.edit_note_outlined),
+                      ),
+                      ButtonSegment(
+                        value: 'approved',
+                        label: Text('Idhinisha'),
+                        icon: Icon(Icons.check_circle_outline),
+                      ),
+                    ],
+                    selected: {status},
+                    onSelectionChanged: (next) {
+                      AppFeedback.selection();
+                      setSheetState(() => status = next.first);
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  FilledButton.icon(
+                    onPressed: () {
+                      final trimmedTitle = title.trim();
+                      if (trimmedTitle.isEmpty) {
+                        // Previously this returned silently, leaving the
+                        // admin tapping Save with no indication why nothing
+                        // happened.
+                        AppFeedback.error();
+                        setSheetState(
+                          () => titleError = 'Jina haliwezi kuwa tupu.',
+                        );
+                        return;
+                      }
+                      AppFeedback.tap();
+                      Navigator.of(context).pop(
+                        _ContentEditResult(
+                            title: trimmedTitle,
+                            status: status,
+                            imageUrl: imageUrl,
+                            introVideoUrl: introVideoUrl),
+                      );
+                    },
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Hifadhi'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
 }
 
 Future<String?> _pickContentMedia(BuildContext context,

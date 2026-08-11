@@ -138,6 +138,50 @@ void main() {
     expect(adminService.communityTopics.first, 'Matunda');
   });
 
+  testWidgets(
+    'book editor disposes safely when its route starts dismissing',
+    (tester) async {
+      final document = AdminContentDocumentRecord(
+        id: 'document-1',
+        status: 'approved',
+        updatedAt: DateTime.utc(2026, 8, 12),
+        document: const AppDocument(
+          id: 'document-1',
+          title: 'Kitabu cha majaribio',
+          courseId: 'course-1',
+          courseTitle: 'Kozi ya majaribio',
+          description: 'Maelezo ya kitabu.',
+          type: 'PDF',
+          sizeLabel: '1 MB',
+          url: 'https://example.test/book.pdf',
+        ),
+      );
+      final adminService = _RecordingAdminService(
+        courses: const [],
+        documents: [document],
+      );
+      await _pumpAdminContent(tester, adminService);
+
+      await tester.scrollUntilVisible(
+        find.byTooltip('Hariri document'),
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final editDocumentButton =
+          find.widgetWithIcon(IconButton, Icons.edit_outlined);
+      tester.widget<IconButton>(editDocumentButton).onPressed!();
+      await tester.pumpAndSettle();
+
+      final sheetContext = tester.element(find.text('Hariri content'));
+      Navigator.of(sheetContext).pop();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Dashibodi ya Admin'), findsOneWidget);
+      expect(adminService.lastUpsertedDocument, isNull);
+    },
+  );
+
   testWidgets('topic backend failures are shown instead of hardcoded settings',
       (tester) async {
     final adminService = _RecordingAdminService(
@@ -458,11 +502,17 @@ AdminContentCourseRecord _courseRecord({
 }
 
 class _RecordingAdminService implements AdminService {
-  _RecordingAdminService({required this.courses, this.failHomeTopics = false});
+  _RecordingAdminService({
+    required this.courses,
+    this.documents = const [],
+    this.failHomeTopics = false,
+  });
 
   final List<AdminContentCourseRecord> courses;
+  final List<AdminContentDocumentRecord> documents;
   final bool failHomeTopics;
   Course? lastUpsertedCourse;
+  AppDocument? lastUpsertedDocument;
   String? lastUpsertedStatus;
   bool? lastCreateOnly;
   String? uploadedVideoContentType;
@@ -556,14 +606,20 @@ class _RecordingAdminService implements AdminService {
 
   @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async =>
-      const [];
+      documents;
 
   @override
   Future<AdminContentDocumentRecord> upsertContentDocument({
     required AppDocument document,
     required String status,
   }) async {
-    throw const AdminException('not used');
+    lastUpsertedDocument = document;
+    return AdminContentDocumentRecord(
+      id: document.id,
+      status: status,
+      document: document,
+      updatedAt: DateTime.now().toUtc(),
+    );
   }
 
   @override
