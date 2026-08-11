@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=20 <25"
+    "node": ">=22 <25"
   },
   "scripts": {
     "dev": "NODE_ENV=development node server/index.js",
