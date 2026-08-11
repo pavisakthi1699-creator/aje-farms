@@ -578,6 +578,64 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  app.put(
+    '/api/admin/users/:userId/access',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const action = req.body.action;
+      if (action !== 'suspend' && action !== 'reset_pending') {
+        res.status(400).json({ error: 'User access action is invalid.' });
+        return;
+      }
+      if (req.params.userId === req.userId) {
+        res.status(409).json({ error: 'Huwezi kubadilisha akaunti yako mwenyewe.' });
+        return;
+      }
+      const target = await store.getUser(req.params.userId);
+      if (!target) {
+        res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+        return;
+      }
+      if (target.role === 'admin') {
+        res.status(409).json({ error: 'Ufikiaji wa admin hauwezi kubadilishwa hapa.' });
+        return;
+      }
+
+      try {
+        await store.moderateUserAccess({
+          userId: target.id,
+          action,
+          actorUserId: req.userId,
+          reason:
+            typeof req.body.reason === 'string' && req.body.reason.trim()
+              ? req.body.reason.trim()
+              : action === 'suspend'
+                ? 'Admin suspension'
+                : 'Admin reset to pending',
+        });
+      } catch (error) {
+        if (
+          error?.code === 'ACTIVE_ENTITLEMENT_EXISTS' ||
+          error?.code === 'ADMIN_ACCESS_PROTECTED'
+        ) {
+          res.status(409).json({ error: error.message });
+          return;
+        }
+        throw error;
+      }
+
+      const updatedUser = await store.getUser(target.id);
+      res.json({
+        user: {
+          id: updatedUser.id,
+          accountStatus: updatedUser.accountStatus,
+        },
+        action,
+      });
+    },
+  );
+
   // The plan catalog staff pick from when recording a payment — never a
   // free-typed price. See server/store/schema.sql for the `plans` table.
   app.get(
@@ -700,20 +758,28 @@ export async function registerApiRoutes(app) {
     requireAuthSession(store),
     requireAdminSession(store),
     async (req, res) => {
-      const reason =
-        typeof req.body?.reason === 'string' && req.body.reason.trim()
-          ? req.body.reason.trim()
-          : null;
-      const result = await store.approvePaymentRecord({
-        paymentRecordId: req.params.paymentRecordId,
-        approvedByUserId: req.userId,
-        reason,
-      });
-      if (!result) {
-        res.status(404).json({ error: 'Payment record haijapatikana.' });
-        return;
+      try {
+        const reason =
+          typeof req.body?.reason === 'string' && req.body.reason.trim()
+            ? req.body.reason.trim()
+            : null;
+        const result = await store.approvePaymentRecord({
+          paymentRecordId: req.params.paymentRecordId,
+          approvedByUserId: req.userId,
+          reason,
+        });
+        if (!result) {
+          res.status(404).json({ error: 'Payment record haijapatikana.' });
+          return;
+        }
+        res.json(result);
+      } catch (error) {
+        if (error?.code === 'ACCOUNT_SUSPENDED') {
+          res.status(409).json({ error: error.message });
+          return;
+        }
+        throw error;
       }
-      res.json(result);
     },
   );
 
@@ -1173,7 +1239,7 @@ export async function registerApiRoutes(app) {
     requireAdminSession(store),
     async (req, res) => {
       const { action } = req.body;
-      if (action !== 'dismiss' && action !== 'hide') {
+      if (action !== 'dismiss' && action !== 'hide' && action !== 'restore') {
         res.status(400).json({ error: 'Moderation action is required.' });
         return;
       }
@@ -1195,10 +1261,16 @@ export async function registerApiRoutes(app) {
           notificationProvider,
           userId: authorUserId,
           type: 'moderation_update',
-          title: action === 'hide' ? 'Post imefichwa' : 'Ripoti imepitiwa',
+          title: action === 'hide'
+            ? 'Post imefichwa'
+            : action === 'restore'
+              ? 'Post imerejeshwa'
+              : 'Ripoti imepitiwa',
           body:
             action === 'hide'
               ? 'Post yako imefichwa baada ya ukaguzi wa timu ya AJE.'
+              : action === 'restore'
+                ? 'Post yako imerejeshwa baada ya ukaguzi wa timu ya AJE.'
               : 'Ripoti kuhusu post yako imepitiwa na timu ya AJE.',
           data: { postId: post.id, action },
         });
@@ -1260,7 +1332,8 @@ async function hasPaidLearningAccess(store, userId) {
   const user = await store.getUser(userId);
   return (
     userHasAdminAccess(user, user?.email) ||
-    (typeof store.hasActiveEntitlement === 'function' &&
+    (user?.accountStatus === 'active' &&
+      typeof store.hasActiveEntitlement === 'function' &&
       (await store.hasActiveEntitlement(userId)))
   );
 }

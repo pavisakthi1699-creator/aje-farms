@@ -540,6 +540,14 @@ test('admin moderation can review reports and hide a community post', async () =
     assert.equal(hidden.response.status, 200);
     assert.equal(hidden.payload.post.moderationStatus, 'hidden');
 
+    const hiddenQueue = await getJson(
+      baseUrl,
+      '/api/admin/moderation/reports',
+      await authHeaders(adminToken),
+    );
+    assert.equal(hiddenQueue.payload.reports.length, 1);
+    assert.equal(hiddenQueue.payload.reports[0].report.status, 'hidden');
+
     const community = await getJson(baseUrl, '/api/community/posts');
     assert.equal(
       community.payload.posts.some((item) => item.id === post.payload.id),
@@ -565,6 +573,22 @@ test('admin moderation can review reports and hide a community post', async () =
 
     // Admin moderation routes still need the fields the dashboard renders.
     assert.equal(hidden.payload.post.moderatedBy, adminUser.id);
+
+    const restored = await postJson(
+      baseUrl,
+      `/api/admin/moderation/posts/${post.payload.id}/resolve`,
+      { action: 'restore' },
+      await authHeaders(adminToken),
+    );
+    assert.equal(restored.response.status, 200);
+    assert.equal(restored.payload.post.moderationStatus, 'visible');
+    const communityAfterRestore = await getJson(baseUrl, '/api/community/posts');
+    assert.equal(
+      communityAfterRestore.payload.posts.some(
+        (item) => item.id === post.payload.id,
+      ),
+      true,
+    );
   });
 });
 
@@ -980,6 +1004,130 @@ test('admin users endpoint is role-gated', async () => {
       await authHeaders(learnerToken),
     );
     assert.equal(forbidden.response.status, 403);
+  });
+});
+
+test('admin can suspend learner access and reset the learner to pending', async () => {
+  await withTestServer(async (baseUrl) => {
+    const { user: learner, sessionToken: learnerToken } = await signIn(
+      baseUrl,
+      'moderated-learner@aje.test',
+    );
+    const { user: admin, sessionToken: adminToken } = await signIn(
+      baseUrl,
+      ADMIN_EMAIL,
+    );
+    const adminHeaders = await authHeaders(adminToken);
+
+    const plans = await getJson(baseUrl, '/api/admin/plans', adminHeaders);
+    const plan = plans.payload.plans[0];
+    const payment = await postJson(
+      baseUrl,
+      '/api/admin/payments',
+      {
+        userId: learner.id,
+        planId: plan.id,
+        method: 'cash',
+        amountTzs: plan.priceTzs,
+      },
+      adminHeaders,
+    );
+    const paymentId = payment.payload.paymentRecord.id;
+    const approved = await postJson(
+      baseUrl,
+      `/api/admin/payments/${paymentId}/approve`,
+      {},
+      adminHeaders,
+    );
+    assert.equal(approved.response.status, 200);
+    assert.equal(approved.payload.paymentRecord.status, 'approved');
+
+    const unlocked = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(learnerToken),
+    );
+    assert.ok(
+      unlocked.payload.courses
+        .flatMap((course) => course.lessons)
+        .some((lesson) => lesson.description.length > 0),
+    );
+
+    const forbidden = await putJson(
+      baseUrl,
+      `/api/admin/users/${learner.id}/access`,
+      { action: 'suspend' },
+      await authHeaders(learnerToken),
+    );
+    assert.equal(forbidden.response.status, 403);
+
+    const protectedAdmin = await putJson(
+      baseUrl,
+      `/api/admin/users/${admin.id}/access`,
+      { action: 'suspend' },
+      adminHeaders,
+    );
+    assert.equal(protectedAdmin.response.status, 409);
+
+    const suspended = await putJson(
+      baseUrl,
+      `/api/admin/users/${learner.id}/access`,
+      { action: 'suspend', reason: 'Community safety review' },
+      adminHeaders,
+    );
+    assert.equal(suspended.response.status, 200);
+    assert.equal(suspended.payload.user.accountStatus, 'suspended');
+
+    const paymentsAfterSuspension = await getJson(
+      baseUrl,
+      `/api/admin/payments?userId=${learner.id}`,
+      adminHeaders,
+    );
+    assert.equal(
+      paymentsAfterSuspension.payload.records.find(
+        (record) => record.id === paymentId,
+      ).status,
+      'reversed',
+    );
+    const locked = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(learnerToken),
+    );
+    for (const lesson of locked.payload.courses.flatMap(
+      (course) => course.lessons,
+    )) {
+      assert.equal(lesson.description, '');
+      assert.equal(lesson.resourceUrl, null);
+    }
+
+    const blockedPayment = await postJson(
+      baseUrl,
+      '/api/admin/payments',
+      {
+        userId: learner.id,
+        planId: plan.id,
+        method: 'cash',
+        amountTzs: plan.priceTzs,
+      },
+      adminHeaders,
+    );
+    const blockedApproval = await postJson(
+      baseUrl,
+      `/api/admin/payments/${blockedPayment.payload.paymentRecord.id}/approve`,
+      {},
+      adminHeaders,
+    );
+    assert.equal(blockedApproval.response.status, 409);
+
+    const reset = await putJson(
+      baseUrl,
+      `/api/admin/users/${learner.id}/access`,
+      { action: 'reset_pending' },
+      adminHeaders,
+    );
+    assert.equal(reset.response.status, 200);
+    assert.equal(reset.payload.user.accountStatus, 'pending_activation');
   });
 });
 

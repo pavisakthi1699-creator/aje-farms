@@ -9,11 +9,13 @@ class _RecordingAdminService extends LocalAdminService {
     this.users = const [],
     this.plans = const [],
     this.pending = const [],
+    this.moderationReports = const [],
   });
 
   final List<AdminUserSummary> users;
   final List<AdminPlan> plans;
   List<AdminPaymentRecord> pending;
+  List<AdminModerationReport> moderationReports;
 
   String? lastSearch;
   String? recordedUserId;
@@ -22,6 +24,10 @@ class _RecordingAdminService extends LocalAdminService {
   int? recordedAmountTzs;
   String? approvedPaymentId;
   String? reversedPaymentId;
+  String? accessUserId;
+  String? accessAction;
+  String? moderationPostId;
+  String? moderationAction;
 
   @override
   Future<AdminUsersPage> listUsers({
@@ -120,6 +126,35 @@ class _RecordingAdminService extends LocalAdminService {
       status: 'reversed',
       createdAt: record.createdAt,
     );
+  }
+
+  @override
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {
+    accessUserId = userId;
+    accessAction = action;
+  }
+
+  @override
+  Future<List<AdminModerationReport>> listModerationReports() async =>
+      moderationReports;
+
+  @override
+  Future<CommunityPost> resolveModerationReport({
+    required String postId,
+    required String action,
+  }) async {
+    moderationPostId = postId;
+    moderationAction = action;
+    final report = moderationReports.firstWhere(
+      (item) => item.post.id == postId,
+    );
+    moderationReports =
+        moderationReports.where((item) => item.post.id != postId).toList();
+    return report.post;
   }
 }
 
@@ -267,6 +302,57 @@ void main() {
     expect(find.text('Ufikiaji wa Admin'), findsOneWidget);
     expect(find.text('Amesitishwa'), findsNothing);
     expect(find.text('Thibitisha Malipo'), findsNothing);
+  });
+
+  testWidgets('admin suspension requires confirmation and calls real service',
+      (tester) async {
+    final adminService = _RecordingAdminService(users: [_learner]);
+    await openAdminTab(tester, adminService, 'Watumiaji');
+
+    await tester.tap(find.text('Sitisha Akaunti'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sitisha akaunti?'), findsOneWidget);
+    expect(adminService.accessAction, isNull);
+
+    await tester.tap(find.text('Sitisha').last);
+    await tester.pumpAndSettle();
+    expect(adminService.accessUserId, 'user-learner-1');
+    expect(adminService.accessAction, 'suspend');
+  });
+
+  testWidgets('admin can restore a hidden community post', (tester) async {
+    final adminService = _RecordingAdminService(
+      moderationReports: [
+        AdminModerationReport(
+          post: const CommunityPost(
+            id: 'post-hidden-1',
+            author: 'Mkulima Asha',
+            location: 'Arusha',
+            time: 'Leo',
+            content: 'Ujumbe uliofichwa kwa ukaguzi.',
+            likes: 0,
+            comments: 0,
+            tags: [],
+            replies: [],
+          ),
+          report: AdminModerationReportStatus(
+            postId: 'post-hidden-1',
+            reportedAt: DateTime(2026, 7, 1),
+            status: 'hidden',
+          ),
+        ),
+      ],
+    );
+    await openAdminTab(tester, adminService, 'Usimamizi');
+
+    expect(find.text('Ujumbe uliofichwa kwa ukaguzi.'), findsOneWidget);
+    await tester.tap(find.text('Rejesha chapisho'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.moderationPostId, 'post-hidden-1');
+    expect(adminService.moderationAction, 'restore');
+    expect(find.text('Chapisho limerejeshwa.'), findsOneWidget);
+    expect(find.text('Hakuna ripoti'), findsOneWidget);
   });
 
   testWidgets('records a payment for a searched learner against a real plan',

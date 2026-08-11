@@ -217,6 +217,14 @@ export class JsonStore {
   async approvePaymentRecord({ paymentRecordId, approvedByUserId, reason = null }) {
     const record = await this.getPaymentRecord(paymentRecordId);
     if (!record) return null;
+    const learner = await this.getUser(record.userId);
+    if (learner?.accountStatus === 'suspended') {
+      const error = new Error(
+        'A suspended learner must be returned to pending before approving payment.',
+      );
+      error.code = 'ACCOUNT_SUSPENDED';
+      throw error;
+    }
     if (record.status !== 'pending') {
       return {
         paymentRecord: record,
@@ -565,6 +573,66 @@ export class JsonStore {
     if (!user) return null;
     user.accountStatus = accountStatus;
     user.updatedAt = new Date().toISOString();
+    this.#saveAll();
+    return user;
+  }
+
+  async moderateUserAccess({ userId, action, actorUserId, reason = null }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+    if (user.role === 'admin') {
+      const error = new Error('Admin access cannot be changed here.');
+      error.code = 'ADMIN_ACCESS_PROTECTED';
+      throw error;
+    }
+    if (
+      action === 'reset_pending' &&
+      this.state.entitlements.some(
+        (item) =>
+          item.userId === userId &&
+          item.status === 'active' &&
+          Date.parse(item.expiresAt) > Date.now(),
+      )
+    ) {
+      const error = new Error(
+        'The learner still has active access and must be suspended first.',
+      );
+      error.code = 'ACTIVE_ENTITLEMENT_EXISTS';
+      throw error;
+    }
+    const previousStatus = user.accountStatus;
+    const now = new Date().toISOString();
+    if (action === 'suspend') {
+      for (const record of this.state.paymentRecords) {
+        if (record.userId === userId && record.status === 'approved') {
+          record.status = 'reversed';
+          record.reversedBy = actorUserId;
+          record.reversedAt = now;
+          record.updatedAt = now;
+        }
+      }
+      for (const entitlement of this.state.entitlements) {
+        if (entitlement.userId === userId && entitlement.status === 'active') {
+          entitlement.status = 'revoked';
+          entitlement.revokedAt = now;
+          entitlement.updatedAt = now;
+        }
+      }
+    }
+    user.accountStatus =
+      action === 'suspend' ? 'suspended' : 'pending_activation';
+    user.subscriptionPlan = null;
+    user.subscriptionStartedAt = null;
+    user.updatedAt = now;
+    this.#appendAuditEvent({
+      actorUserId,
+      action: 'user_access_changed',
+      targetType: 'user',
+      targetId: userId,
+      previousStatus,
+      newStatus: user.accountStatus,
+      reason,
+    });
     this.#saveAll();
     return user;
   }

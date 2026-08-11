@@ -351,6 +351,25 @@ export class PostgresStore {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      const paymentOwner = await client.query(
+        `SELECT user_id FROM payment_records WHERE id = $1`,
+        [paymentRecordId],
+      );
+      if (!paymentOwner.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      const lockedUser = await client.query(
+        `SELECT account_status FROM users WHERE id = $1 FOR UPDATE`,
+        [paymentOwner.rows[0].user_id],
+      );
+      if (lockedUser.rows[0]?.account_status === 'suspended') {
+        const error = new Error(
+          'A suspended learner must be returned to pending before approving payment.',
+        );
+        error.code = 'ACCOUNT_SUSPENDED';
+        throw error;
+      }
       const existing = await client.query(
         `SELECT * FROM payment_records WHERE id = $1 FOR UPDATE`,
         [paymentRecordId],
@@ -2243,6 +2262,79 @@ export class PostgresStore {
     return result.rows[0] ? userFromRow(result.rows[0]) : null;
   }
 
+  async moderateUserAccess({ userId, action, actorUserId, reason = null }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        `SELECT account_status, role FROM users WHERE id = $1 FOR UPDATE`,
+        [userId],
+      );
+      const user = existing.rows[0];
+      if (!user) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      if (user.role === 'admin') {
+        const error = new Error('Admin access cannot be changed here.');
+        error.code = 'ADMIN_ACCESS_PROTECTED';
+        throw error;
+      }
+      const now = new Date().toISOString();
+      const nextStatus = action === 'suspend' ? 'suspended' : 'pending_activation';
+      if (action === 'suspend') {
+        await client.query(
+          `UPDATE payment_records
+           SET status = 'reversed', reversed_by = $2, reversed_at = $3,
+               updated_at = $3
+           WHERE user_id = $1 AND status = 'approved'`,
+          [userId, actorUserId, now],
+        );
+        await client.query(
+          `UPDATE entitlements
+           SET status = 'revoked', revoked_at = $2, updated_at = $2
+           WHERE user_id = $1 AND status = 'active'`,
+          [userId, now],
+        );
+      } else {
+        const active = await client.query(
+          `SELECT 1 FROM entitlements
+           WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
+           LIMIT 1`,
+          [userId],
+        );
+        if (active.rows[0]) {
+          const error = new Error(
+            'The learner still has active access and must be suspended first.',
+          );
+          error.code = 'ACTIVE_ENTITLEMENT_EXISTS';
+          throw error;
+        }
+      }
+      await client.query(
+        `UPDATE users
+         SET account_status = $2, subscription_plan = NULL,
+             subscription_started_at = NULL, updated_at = $3
+         WHERE id = $1`,
+        [userId, nextStatus, now],
+      );
+      await client.query(
+        `INSERT INTO audit_events (
+           id, actor_user_id, action, target_type, target_id,
+           previous_status, new_status, reason
+         ) VALUES ($1, $2, 'user_access_changed', 'user', $3, $4, $5, $6)`,
+        [createId('audit'), actorUserId, userId, user.account_status, nextStatus, reason],
+      );
+      await client.query('COMMIT');
+      return this.getUser(userId);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async activateSubscription({ userId, planTitle }) {
     const startedAt = new Date();
     const updatedAt = startedAt.toISOString();
@@ -2902,14 +2994,17 @@ export class PostgresStore {
 
   async reportedCommunityPosts() {
     const reports = await this.pool.query(
-      `SELECT r.post_id, r.reported_at,
+      `SELECT p.id AS post_id, COALESCE(r.reported_at, p.moderated_at, p.created_at) AS reported_at,
               p.id, p.author, p.location, p.time_label, p.content, p.likes,
               p.comments, p.tags, p.related_topic, p.image_path, p.has_image,
               p.is_expert, p.is_urgent, p.moderation_status, p.moderated_at,
               p.moderated_by, p.created_at
-       FROM reported_community_posts r
-       JOIN community_posts p ON p.id = r.post_id
-       ORDER BY r.reported_at DESC`,
+       FROM community_posts p
+       LEFT JOIN reported_community_posts r ON r.post_id = p.id
+       WHERE r.post_id IS NOT NULL
+          OR (p.moderation_status = 'hidden'
+              AND COALESCE(p.moderated_by, '') <> 'content-readiness-migration')
+       ORDER BY COALESCE(r.reported_at, p.moderated_at, p.created_at) DESC`,
     );
     return reports.rows.map((row) => ({
       post: communityPostFromRow(row, { includeModeration: true }),
@@ -2922,43 +3017,55 @@ export class PostgresStore {
   }
 
   async resolveCommunityReport({ postId, action, moderatorUserId }) {
-    if (action === 'hide') {
-      const result = await this.pool.query(
-        `UPDATE community_posts
-         SET moderation_status = 'hidden',
-             moderated_at = $2,
-             moderated_by = $3
-         WHERE id = $1
-         RETURNING id, author, location, time_label, content, likes, comments,
-                   tags, related_topic, image_path, has_image, is_expert,
-                   is_urgent, moderation_status, moderated_at, moderated_by,
-                   created_at`,
-        [postId, new Date().toISOString(), moderatorUserId],
-      );
-      await this.pool.query(
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = action === 'hide' || action === 'restore'
+        ? await client.query(
+            `UPDATE community_posts
+             SET moderation_status = $4,
+                 moderated_at = $2,
+                 moderated_by = $3
+             WHERE id = $1
+             RETURNING id, author, location, time_label, content, likes, comments,
+                       tags, related_topic, image_path, has_image, is_expert,
+                       is_urgent, moderation_status, moderated_at, moderated_by,
+                       created_at`,
+            [
+              postId,
+              new Date().toISOString(),
+              moderatorUserId,
+              action === 'hide' ? 'hidden' : 'visible',
+            ],
+          )
+        : await client.query(
+            `SELECT id, author, location, time_label, content, likes, comments,
+                    tags, related_topic, image_path, has_image, is_expert,
+                    is_urgent, moderation_status, moderated_at, moderated_by,
+                    created_at
+             FROM community_posts
+             WHERE id = $1
+             FOR UPDATE`,
+            [postId],
+          );
+      if (!result.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      await client.query(
         `DELETE FROM reported_community_posts WHERE post_id = $1`,
         [postId],
       );
-      return result.rows[0]
-        ? communityPostFromRow(result.rows[0], { includeModeration: true })
-        : null;
+      await client.query('COMMIT');
+      return communityPostFromRow(result.rows[0], {
+        includeModeration: true,
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const result = await this.pool.query(
-      `SELECT id, author, location, time_label, content, likes, comments, tags,
-              related_topic, image_path, has_image, is_expert, is_urgent,
-              moderation_status, moderated_at, moderated_by, created_at
-       FROM community_posts
-       WHERE id = $1`,
-      [postId],
-    );
-    await this.pool.query(
-      `DELETE FROM reported_community_posts WHERE post_id = $1`,
-      [postId],
-    );
-    return result.rows[0]
-      ? communityPostFromRow(result.rows[0], { includeModeration: true })
-      : null;
   }
 
   // Only used by the NODE_ENV=development dev-session issuer (see auth.js) so

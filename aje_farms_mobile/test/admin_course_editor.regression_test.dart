@@ -138,7 +138,7 @@ void main() {
     expect(adminService.communityTopics.first, 'Matunda');
   });
 
-  testWidgets('content tools still load when topic settings are unavailable',
+  testWidgets('topic backend failures are shown instead of hardcoded settings',
       (tester) async {
     final adminService = _RecordingAdminService(
       courses: const [],
@@ -147,9 +147,17 @@ void main() {
 
     await _pumpAdminContent(tester, adminService);
 
+    expect(find.text('not available'), findsOneWidget);
     expect(find.text('Ongeza kozi na mtaala'), findsOneWidget);
-    expect(find.textContaining('Matunda na Mbogamboga'), findsOneWidget);
-    expect(find.text('Imeshindikana kupakia'), findsNothing);
+    expect(find.text('Hariri mada za utafutaji'), findsOneWidget);
+    final editButton = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Hariri mada za utafutaji'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(editButton.onPressed, isNull);
+    expect(find.textContaining('Matunda na Mbogamboga'), findsNothing);
   });
 
   testWidgets(
@@ -543,7 +551,8 @@ class _RecordingAdminService implements AdminService {
     required Uint8List bytes,
     required String contentType,
     required String kind,
-  }) async => 'https://example.test/content-media/$kind-test';
+  }) async =>
+      'https://example.test/content-media/$kind-test';
 
   @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async =>
@@ -575,6 +584,13 @@ class _RecordingAdminService implements AdminService {
     int offset = 0,
   }) async =>
       const AdminUsersPage(total: 0, users: []);
+
+  @override
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {}
 
   @override
   Future<List<AdminPlan>> listPlans() async => const [];

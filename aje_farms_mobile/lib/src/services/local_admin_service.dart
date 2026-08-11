@@ -95,7 +95,8 @@ class LocalAdminService implements AdminService {
     required String contentType,
     required String kind,
   }) async {
-    throw const AdminException('Upload ya media inahitaji backend iliyounganishwa.');
+    throw const AdminException(
+        'Upload ya media inahitaji backend iliyounganishwa.');
   }
 
   @override
@@ -125,6 +126,17 @@ class LocalAdminService implements AdminService {
   }) async {
     throw const AdminException(
       'Moderation management requires a connected backend.',
+    );
+  }
+
+  @override
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {
+    throw const AdminException(
+      'Usimamizi wa ufikiaji unahitaji backend iliyounganishwa.',
     );
   }
 

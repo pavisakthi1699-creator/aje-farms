@@ -101,19 +101,29 @@ export class CommunityJsonStore {
   }
 
   reportedCommunityPosts() {
-    return this.state.reportedPostIds
-      .map((postId) => {
-        const post = this.state.communityPosts.find((item) => item.id === postId);
-        if (!post) return null;
+    return this.state.communityPosts
+      .filter(
+        (post) =>
+          this.state.reportedPostIds.includes(post.id) ||
+          (post.moderationStatus === 'hidden' &&
+            post.moderatedBy !== 'content-readiness-migration'),
+      )
+      .map((post) => {
         return {
           post,
           report: {
-            postId,
+            postId: post.id,
+            reportedAt:
+              post.moderatedAt ?? post.createdAt ?? new Date().toISOString(),
             status: post.moderationStatus === 'hidden' ? 'hidden' : 'open',
           },
         };
       })
-      .filter(Boolean);
+      .sort(
+        (left, right) =>
+          Date.parse(right.report.reportedAt) -
+          Date.parse(left.report.reportedAt),
+      );
   }
 
   resolveCommunityReport({ postId, action, moderatorUserId }) {
@@ -121,6 +131,10 @@ export class CommunityJsonStore {
     if (!post) return null;
     if (action === 'hide') {
       post.moderationStatus = 'hidden';
+      post.moderatedAt = new Date().toISOString();
+      post.moderatedBy = moderatorUserId;
+    } else if (action === 'restore') {
+      post.moderationStatus = 'visible';
       post.moderatedAt = new Date().toISOString();
       post.moderatedBy = moderatorUserId;
     }

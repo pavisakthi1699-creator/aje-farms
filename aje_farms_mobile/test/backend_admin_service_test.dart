@@ -38,6 +38,36 @@ void main() {
     expect(captured.url.queryParameters['search'], 'farmer');
   });
 
+  test('suspends learner access through the protected admin endpoint',
+      () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    late http.Request captured;
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          '{"user":{"id":"user-1","accountStatus":"suspended"},"action":"suspend"}',
+          200,
+        );
+      }),
+    );
+
+    await service.updateUserAccess(
+      userId: 'user-1',
+      action: 'suspend',
+      reason: 'Community safety review',
+    );
+
+    expect(captured.method, 'PUT');
+    expect(captured.url.path, '/api/admin/users/user-1/access');
+    expect(captured.headers['Authorization'], 'Bearer token-admin');
+    expect(jsonDecode(captured.body), {
+      'action': 'suspend',
+      'reason': 'Community safety review',
+    });
+  });
+
   test('throws typed exception when admin backend returns error', () async {
     final service = BackendAdminService(
       baseUrl: Uri.parse('http://localhost:3000'),

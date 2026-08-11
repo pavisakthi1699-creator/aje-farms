@@ -3,7 +3,6 @@
 import 'package:image_picker/image_picker.dart';
 
 import "../../ui.dart";
-import '../../models/community_topics.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -259,28 +258,45 @@ Future<_ContentEditResult?> _showContentEditor({
                       },
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    Text('Media ya kitabu', style: Theme.of(context).textTheme.labelLarge),
+                    Text('Media ya kitabu',
+                        style: Theme.of(context).textTheme.labelLarge),
                     const SizedBox(height: AppSpacing.sm),
-                    Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final url = await _pickContentMedia(context, video: false);
-                          if (url != null) setSheetState(() => imageUrl = url);
-                        },
-                        icon: const Icon(Icons.image_outlined),
-                        label: Text(imageUrl.isEmpty ? 'Ongeza picha' : 'Badilisha picha'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final url = await _pickContentMedia(context, video: true);
-                          if (url != null) setSheetState(() => introVideoUrl = url);
-                        },
-                        icon: const Icon(Icons.video_library_outlined),
-                        label: Text(introVideoUrl.isEmpty ? 'Ongeza video fupi' : 'Badilisha video'),
-                      ),
-                      if (introVideoUrl.isNotEmpty)
-                        TextButton(onPressed: () => setSheetState(() => introVideoUrl = ''), child: const Text('Ondoa video')),
-                    ]),
+                    Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final url = await _pickContentMedia(context,
+                                  video: false);
+                              if (url != null) {
+                                setSheetState(() => imageUrl = url);
+                              }
+                            },
+                            icon: const Icon(Icons.image_outlined),
+                            label: Text(imageUrl.isEmpty
+                                ? 'Ongeza picha'
+                                : 'Badilisha picha'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final url =
+                                  await _pickContentMedia(context, video: true);
+                              if (url != null) {
+                                setSheetState(() => introVideoUrl = url);
+                              }
+                            },
+                            icon: const Icon(Icons.video_library_outlined),
+                            label: Text(introVideoUrl.isEmpty
+                                ? 'Ongeza video fupi'
+                                : 'Badilisha video'),
+                          ),
+                          if (introVideoUrl.isNotEmpty)
+                            TextButton(
+                                onPressed: () =>
+                                    setSheetState(() => introVideoUrl = ''),
+                                child: const Text('Ondoa video')),
+                        ]),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Hali ya uchapishaji',
@@ -324,7 +340,11 @@ Future<_ContentEditResult?> _showContentEditor({
                         }
                         AppFeedback.tap();
                         Navigator.of(context).pop(
-                          _ContentEditResult(title: title, status: status, imageUrl: imageUrl, introVideoUrl: introVideoUrl),
+                          _ContentEditResult(
+                              title: title,
+                              status: status,
+                              imageUrl: imageUrl,
+                              introVideoUrl: introVideoUrl),
                         );
                       },
                       icon: const Icon(Icons.save_outlined),
@@ -343,15 +363,20 @@ Future<_ContentEditResult?> _showContentEditor({
   }
 }
 
-Future<String?> _pickContentMedia(BuildContext context, {required bool video}) async {
+Future<String?> _pickContentMedia(BuildContext context,
+    {required bool video}) async {
   final adminService = context.dependencies.adminService;
   final file = video
-      ? await ImagePicker().pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3))
-      : await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 86);
+      ? await ImagePicker().pickVideo(
+          source: ImageSource.gallery, maxDuration: const Duration(minutes: 3))
+      : await ImagePicker()
+          .pickImage(source: ImageSource.gallery, imageQuality: 86);
   if (file == null || !context.mounted) return null;
-  final contentType = video ? _contentTypeForVideo(file) : _contentTypeForImage(file);
+  final contentType =
+      video ? _contentTypeForVideo(file) : _contentTypeForImage(file);
   if (contentType == null) {
-    showErrorSnack(context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+    showErrorSnack(
+        context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
     return null;
   }
   try {
@@ -361,7 +386,9 @@ Future<String?> _pickContentMedia(BuildContext context, {required bool video}) a
       throw const AdminException('Faili ni kubwa mno.');
     }
     return await adminService.uploadContentMedia(
-      bytes: bytes, contentType: contentType, kind: video ? 'video' : 'image',
+      bytes: bytes,
+      contentType: contentType,
+      kind: video ? 'video' : 'image',
     );
   } on AdminException catch (error) {
     if (context.mounted) showErrorSnack(context, error.message);
@@ -542,12 +569,17 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     if (_uploadingPreviewMedia) return;
     final adminService = context.dependencies.adminService;
     final picked = video
-        ? await ImagePicker().pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 3))
-        : await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 86);
+        ? await ImagePicker().pickVideo(
+            source: ImageSource.gallery,
+            maxDuration: const Duration(minutes: 3))
+        : await ImagePicker()
+            .pickImage(source: ImageSource.gallery, imageQuality: 86);
     if (picked == null || !mounted) return;
-    final contentType = video ? _contentTypeForVideo(picked) : _contentTypeForImage(picked);
+    final contentType =
+        video ? _contentTypeForVideo(picked) : _contentTypeForImage(picked);
     if (contentType == null) {
-      showErrorSnack(context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+      showErrorSnack(context,
+          video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
       return;
     }
     setState(() => _uploadingPreviewMedia = true);
@@ -557,7 +589,9 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         throw const AdminException('Faili ni kubwa mno kwa preview hii.');
       }
       final url = await adminService.uploadContentMedia(
-        bytes: bytes, contentType: contentType, kind: video ? 'video' : 'image',
+        bytes: bytes,
+        contentType: contentType,
+        kind: video ? 'video' : 'image',
       );
       if (!mounted) return;
       setState(() {
@@ -567,7 +601,11 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
           _imageUrl = url;
         }
       });
-      showSuccessSnack(context, video ? 'Video ya utangulizi imepakiwa.' : 'Picha ya jalada imepakiwa.');
+      showSuccessSnack(
+          context,
+          video
+              ? 'Video ya utangulizi imepakiwa.'
+              : 'Picha ya jalada imepakiwa.');
     } on AdminException catch (error) {
       if (mounted) showErrorSnack(context, error.message);
     } finally {
@@ -636,7 +674,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       icon: original.icon,
       progress: original.progress,
       imageUrl: _imageUrl.trim().isEmpty ? original.imageUrl : _imageUrl.trim(),
-      introVideoUrl: _introVideoUrl.trim().isEmpty ? null : _introVideoUrl.trim(),
+      introVideoUrl:
+          _introVideoUrl.trim().isEmpty ? null : _introVideoUrl.trim(),
       outcomes: outcomes,
       lessons: [
         for (final draft in _lessons)
@@ -792,32 +831,54 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
               Card(
                 child: ExpansionTile(
                   title: const Text('Media ya preview'),
-                  subtitle: Text(_introVideoUrl.isEmpty ? 'Picha ya jalada na video fupi' : 'Picha na video vimewekwa'),
-                  childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
+                  subtitle: Text(_introVideoUrl.isEmpty
+                      ? 'Picha ya jalada na video fupi'
+                      : 'Picha na video vimewekwa'),
+                  childrenPadding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
                   children: [
-                    Text('Weka picha halisi ya jalada na video fupi ya utangulizi.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.colors.muted)),
+                    Text(
+                        'Weka picha halisi ya jalada na video fupi ya utangulizi.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: context.colors.muted)),
                     const SizedBox(height: AppSpacing.sm),
-                    Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: [
-                  OutlinedButton.icon(
-                    onPressed: _uploadingPreviewMedia ? null : () => _pickPreviewMedia(video: false),
-                    icon: const Icon(Icons.image_outlined),
-                    label: Text(_imageUrl.startsWith('http') ? 'Badilisha picha' : 'Ongeza picha'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _uploadingPreviewMedia ? null : () => _pickPreviewMedia(video: true),
-                    icon: const Icon(Icons.video_library_outlined),
-                    label: Text(_introVideoUrl.isEmpty ? 'Ongeza video fupi' : 'Badilisha video'),
-                  ),
-                  if (_introVideoUrl.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => setState(() => _introVideoUrl = ''),
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Ondoa video'),
-                    ),
-                    ]),
-                    if (_uploadingPreviewMedia) const Padding(
-                      padding: EdgeInsets.only(top: AppSpacing.sm), child: LinearProgressIndicator(),
-                    ),
+                    Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _uploadingPreviewMedia
+                                ? null
+                                : () => _pickPreviewMedia(video: false),
+                            icon: const Icon(Icons.image_outlined),
+                            label: Text(_imageUrl.startsWith('http')
+                                ? 'Badilisha picha'
+                                : 'Ongeza picha'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _uploadingPreviewMedia
+                                ? null
+                                : () => _pickPreviewMedia(video: true),
+                            icon: const Icon(Icons.video_library_outlined),
+                            label: Text(_introVideoUrl.isEmpty
+                                ? 'Ongeza video fupi'
+                                : 'Badilisha video'),
+                          ),
+                          if (_introVideoUrl.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: () =>
+                                  setState(() => _introVideoUrl = ''),
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Ondoa video'),
+                            ),
+                        ]),
+                    if (_uploadingPreviewMedia)
+                      const Padding(
+                        padding: EdgeInsets.only(top: AppSpacing.sm),
+                        child: LinearProgressIndicator(),
+                      ),
                   ],
                 ),
               ),
@@ -1156,7 +1217,10 @@ String? _contentTypeForVideo(XFile file) {
 
 String? _contentTypeForImage(XFile file) {
   final declared = file.mimeType?.toLowerCase();
-  if (declared != null && const {'image/jpeg', 'image/png', 'image/webp'}.contains(declared)) return declared;
+  if (declared != null &&
+      const {'image/jpeg', 'image/png', 'image/webp'}.contains(declared)) {
+    return declared;
+  }
   return switch (file.name.toLowerCase().split('.').last) {
     'jpg' || 'jpeg' => 'image/jpeg',
     'png' => 'image/png',
@@ -1284,14 +1348,38 @@ class _AdminContentTab extends StatefulWidget {
   State<_AdminContentTab> createState() => _AdminContentTabState();
 }
 
+class _AdminTopicsLoad {
+  const _AdminTopicsLoad({required this.topics, this.error});
+
+  final List<String> topics;
+  final String? error;
+}
+
+Future<_AdminTopicsLoad> _loadAdminTopics(
+  Future<List<String>> Function() loader,
+) async {
+  try {
+    return _AdminTopicsLoad(topics: await loader());
+  } on AdminException catch (error) {
+    return _AdminTopicsLoad(topics: const [], error: error.message);
+  } catch (_) {
+    return const _AdminTopicsLoad(
+      topics: [],
+      error: 'Imeshindikana kupakia mada kutoka backend.',
+    );
+  }
+}
+
 class _AdminContentTabState extends State<_AdminContentTab> {
   bool _didRequestInitialLoad = false;
   bool _loading = true;
   String? _error;
   List<AdminContentCourseRecord> _courses = const [];
   List<AdminContentDocumentRecord> _documents = const [];
-  List<String> _homeTopics = defaultHomeTopics;
-  List<String> _communityTopics = defaultCommunityTopics;
+  List<String> _homeTopics = const [];
+  List<String> _communityTopics = const [];
+  String? _homeTopicsError;
+  String? _communityTopicsError;
   bool _savingHomeTopics = false;
   bool _savingCommunityTopics = false;
 
@@ -1315,21 +1403,23 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     try {
       final service = context.dependencies.adminService;
       final results = await Future.wait<Object>([
-        _loadHomeTopicsOrDefaults(service),
-        _loadCommunityTopicsOrDefaults(service),
+        _loadAdminTopics(service.getHomeTopics),
+        _loadAdminTopics(service.getCommunityTopics),
         service.listContentCourses(),
         service.listContentDocuments(),
       ]);
-      final homeTopics = results[0] as List<String>;
-      final communityTopics = results[1] as List<String>;
+      final homeTopics = results[0] as _AdminTopicsLoad;
+      final communityTopics = results[1] as _AdminTopicsLoad;
       final courses = results[2] as List<AdminContentCourseRecord>;
       final documents = results[3] as List<AdminContentDocumentRecord>;
       if (!mounted) return;
       setState(() {
         _courses = courses;
         _documents = documents;
-        _homeTopics = homeTopics;
-        _communityTopics = communityTopics;
+        _homeTopics = homeTopics.topics;
+        _communityTopics = communityTopics.topics;
+        _homeTopicsError = homeTopics.error;
+        _communityTopicsError = communityTopics.error;
         _loading = false;
       });
     } on AdminException catch (error) {
@@ -1344,23 +1434,6 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         _error = 'Imeshindikana kupakia content ya admin.';
         _loading = false;
       });
-    }
-  }
-
-  Future<List<String>> _loadHomeTopicsOrDefaults(AdminService service) async {
-    try {
-      return await service.getHomeTopics();
-    } on AdminException {
-      return defaultHomeTopics;
-    }
-  }
-
-  Future<List<String>> _loadCommunityTopicsOrDefaults(
-      AdminService service) async {
-    try {
-      return await service.getCommunityTopics();
-    } on AdminException {
-      return defaultCommunityTopics;
     }
   }
 
@@ -1533,7 +1606,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
           sizeLabel: record.document.sizeLabel,
           url: record.document.url,
           imageUrl: result.imageUrl.isEmpty ? null : result.imageUrl,
-          introVideoUrl: result.introVideoUrl.isEmpty ? null : result.introVideoUrl,
+          introVideoUrl:
+              result.introVideoUrl.isEmpty ? null : result.introVideoUrl,
           isPremium: record.document.isPremium,
         ),
         status: result.status,
@@ -1589,12 +1663,14 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    _homeTopics.join(' · '),
+                    _homeTopicsError ?? _homeTopics.join(' · '),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FilledButton.tonalIcon(
-                    onPressed: _savingHomeTopics ? null : _editHomeTopics,
+                    onPressed: _savingHomeTopics || _homeTopicsError != null
+                        ? null
+                        : _editHomeTopics,
                     icon: const Icon(Icons.edit_outlined),
                     label: Text(
                       _savingHomeTopics
@@ -1792,13 +1868,15 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    _communityTopics.join(' · '),
+                    _communityTopicsError ?? _communityTopics.join(' · '),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FilledButton.tonalIcon(
                     onPressed:
-                        _savingCommunityTopics ? null : _editCommunityTopics,
+                        _savingCommunityTopics || _communityTopicsError != null
+                            ? null
+                            : _editCommunityTopics,
                     icon: const Icon(Icons.forum_outlined),
                     label: Text(
                       _savingCommunityTopics
@@ -2073,14 +2151,14 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
   }
 
   Future<void> _resolve(AdminModerationReport report, String action) async {
-    // Hiding a post is visible to the community and not undoable from this
-    // screen, so require an explicit confirmation first.
+    // Hiding changes what the community can see, so require an explicit
+    // confirmation even though an admin can restore it after review.
     if (action == 'hide') {
       final confirmed = await confirmAction(
         context,
         title: 'Ficha chapisho?',
         message:
-            'Chapisho hili hakitaonekana kwa wakulima wengine. Unaweza kubadilisha hili kwenye backend tu.',
+            'Chapisho hili halitaonekana kwa wakulima wengine. Unaweza kulirejesha hapa baada ya ukaguzi.',
         confirmLabel: 'Ficha',
         isDestructive: true,
       );
@@ -2095,7 +2173,11 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       if (!mounted) return;
       showSuccessSnack(
         context,
-        action == 'hide' ? 'Chapisho limefichwa.' : 'Ripoti imeondolewa.',
+        action == 'hide'
+            ? 'Chapisho limefichwa.'
+            : action == 'restore'
+                ? 'Chapisho limerejeshwa.'
+                : 'Ripoti imeondolewa.',
       );
       await _load();
     } on AdminException catch (error) {
@@ -2137,7 +2219,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         child: EmptyState(
           icon: Icons.verified_outlined,
           title: 'Hakuna ripoti',
-          body: 'Moderation queue iko safi kwa sasa.',
+          body: 'Hakuna ripoti au machapisho yaliyofichwa kwa sasa.',
           actionLabel: 'Onyesha tena',
           onAction: _load,
         ),
@@ -2149,7 +2231,10 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          _AdminSectionHeader(title: 'Ripoti', count: _reports.length),
+          _AdminSectionHeader(
+            title: 'Ripoti na Machapisho Yaliyofichwa',
+            count: _reports.length,
+          ),
           const SizedBox(height: AppSpacing.md),
           for (final report in _reports)
             Padding(
@@ -2195,6 +2280,26 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                         builder: (context) {
                           final isResolving =
                               _resolvingPostId == report.post.id;
+                          final isHidden = report.report.status == 'hidden';
+                          if (isHidden) {
+                            return FilledButton.icon(
+                              onPressed: isResolving
+                                  ? null
+                                  : () {
+                                      AppFeedback.tap();
+                                      _resolve(report, 'restore');
+                                    },
+                              icon: isResolving
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.visibility_outlined),
+                              label: const Text('Rejesha chapisho'),
+                            );
+                          }
                           return Wrap(
                             spacing: AppSpacing.sm,
                             runSpacing: AppSpacing.sm,
@@ -2266,6 +2371,7 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
   String? _error;
   AdminUsersPage _page = const AdminUsersPage(total: 0, users: []);
   final Set<String> _grantingAccessUserIds = <String>{};
+  final Set<String> _changingAccessUserIds = <String>{};
 
   @override
   void didChangeDependencies() {
@@ -2382,6 +2488,39 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     }
   }
 
+  Future<void> _changeAccess(AdminUserSummary user, String action) async {
+    if (_changingAccessUserIds.contains(user.id)) return;
+    final suspending = action == 'suspend';
+    final confirmed = await confirmAction(
+      context,
+      title: suspending ? 'Sitisha akaunti?' : 'Rudisha akaunti kusubiri?',
+      message: suspending
+          ? 'Ufikiaji wa mafunzo utasitishwa na vifurushi vyote hai vitafutwa.'
+          : 'Mtumiaji atahitaji malipo mapya yaliyothibitishwa ili kufungua mafunzo.',
+      confirmLabel: suspending ? 'Sitisha' : 'Rudisha',
+      isDestructive: suspending,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _changingAccessUserIds.add(user.id));
+    try {
+      await context.dependencies.adminService.updateUserAccess(
+        userId: user.id,
+        action: action,
+        reason: suspending ? 'Imesitishwa na admin' : 'Imerejeshwa na admin',
+      );
+      if (!mounted) return;
+      showSuccessSnack(
+        context,
+        suspending ? 'Akaunti imesitishwa.' : 'Akaunti imerudishwa kusubiri.',
+      );
+      await _load();
+    } on AdminException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _changingAccessUserIds.remove(user.id));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading && _page.users.isEmpty && _error == null) {
@@ -2420,10 +2559,19 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
             child: _AdminUserCard(
               user: user,
               isGrantingAccess: _grantingAccessUserIds.contains(user.id),
+              isChangingAccess: _changingAccessUserIds.contains(user.id),
               onGrantPaidAccess:
                   user.role == 'admin' || user.accountStatus == 'active'
                       ? null
                       : () => _grantPaidAccess(user),
+              onSuspend:
+                  user.role == 'admin' || user.accountStatus == 'suspended'
+                      ? null
+                      : () => _changeAccess(user, 'suspend'),
+              onResetPending:
+                  user.role == 'admin' || user.accountStatus != 'suspended'
+                      ? null
+                      : () => _changeAccess(user, 'reset_pending'),
             ),
           );
         },
@@ -3135,12 +3283,18 @@ class _AdminUserCard extends StatelessWidget {
   const _AdminUserCard({
     required this.user,
     required this.isGrantingAccess,
+    required this.isChangingAccess,
     required this.onGrantPaidAccess,
+    required this.onSuspend,
+    required this.onResetPending,
   });
 
   final AdminUserSummary user;
   final bool isGrantingAccess;
+  final bool isChangingAccess;
   final VoidCallback? onGrantPaidAccess;
+  final VoidCallback? onSuspend;
+  final VoidCallback? onResetPending;
 
   @override
   Widget build(BuildContext context) {
@@ -3266,6 +3420,27 @@ class _AdminUserCard extends StatelessWidget {
                         )
                       : const Icon(Icons.verified_outlined),
                   label: const Text('Thibitisha Malipo'),
+                ),
+              ),
+            ],
+            if (onSuspend != null || onResetPending != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed:
+                      isChangingAccess ? null : (onSuspend ?? onResetPending),
+                  icon: isChangingAccess
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(onSuspend != null
+                          ? Icons.block_outlined
+                          : Icons.restart_alt_outlined),
+                  label: Text(onSuspend != null
+                      ? 'Sitisha Akaunti'
+                      : 'Rudisha Kusubiri'),
                 ),
               ),
             ],

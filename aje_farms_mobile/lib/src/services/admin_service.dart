@@ -32,6 +32,7 @@ abstract interface class AdminService {
     required String evidenceNote,
     required String groundingFact,
   });
+
   /// Uploads a lesson video and returns its storage key, which a lesson can
   /// then reference. The bytes go straight to storage through a short-lived
   /// signed URL rather than through the API.
@@ -39,6 +40,7 @@ abstract interface class AdminService {
     required Uint8List bytes,
     required String contentType,
   });
+
   /// Uploads public preview media for a course or source book.
   Future<String> uploadContentMedia({
     required Uint8List bytes,
@@ -59,6 +61,11 @@ abstract interface class AdminService {
     String search = '',
     int limit = 50,
     int offset = 0,
+  });
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
   });
 
   /// The server-owned plan catalog — staff pick a plan id here, never type a
@@ -85,9 +92,11 @@ abstract interface class AdminService {
 
   /// Idempotent on the server: approving an already-approved record returns
   /// the existing entitlement rather than minting a second one.
-  Future<AdminPaymentRecord> approvePayment(String paymentRecordId, {String? reason});
+  Future<AdminPaymentRecord> approvePayment(String paymentRecordId,
+      {String? reason});
 
-  Future<AdminPaymentRecord> reversePayment(String paymentRecordId, {String? reason});
+  Future<AdminPaymentRecord> reversePayment(String paymentRecordId,
+      {String? reason});
 
   Future<List<AdminAuditEvent>> paymentAuditEvents(String paymentRecordId);
 }

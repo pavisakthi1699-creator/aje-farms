@@ -194,14 +194,19 @@ class BackendAdminService implements AdminService {
   }) async {
     final payload = await _post(
       '/api/admin/content/lessons/${Uri.encodeComponent(lessonId)}/video-evidence',
-      {'transcript': transcript, 'evidenceNote': evidenceNote, 'groundingFact': groundingFact},
+      {
+        'transcript': transcript,
+        'evidenceNote': evidenceNote,
+        'groundingFact': groundingFact
+      },
     );
     final updatedAt = payload['courseUpdatedAt'];
     final parsed = updatedAt is String ? DateTime.tryParse(updatedAt) : null;
     if (parsed == null) {
       throw const AdminException('Invalid video evidence response.');
     }
-    return AdminLessonSourceReviewResult(courseUpdatedAt: parsed, contentReady: payload['contentReady'] == true);
+    return AdminLessonSourceReviewResult(
+        courseUpdatedAt: parsed, contentReady: payload['contentReady'] == true);
   }
 
   @override
@@ -263,13 +268,16 @@ class BackendAdminService implements AdminService {
     final uploadUrl = payload['uploadUrl'];
     final publicUrl = payload['publicUrl'];
     if (uploadUrl is! String || publicUrl is! String) {
-      throw const AdminException('Admin service returned an invalid media upload target.');
+      throw const AdminException(
+          'Admin service returned an invalid media upload target.');
     }
-    final response = await _client.put(
-      Uri.parse(uploadUrl),
-      headers: {'Content-Type': contentType},
-      body: bytes,
-    ).timeout(videoUploadTimeout);
+    final response = await _client
+        .put(
+          Uri.parse(uploadUrl),
+          headers: {'Content-Type': contentType},
+          body: bytes,
+        )
+        .timeout(videoUploadTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw const AdminException('Imeshindikana kupakia media. Jaribu tena.');
     }
@@ -349,6 +357,21 @@ class BackendAdminService implements AdminService {
   }
 
   @override
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {
+    await _put(
+      '/api/admin/users/${Uri.encodeComponent(userId)}/access',
+      {
+        'action': action,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  @override
   Future<List<AdminPlan>> listPlans() async {
     final payload = await _get('/api/admin/plans');
     final rows = (payload['plans'] as List<dynamic>? ?? const <dynamic>[])
@@ -369,9 +392,8 @@ class BackendAdminService implements AdminService {
       'limit': '$limit',
       'offset': '$offset',
     };
-    final uri = _baseUrl
-        .resolve('/api/admin/payments')
-        .replace(queryParameters: query);
+    final uri =
+        _baseUrl.resolve('/api/admin/payments').replace(queryParameters: query);
     final payload = await _request(uri, method: _HttpMethod.get);
     final rows = (payload['records'] as List<dynamic>? ?? const <dynamic>[])
         .cast<Map<String, dynamic>>();
@@ -400,7 +422,8 @@ class BackendAdminService implements AdminService {
     });
     final row = payload['paymentRecord'];
     if (row is! Map<String, dynamic>) {
-      throw const AdminException('Invalid payment response from admin service.');
+      throw const AdminException(
+          'Invalid payment response from admin service.');
     }
     return _adminPaymentRecordFromJson(row);
   }
@@ -416,7 +439,8 @@ class BackendAdminService implements AdminService {
     );
     final row = payload['paymentRecord'];
     if (row is! Map<String, dynamic>) {
-      throw const AdminException('Invalid payment response from admin service.');
+      throw const AdminException(
+          'Invalid payment response from admin service.');
     }
     return _adminPaymentRecordFromJson(row);
   }
@@ -432,7 +456,8 @@ class BackendAdminService implements AdminService {
     );
     final row = payload['paymentRecord'];
     if (row is! Map<String, dynamic>) {
-      throw const AdminException('Invalid payment response from admin service.');
+      throw const AdminException(
+          'Invalid payment response from admin service.');
     }
     return _adminPaymentRecordFromJson(row);
   }
