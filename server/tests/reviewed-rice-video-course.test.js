@@ -59,8 +59,10 @@ test("published reading lessons resolve their linked source book", async () => {
   process.env.AJE_STORE = "supabase";
   process.env.SUPABASE_URL = "https://project.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test";
-  globalThis.fetch = async (url) => {
+  let signedRequest;
+  globalThis.fetch = async (url, request) => {
     requestedUrl = String(url);
+    signedRequest = request;
     return {
       ok: true,
       async json() {
@@ -105,6 +107,7 @@ test("published reading lessons resolve their linked source book", async () => {
       url,
       "https://project.supabase.co/storage/v1/object/sign/source-documents/books/Kilimo%20cha%20Mpunga.pdf?token=secret",
     );
+    assert.deepEqual(JSON.parse(signedRequest.body), { expiresIn: 3600 });
   } finally {
     globalThis.fetch = previousFetch;
     if (previousStore == null) delete process.env.AJE_STORE;

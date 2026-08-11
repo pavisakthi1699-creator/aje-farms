@@ -80,6 +80,101 @@ void main() {
     expect(catalog.communityTopics, ['Mifugo', 'Matunda', 'Teknolojia']);
   });
 
+  test('reuses a signed source URL while it is still valid', () async {
+    var requestCount = 0;
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        requestCount++;
+        expect(
+          request.url.path,
+          '/api/lessons/reading-1/source-url',
+        );
+        return http.Response(
+          '{"url":"https://storage.example.test/book.pdf?token=signed"}',
+          200,
+        );
+      }),
+    );
+
+    final first = await service.lessonSourceDocumentUrl('reading-1');
+    final second = await service.lessonSourceDocumentUrl('reading-1');
+
+    expect(second, first);
+    expect(requestCount, 1);
+  });
+
+  test('refreshes a signed source URL after the client cache expires',
+      () async {
+    var requestCount = 0;
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      sourceUrlCacheLifetime: Duration.zero,
+      client: MockClient((_) async {
+        requestCount++;
+        return http.Response(
+          '{"url":"https://storage.example.test/book.pdf?request=$requestCount"}',
+          200,
+        );
+      }),
+    );
+
+    final first = await service.lessonSourceDocumentUrl('reading-1');
+    final second = await service.lessonSourceDocumentUrl('reading-1');
+
+    expect(second, isNot(first));
+    expect(requestCount, 2);
+  });
+
+  test('coalesces simultaneous signed source URL requests', () async {
+    var requestCount = 0;
+    final responseReady = Completer<void>();
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async {
+        requestCount++;
+        await responseReady.future;
+        return http.Response(
+          '{"url":"https://storage.example.test/book.pdf?token=signed"}',
+          200,
+        );
+      }),
+    );
+
+    final first = service.lessonSourceDocumentUrl('reading-1');
+    final second = service.lessonSourceDocumentUrl('reading-1');
+    await Future<void>.delayed(Duration.zero);
+    expect(requestCount, 1);
+
+    responseReady.complete();
+    expect(await Future.wait([first, second]), hasLength(2));
+    expect(requestCount, 1);
+  });
+
+  test('failed signed URL requests can be retried', () async {
+    var requestCount = 0;
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async {
+        requestCount++;
+        if (requestCount == 1) return http.Response('Bad gateway', 502);
+        return http.Response(
+          '{"url":"https://storage.example.test/book.pdf?token=fresh"}',
+          200,
+        );
+      }),
+    );
+
+    await expectLater(
+      service.lessonSourceDocumentUrl('reading-1'),
+      throwsA(isA<CatalogException>()),
+    );
+    final url = await service.lessonSourceDocumentUrl('reading-1');
+
+    expect(url, contains('token=fresh'));
+    expect(requestCount, 2);
+  });
+
   test('uses valid legacy topics when V2 catalog topics are malformed',
       () async {
     final payload = jsonDecode(_catalogJson) as Map<String, dynamic>;

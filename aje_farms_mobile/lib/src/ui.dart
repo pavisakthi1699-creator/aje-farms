@@ -14,6 +14,7 @@ export 'features/auth/password_reset_screen.dart';
 export 'features/community/community_screen.dart';
 export 'features/community/community_widgets.dart';
 export 'features/courses/course_detail_screen.dart';
+export 'features/courses/book_viewer_screen.dart';
 export 'features/courses/course_widgets.dart';
 export 'features/courses/courses_screen.dart';
 export 'features/courses/expert_panel.dart';

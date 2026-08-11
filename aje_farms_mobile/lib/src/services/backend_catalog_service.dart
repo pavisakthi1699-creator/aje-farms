@@ -19,12 +19,16 @@ class BackendCatalogService implements CatalogService {
     required Uri baseUrl,
     http.Client? client,
     this.timeout = const Duration(seconds: 20),
+    this.sourceUrlCacheLifetime = const Duration(minutes: 45),
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client();
 
   final Uri _baseUrl;
   final http.Client _client;
   final Duration timeout;
+  final Duration sourceUrlCacheLifetime;
+  final Map<(String?, String), _CachedSourceUrl> _sourceUrlCache = {};
+  final Map<(String?, String), Future<String>> _sourceUrlRequests = {};
 
   @override
   Future<CatalogSnapshot> loadCatalog() async {
@@ -82,36 +86,109 @@ class BackendCatalogService implements CatalogService {
     return payload['url'] as String;
   }
 
-  Future<String> lessonSourceDocumentUrl(String lessonId) async {
-    final headers = <String, String>{};
+  Future<String> lessonSourceDocumentUrl(
+    String lessonId, {
+    bool forceRefresh = false,
+  }) async {
     final token = await BackendSessionStorage.readToken();
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
+    final accountKey = await BackendSessionStorage.readAccountCacheKey();
+    final cacheKey = (accountKey, lessonId);
+    final cached = _sourceUrlCache[cacheKey];
+    if (!forceRefresh &&
+        cached != null &&
+        cached.expiresAt.isAfter(DateTime.now())) {
+      return cached.url;
     }
-    final response = await _client
-        .get(
-          _baseUrl.resolve(
-            '/api/lessons/${Uri.encodeComponent(lessonId)}/source-url',
-          ),
-          headers: headers,
-        )
-        .timeout(timeout);
-    final payload =
-        response.body.isEmpty ? const {} : jsonDecode(response.body);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw CatalogException(
-        payload is Map<String, dynamic> && payload['error'] is String
-            ? payload['error'] as String
-            : 'Kitabu cha chanzo hakikuweza kufunguka.',
+    _sourceUrlCache.remove(cacheKey);
+
+    final pending = _sourceUrlRequests[cacheKey];
+    if (pending != null) return pending;
+
+    final request =
+        _requestLessonSourceDocumentUrl(lessonId, token).then((url) {
+      _sourceUrlCache[cacheKey] = _CachedSourceUrl(
+        url: url,
+        expiresAt: DateTime.now().add(sourceUrlCacheLifetime),
       );
+      return url;
+    });
+    _sourceUrlRequests[cacheKey] = request;
+    try {
+      return await request;
+    } finally {
+      _sourceUrlRequests.remove(cacheKey);
     }
-    if (payload is! Map<String, dynamic> || payload['url'] is! String) {
-      throw const CatalogException(
-        'Catalog service returned an invalid source document URL.',
-      );
-    }
-    return payload['url'] as String;
   }
+
+  Future<String> _requestLessonSourceDocumentUrl(
+    String lessonId,
+    String? token,
+  ) async {
+    try {
+      final headers = <String, String>{};
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      final response = await _client
+          .get(
+            _baseUrl.resolve(
+              '/api/lessons/${Uri.encodeComponent(lessonId)}/source-url',
+            ),
+            headers: headers,
+          )
+          .timeout(timeout);
+      Object payload = const <String, dynamic>{};
+      if (response.body.isNotEmpty) {
+        try {
+          payload = jsonDecode(response.body);
+        } on FormatException {
+          throw const CatalogException(
+            'Kitabu cha chanzo hakikuweza kufunguka. Jaribu tena.',
+          );
+        }
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw CatalogException(
+          payload is Map<String, dynamic> && payload['error'] is String
+              ? payload['error'] as String
+              : 'Kitabu cha chanzo hakikuweza kufunguka.',
+        );
+      }
+      if (payload is! Map<String, dynamic> || payload['url'] is! String) {
+        throw const CatalogException(
+          'Catalog service returned an invalid source document URL.',
+        );
+      }
+      final sourceUrl = payload['url'] as String;
+      final sourceUri = Uri.tryParse(sourceUrl);
+      if (sourceUri == null ||
+          !sourceUri.hasScheme ||
+          !const {'http', 'https'}.contains(sourceUri.scheme) ||
+          sourceUri.host.isEmpty) {
+        throw const CatalogException(
+          'Catalog service returned an invalid source document URL.',
+        );
+      }
+      return sourceUrl;
+    } on CatalogException {
+      rethrow;
+    } on TimeoutException {
+      throw const CatalogException(
+        'Mtandao umechukua muda mrefu. Jaribu kufungua kitabu tena.',
+      );
+    } on http.ClientException {
+      throw const CatalogException(
+        'Kitabu cha chanzo hakikuweza kufunguka. Kagua mtandao wako.',
+      );
+    }
+  }
+}
+
+class _CachedSourceUrl {
+  const _CachedSourceUrl({required this.url, required this.expiresAt});
+
+  final String url;
+  final DateTime expiresAt;
 }
 
 CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {

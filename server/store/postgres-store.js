@@ -851,7 +851,9 @@ export class PostgresStore {
           apikey: serviceRoleKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ expiresIn: 900 }),
+        // Progressive readers request page ranges while the learner scrolls.
+        // Keep the private link alive for a normal book-reading session.
+        body: JSON.stringify({ expiresIn: 3600 }),
       },
     );
     if (!response.ok) return null;

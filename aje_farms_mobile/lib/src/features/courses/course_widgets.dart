@@ -495,65 +495,7 @@ class LessonPreviewSheet extends StatelessWidget {
               ),
               if (lesson.sourceTitle != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Semantics(
-                  button: lesson.type == LessonType.reading,
-                  label: lesson.type == LessonType.reading
-                      ? 'Fungua kitabu cha chanzo ${lesson.sourceTitle}'
-                      : null,
-                  child: InkWell(
-                    onTap: lesson.type == LessonType.reading
-                        ? () => _openSourceBook(context, lesson)
-                        : null,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: AppA11y.minTouchTarget,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.verified_outlined,
-                            size: 18,
-                            color: context.colors.primary,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Chanzo: ${lesson.sourceTitle}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(color: context.colors.muted),
-                                ),
-                                if (lesson.type == LessonType.reading)
-                                  Text(
-                                    'Soma kitabu kizima',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: context.colors.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (lesson.type == LessonType.reading)
-                            Icon(
-                              Icons.open_in_new,
-                              size: 18,
-                              color: context.colors.primary,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                _SourceBookLink(lesson: lesson),
               ],
               if (lesson.type == LessonType.video) ...[
                 const SizedBox(height: AppSpacing.xl),
@@ -604,6 +546,94 @@ class LessonPreviewSheet extends StatelessWidget {
   }
 }
 
+class _SourceBookLink extends StatefulWidget {
+  const _SourceBookLink({required this.lesson});
+
+  final Lesson lesson;
+
+  @override
+  State<_SourceBookLink> createState() => _SourceBookLinkState();
+}
+
+class _SourceBookLinkState extends State<_SourceBookLink> {
+  bool _isOpening = false;
+
+  Future<void> _open() async {
+    if (_isOpening || widget.lesson.type != LessonType.reading) return;
+    setState(() => _isOpening = true);
+    try {
+      await _openSourceBook(context, widget.lesson);
+    } finally {
+      if (mounted) setState(() => _isOpening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isReading = widget.lesson.type == LessonType.reading;
+    return Semantics(
+      button: isReading,
+      label: isReading
+          ? 'Fungua kitabu cha chanzo ${widget.lesson.sourceTitle}'
+          : null,
+      child: InkWell(
+        onTap: isReading && !_isOpening ? _open : null,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppA11y.minTouchTarget),
+          child: Row(
+            children: [
+              Icon(
+                Icons.verified_outlined,
+                size: 18,
+                color: context.colors.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Chanzo: ${widget.lesson.sourceTitle}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: context.colors.muted),
+                    ),
+                    if (isReading)
+                      Text(
+                        _isOpening
+                            ? 'Inaandaa kitabu...'
+                            : 'Soma kitabu kizima',
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: context.colors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                      ),
+                  ],
+                ),
+              ),
+              if (_isOpening)
+                const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else if (isReading)
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 18,
+                  color: context.colors.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _openSourceBook(BuildContext context, Lesson lesson) async {
   final lessonId = lesson.id;
   final catalogService = context.dependencies.catalogService;
@@ -622,12 +652,23 @@ Future<void> _openSourceBook(BuildContext context, Lesson lesson) async {
   }
 
   final uri = Uri.tryParse(sourceUrl);
-  if (uri == null ||
-      !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-    if (context.mounted) {
-      showSnack(context, 'Kitabu hakikuweza kufunguka. Jaribu tena baadaye.');
-    }
+  if (uri == null) {
+    if (context.mounted) showSnack(context, 'Kiungo cha kitabu si sahihi.');
+    return;
   }
+  if (!context.mounted) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => BookViewerScreen(
+        title: lesson.sourceTitle ?? lesson.title,
+        sourceUrl: sourceUrl,
+        onRefreshUrl: () => catalogService.lessonSourceDocumentUrl(
+          lessonId,
+          forceRefresh: true,
+        ),
+      ),
+    ),
+  );
 }
 
 Future<void> _openVideo(BuildContext context, Lesson lesson) async {

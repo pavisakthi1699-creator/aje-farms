@@ -17,6 +17,15 @@ class BackendSessionStorage {
     return Supabase.instance.client.auth.currentSession?.accessToken;
   }
 
+  /// Stable per-account key for short-lived in-memory caches.
+  ///
+  /// Supabase access tokens rotate, so using the token itself as a cache key
+  /// would discard safe cached data whenever the session refreshes.
+  static Future<String?> readAccountCacheKey() async {
+    if (_useTestToken) return _testToken;
+    return Supabase.instance.client.auth.currentUser?.id;
+  }
+
   @visibleForTesting
   static Future<void> writeToken(String? token) async {
     _useTestToken = true;
