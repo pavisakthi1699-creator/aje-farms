@@ -9,12 +9,16 @@ import {
   validateAndroidApk,
 } from '../android-release.js';
 import { releasePreflight } from '../preflight.js';
+import { verifyReleasePolicyPages } from '../release-policy-pages.js';
 
 const rootDir = process.cwd();
 
 const preflight = releasePreflight(process.env, (relativePath) => {
   return fs.existsSync(path.resolve(rootDir, relativePath));
 });
+if (preflight.blockers.length === 0) {
+  preflight.blockers.push(...await verifyReleasePolicyPages(process.env));
+}
 
 if (preflight.blockers.length > 0) {
   console.error('Android release build blocked:');
@@ -30,12 +34,11 @@ if (preflight.warnings.length > 0) {
   }
 }
 
-if (!preflight.ok) {
+if (preflight.blockers.length > 0) {
   process.exit(1);
 }
 
-const flutterBin =
-  process.env.FLUTTER_BIN ?? '/Users/frankmchaina/development/flutter/bin/flutter';
+const flutterBin = process.env.FLUTTER_BIN ?? 'flutter';
 const dartDefines = releaseDartDefines(process.env);
 const mobileDir = path.join(rootDir, 'aje_farms_mobile');
 

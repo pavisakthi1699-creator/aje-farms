@@ -37,7 +37,10 @@ export async function chatWithMwalimuServer(
     };
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: { timeout: 15_000 },
+  });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: [
@@ -62,6 +65,7 @@ export async function chatWithMwalimuServer(
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.2,
+      maxOutputTokens: 512,
     },
   });
 

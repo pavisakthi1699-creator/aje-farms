@@ -81,7 +81,7 @@ void main() {
       }),
     );
 
-    await service.reportPost('post-1');
+    await service.reportPost('post-1', reason: 'spam');
   });
 
   test('throws typed exception for backend community errors', () {

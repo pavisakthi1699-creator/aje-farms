@@ -50,5 +50,19 @@ class LocalCommunityService implements CommunityService {
   }
 
   @override
-  Future<void> reportPost(String postId) async {}
+  Future<void> reportPost(
+    String postId, {
+    required String reason,
+    String? details,
+  }) async {}
+
+  @override
+  Future<void> reportAuthor(
+    String postId, {
+    required String reason,
+    String? details,
+  }) async {}
+
+  @override
+  Future<void> blockAuthor(String postId) async {}
 }

@@ -578,6 +578,23 @@ class _RecordingAdminService implements AdminService {
   }
 
   @override
+  Future<List<AdminAiReport>> listAiReports() async => const [];
+
+  @override
+  Future<void> resolveAiReport(String reportId, {String? note}) async {}
+
+  @override
+  Future<List<AdminAccountDeletionRequest>>
+      listAccountDeletionRequests() async => const [];
+
+  @override
+  Future<void> resolveAccountDeletionRequest({
+    required String requestId,
+    required String status,
+    String? note,
+  }) async {}
+
+  @override
   Future<AdminUsersPage> listUsers({
     String search = '',
     int limit = 50,

@@ -335,6 +335,43 @@ class BackendAdminService implements AdminService {
   }
 
   @override
+  Future<List<AdminAiReport>> listAiReports() async {
+    final payload = await _get('/api/admin/moderation/ai-reports');
+    final rows = (payload['reports'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_aiReportFromJson).toList();
+  }
+
+  @override
+  Future<void> resolveAiReport(String reportId, {String? note}) async {
+    await _put(
+      '/api/admin/moderation/ai-reports/${Uri.encodeComponent(reportId)}',
+      {'note': note},
+    );
+  }
+
+  @override
+  Future<List<AdminAccountDeletionRequest>>
+      listAccountDeletionRequests() async {
+    final payload = await _get('/api/admin/account-deletion-requests');
+    final rows = (payload['requests'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_accountDeletionRequestFromJson).toList();
+  }
+
+  @override
+  Future<void> resolveAccountDeletionRequest({
+    required String requestId,
+    required String status,
+    String? note,
+  }) async {
+    await _put(
+      '/api/admin/account-deletion-requests/${Uri.encodeComponent(requestId)}',
+      {'status': status, 'note': note},
+    );
+  }
+
+  @override
   Future<AdminUsersPage> listUsers({
     String search = '',
     int limit = 50,
@@ -598,7 +635,35 @@ AdminModerationReport _moderationReportFromJson(Map<String, dynamic> json) {
       postId: reportJson['postId'] as String,
       reportedAt: DateTime.parse(reportJson['reportedAt'] as String),
       status: reportJson['status'] as String,
+      count: (reportJson['count'] as num?)?.toInt() ?? 0,
+      reasons: (reportJson['reasons'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<String>()
+          .toList(),
     ),
+  );
+}
+
+AdminAiReport _aiReportFromJson(Map<String, dynamic> json) {
+  final report = json['report'] as Map<String, dynamic>;
+  final answer = json['answer'] as Map<String, dynamic>;
+  return AdminAiReport(
+    id: report['id'] as String,
+    reason: report['reason'] as String,
+    details: report['details'] as String?,
+    reportedAt: DateTime.parse(report['reportedAt'] as String),
+    prompt: answer['prompt'] as String? ?? '',
+    answer: answer['answer'] as String? ?? '',
+  );
+}
+
+AdminAccountDeletionRequest _accountDeletionRequestFromJson(
+  Map<String, dynamic> json,
+) {
+  return AdminAccountDeletionRequest(
+    id: json['id'] as String,
+    email: json['email'] as String,
+    status: json['status'] as String,
+    requestedAt: DateTime.parse(json['requestedAt'] as String),
   );
 }
 

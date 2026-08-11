@@ -2,16 +2,21 @@ import express from 'express';
 
 import { catalog } from './catalog.js';
 import {
+  currentTermsVersion,
+  deleteSupabaseAuthUser,
+  hasSupabaseAdminConfiguration,
   isAllowlistedAdminEmail,
   userHasAdminAccess,
   userWithEffectiveRole,
   requireAdminSession,
   requireAuthSession,
+  requireCommunityTerms,
 } from './auth.js';
 import { hasConfiguredGeminiApiKey } from './gemini-config.js';
 import { chatWithMwalimuServer } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
+import { installPolicyRoutes } from './policy-pages.js';
 import { createStore, resolveStoreConfig } from './store.js';
 import {
   communityDisplayName,
@@ -44,6 +49,15 @@ export async function registerApiRoutes(app) {
   const store = await createStore(catalog);
   const paymentProvider = createPaymentProvider();
   const notificationProvider = createNotificationProvider();
+
+  // Express 5 leaves req.body undefined when a request has no parsed body.
+  // Preserve the API's established empty-object contract while gaining native
+  // async rejection forwarding from Express 5.
+  app.use((req, _res, next) => {
+    req.body ??= {};
+    next();
+  });
+  installPolicyRoutes(app, store);
 
   app.get('/api/health/live', (_req, res) => {
     res.json({ status: 'ok' });
@@ -80,18 +94,21 @@ export async function registerApiRoutes(app) {
       },
     };
     const ready = Object.values(checks).every((check) => check.ready);
-    res.status(ready ? 200 : 503).json({
+    const response = {
       status: ready ? 'ok' : 'degraded',
-      environment: process.env.NODE_ENV ?? 'development',
-      checks,
-    });
+    };
+    if (!isProduction) {
+      response.environment = process.env.NODE_ENV ?? 'development';
+      response.checks = checks;
+    }
+    res.status(ready ? 200 : 503).json(response);
   });
 
   app.get(
     '/api/catalog',
     requireAuthSession(store),
     async (req, res) => {
-      const snapshot = await store.catalogSnapshot();
+      const snapshot = await store.catalogSnapshot(req.userId);
       const compatibleSnapshot = withCompatibleHomeTopics(snapshot);
       if (await hasPaidLearningAccess(store, req.userId)) {
         res.json(compatibleSnapshot);
@@ -636,6 +653,63 @@ export async function registerApiRoutes(app) {
     },
   );
 
+  app.get(
+    '/api/admin/account-deletion-requests',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ requests: await store.accountDeletionRequestsForAdmin() });
+    },
+  );
+
+  app.put(
+    '/api/admin/account-deletion-requests/:requestId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const status = req.body?.status;
+      if (status !== 'completed' && status !== 'rejected') {
+        res.status(400).json({ error: 'Deletion request status is invalid.' });
+        return;
+      }
+      let deletedAccount = false;
+      if (status === 'completed') {
+        const pendingRequests = await store.accountDeletionRequestsForAdmin();
+        const pendingRequest = pendingRequests.find(
+          (item) => item.id === req.params.requestId,
+        );
+        if (!pendingRequest) {
+          res.status(404).json({ error: 'Deletion request not found.' });
+          return;
+        }
+        const target = await store.getUserByEmail(pendingRequest.email);
+        if (target) {
+          if (userHasAdminAccess(target, target.email)) {
+            res.status(409).json({
+              error: 'Akaunti ya admin haiwezi kufutwa kupitia foleni hii.',
+            });
+            return;
+          }
+          if (target.authUserId && hasSupabaseAdminConfiguration()) {
+            await deleteSupabaseAuthUser(target.authUserId);
+          }
+          deletedAccount = Boolean(await store.deleteUserAccount(target.id));
+        }
+      }
+      const request = await store.resolveAccountDeletionRequest({
+        requestId: req.params.requestId,
+        status,
+        actorUserId: req.userId,
+        note: req.body?.note,
+      });
+      if (!request) {
+        res.status(404).json({ error: 'Deletion request not found.' });
+        return;
+      }
+      res.json({ request, deletedAccount });
+    },
+  );
+
   // The plan catalog staff pick from when recording a payment — never a
   // free-typed price. See server/store/schema.sql for the `plans` table.
   app.get(
@@ -839,6 +913,8 @@ export async function registerApiRoutes(app) {
     const user = await store.linkOrCreateUserForAuth({
       authUserId: `dev-${email}`,
       email,
+      termsAcceptedVersion: currentTermsVersion,
+      termsAcceptedAt: new Date().toISOString(),
     });
     const authSession = await store.createAuthSession(user.id);
     res.json({
@@ -895,6 +971,22 @@ export async function registerApiRoutes(app) {
   );
 
   app.post(
+    '/api/users/me/terms',
+    requireAuthSession(store),
+    async (req, res) => {
+      if (req.body?.version !== currentTermsVersion || req.body?.accepted !== true) {
+        res.status(400).json({ error: 'Kubali masharti ya sasa ili kuendelea.' });
+        return;
+      }
+      const user = await store.acceptCommunityTerms({
+        userId: req.userId,
+        version: currentTermsVersion,
+      });
+      res.json({ user: userWithEffectiveRole(user, user?.email) });
+    },
+  );
+
+  app.post(
     '/api/users/me/subscription/cancel',
     requireAuthSession(store),
     async (req, res) => {
@@ -906,6 +998,50 @@ export async function registerApiRoutes(app) {
       res.json({
         user: userWithEffectiveRole(user, user.email),
       });
+    },
+  );
+
+  app.post(
+    '/api/users/me/delete',
+    requireAuthSession(store),
+    async (req, res) => {
+      if (req.body?.confirmation !== 'DELETE') {
+        res.status(400).json({ error: 'Thibitisho la kufuta linahitajika.' });
+        return;
+      }
+      try {
+        const currentUser = await store.getUser(req.userId);
+        if (!currentUser) {
+          res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+          return;
+        }
+        if (userHasAdminAccess(currentUser, currentUser.email)) {
+          res.status(409).json({
+            error:
+              'Akaunti ya admin lazima ifutwe kupitia ombi la usimamizi.',
+          });
+          return;
+        }
+        // Revoke the external login before removing local data. If the Auth
+        // provider refuses deletion, the still-valid login must not be able
+        // to recreate a fresh local account on its next request.
+        if (req.authUserId) await deleteSupabaseAuthUser(req.authUserId);
+        const deleted = await store.deleteUserAccount(req.userId);
+        if (!deleted) {
+          res.status(404).json({ error: 'Mtumiaji hajapatikana.' });
+          return;
+        }
+        res.json({ status: 'deleted' });
+      } catch (error) {
+        if (error?.code === 'ADMIN_ACCOUNT_PROTECTED') {
+          res.status(409).json({
+            error:
+              'Akaunti ya admin lazima ifutwe kupitia ombi la usimamizi.',
+          });
+          return;
+        }
+        throw error;
+      }
     },
   );
 
@@ -1110,6 +1246,7 @@ export async function registerApiRoutes(app) {
   app.post(
     '/api/community/posts/image',
     requireAuthSession(store),
+    requireCommunityTerms(store),
     express.raw({
       type: ['image/jpeg', 'image/png', 'image/webp'],
       limit: '6mb',
@@ -1136,6 +1273,7 @@ export async function registerApiRoutes(app) {
   app.post(
     '/api/community/posts',
     requireAuthSession(store),
+    requireCommunityTerms(store),
     async (req, res) => {
       const { content, location, tags, imagePath } = req.body;
 
@@ -1175,6 +1313,7 @@ export async function registerApiRoutes(app) {
   app.post(
     '/api/community/posts/:postId/replies',
     requireAuthSession(store),
+    requireCommunityTerms(store),
     async (req, res) => {
       const { body } = req.body;
 
@@ -1215,12 +1354,87 @@ export async function registerApiRoutes(app) {
   app.post(
     '/api/community/posts/:postId/report',
     requireAuthSession(store),
+    requireCommunityTerms(store),
     async (req, res) => {
-      await store.reportCommunityPost(req.params.postId);
+      const reason = normalizeReportReason(req.body?.reason);
+      const details = normalizeReportDetails(req.body?.details);
+      if (!reason) {
+        res.status(400).json({ error: 'Chagua sababu ya ripoti.' });
+        return;
+      }
+      const report = await store.reportCommunityPost({
+        postId: req.params.postId,
+        reporterUserId: req.userId,
+        reason,
+        details,
+      });
+      if (!report) {
+        res.status(404).json({ error: 'Post haijapatikana.' });
+        return;
+      }
       res.json({
         postId: req.params.postId,
         status: 'received',
       });
+    },
+  );
+
+  app.post(
+    '/api/community/posts/:postId/report-author',
+    requireAuthSession(store),
+    requireCommunityTerms(store),
+    async (req, res) => {
+      const reason = normalizeReportReason(req.body?.reason);
+      const details = normalizeReportDetails(req.body?.details);
+      if (!reason) {
+        res.status(400).json({ error: 'Chagua sababu ya kumripoti mtumiaji.' });
+        return;
+      }
+      const report = await store.reportCommunityPost({
+        postId: req.params.postId,
+        reporterUserId: req.userId,
+        reason: `user_${reason}`,
+        details,
+      });
+      if (!report) {
+        res.status(404).json({ error: 'Mtumiaji au post haijapatikana.' });
+        return;
+      }
+      res.json({ postId: req.params.postId, status: 'received' });
+    },
+  );
+
+  app.post(
+    '/api/community/posts/:postId/block-author',
+    requireAuthSession(store),
+    requireCommunityTerms(store),
+    async (req, res) => {
+      const result = await store.blockCommunityPostAuthor({
+        postId: req.params.postId,
+        blockerUserId: req.userId,
+      });
+      if (!result) {
+        res.status(409).json({ error: 'Huwezi kumzuia mtumiaji huyu.' });
+        return;
+      }
+      res.json(result);
+    },
+  );
+
+  app.delete(
+    '/api/community/posts/:postId/block-author',
+    requireAuthSession(store),
+    requireCommunityTerms(store),
+    async (req, res) => {
+      const result = await store.unblockCommunityPostAuthor({
+        postId: req.params.postId,
+        blockerUserId: req.userId,
+      });
+      if (!result) {
+        res.status(404).json({ error: 'Kizuizi hakijapatikana.' });
+        return;
+      }
+      res.json(result);
     },
   );
 
@@ -1290,6 +1504,16 @@ export async function registerApiRoutes(app) {
         res.status(400).json({ error: 'Message is required.' });
         return;
       }
+      if (message.trim().length > 1000) {
+        res.status(400).json({ error: 'Message is too long.' });
+        return;
+      }
+      if (history != null && (!Array.isArray(history) || history.length > 0)) {
+        res.status(400).json({
+          error: 'Conversation history must be managed by the server.',
+        });
+        return;
+      }
 
       try {
         const groundingSources =
@@ -1297,12 +1521,18 @@ export async function registerApiRoutes(app) {
             ? await store.groundingSources(message)
             : null;
         const answer = await chatWithMwalimuServer(
-          message,
-          Array.isArray(history) ? history : [],
+          message.trim(),
+          [],
           (await store.catalogSnapshot()).courses,
           groundingSources,
         );
-        res.json(answer);
+        const stored = await store.createAiAnswer({
+          userId: req.userId,
+          prompt: message.trim(),
+          answer: answer.text,
+          sources: answer.sources,
+        });
+        res.json({ ...answer, messageId: stored.id });
       } catch (error) {
         console.error('Mwalimu AI server error:', error);
         res.status(500).json({
@@ -1313,7 +1543,71 @@ export async function registerApiRoutes(app) {
     }
   );
 
+  app.post(
+    '/api/mwalimu-chat/:messageId/report',
+    requireAuthSession(store),
+    async (req, res) => {
+      const reason = normalizeAiReportReason(req.body?.reason);
+      if (!reason) {
+        res.status(400).json({ error: 'Chagua sababu ya kuripoti jibu.' });
+        return;
+      }
+      const report = await store.reportAiAnswer({
+        answerId: req.params.messageId,
+        reporterUserId: req.userId,
+        reason,
+        details: normalizeReportDetails(req.body?.details),
+      });
+      if (!report) {
+        res.status(404).json({ error: 'Jibu la AI halijapatikana.' });
+        return;
+      }
+      res.json({ status: 'received', messageId: req.params.messageId });
+    },
+  );
+
+  app.get(
+    '/api/admin/moderation/ai-reports',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (_req, res) => {
+      res.json({ reports: await store.aiReportsForAdmin() });
+    },
+  );
+
+  app.put(
+    '/api/admin/moderation/ai-reports/:reportId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const report = await store.resolveAiReport({
+        reportId: req.params.reportId,
+        actorUserId: req.userId,
+        note: req.body?.note,
+      });
+      if (!report) {
+        res.status(404).json({ error: 'Ripoti ya AI haijapatikana.' });
+        return;
+      }
+      res.json({ report });
+    },
+  );
+
+  installApiErrorHandler(app);
   return store;
+}
+
+export function installApiErrorHandler(app) {
+  app.use((error, _req, res, _next) => {
+    console.error('Unhandled API request error', {
+      name: error?.name ?? 'Error',
+      code: error?.code ?? null,
+    });
+    if (res.headersSent) return _next(error);
+    res.status(500).json({
+      error: 'Huduma imepata tatizo. Tafadhali jaribu tena.',
+    });
+  });
 }
 
 function requirePaidLearningAccess(store) {
@@ -1551,4 +1845,40 @@ function normalizeContentDocumentRequest(documentId, rawDocument) {
     }
   }
   return normalizeContentDocument(rawDocument);
+}
+
+const communityReportReasons = new Set([
+  'spam',
+  'harassment',
+  'hate',
+  'sexual',
+  'violence',
+  'misinformation',
+  'privacy',
+  'other',
+]);
+
+function normalizeReportReason(value) {
+  const reason = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return communityReportReasons.has(reason) ? reason : null;
+}
+
+function normalizeReportDetails(value) {
+  if (value == null) return null;
+  if (typeof value !== 'string') return null;
+  const details = value.trim();
+  return details ? details.slice(0, 500) : null;
+}
+
+const aiReportReasons = new Set([
+  'offensive',
+  'unsafe',
+  'inaccurate',
+  'personal_data',
+  'other',
+]);
+
+function normalizeAiReportReason(value) {
+  const reason = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return aiReportReasons.has(reason) ? reason : null;
 }

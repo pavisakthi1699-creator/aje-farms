@@ -1,14 +1,21 @@
 abstract interface class MwalimuAiService {
   Future<MwalimuAiAnswer> answer(String prompt);
+  Future<void> reportAnswer(
+    String messageId, {
+    required String reason,
+    String? details,
+  });
 }
 
 class MwalimuAiAnswer {
   const MwalimuAiAnswer({
     required this.text,
+    this.messageId,
     this.sources = const [],
   });
 
   final String text;
+  final String? messageId;
   final List<MwalimuAiSource> sources;
 }
 

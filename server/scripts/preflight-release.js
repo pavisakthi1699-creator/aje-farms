@@ -4,10 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { releasePreflight } from '../preflight.js';
+import { verifyReleasePolicyPages } from '../release-policy-pages.js';
 
 const result = releasePreflight(process.env, (relativePath) => {
   return fs.existsSync(path.resolve(process.cwd(), relativePath));
 });
+if (result.blockers.length === 0) {
+  result.blockers.push(...await verifyReleasePolicyPages(process.env));
+}
 
 if (result.blockers.length > 0) {
   console.error('Release preflight failed:');
@@ -23,7 +27,7 @@ if (result.warnings.length > 0) {
   }
 }
 
-if (!result.ok) {
+if (result.blockers.length > 0) {
   process.exit(1);
 }
 

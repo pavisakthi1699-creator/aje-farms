@@ -2,8 +2,8 @@
 
 import "../../ui.dart";
 
-class PaymentBenefitsCard extends StatelessWidget {
-  const PaymentBenefitsCard();
+class AccessBenefitsCard extends StatelessWidget {
+  const AccessBenefitsCard();
 
   @override
   Widget build(BuildContext context) {

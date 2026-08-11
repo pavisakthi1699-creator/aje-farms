@@ -2,6 +2,7 @@
 
 import "../../ui.dart";
 import '../../app/build_flags.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -249,6 +250,35 @@ class ProfileScreen extends StatelessWidget {
                     showDivider: false,
                     onTap: () => AppNavigator.pushWhatsApp(context),
                   ),
+                  if (privacyPolicyUrl.isNotEmpty)
+                    ProfileRow(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Sera ya Faragha',
+                      onTap: () => _openAccountUrl(
+                        context,
+                        privacyPolicyUrl,
+                      ),
+                    ),
+                  if (session.isSignedIn && !session.isAdmin)
+                    ProfileRow(
+                      icon: Icons.person_remove_outlined,
+                      title: 'Futa akaunti na data',
+                      subtitle: 'Hatua hii haiwezi kutenduliwa',
+                      color: context.colors.error,
+                      showDivider: false,
+                      onTap: () => _deleteAccount(context),
+                    ),
+                  if (session.isSignedIn &&
+                      session.isAdmin &&
+                      accountDeletionUrl.isNotEmpty)
+                    ProfileRow(
+                      icon: Icons.person_remove_outlined,
+                      title: 'Omba kufuta akaunti ya admin',
+                      subtitle: 'Inahitaji uhakiki wa usimamizi',
+                      color: context.colors.error,
+                      showDivider: false,
+                      onTap: () => _openAccountUrl(context, accountDeletionUrl),
+                    ),
                 ],
               ),
             ),
@@ -290,6 +320,51 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+Future<void> _openAccountUrl(BuildContext context, String value) async {
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (context.mounted) {
+      showErrorSnack(context, 'Kiungo hakikuweza kufunguka. Jaribu tena.');
+    }
+  }
+}
+
+Future<void> _deleteAccount(BuildContext context) async {
+  AppFeedback.tap();
+  final confirmed = await confirmAction(
+    context,
+    title: 'Futa akaunti kabisa?',
+    message: 'Wasifu, maendeleo ya masomo, arifa na machapisho yako yatafutwa. '
+        'Rekodi za fedha zinaweza kuhifadhiwa bila taarifa zako kwa masharti ya kisheria. '
+        'Hatua hii haiwezi kutenduliwa.',
+    confirmLabel: 'Futa akaunti',
+    isDestructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+
+  final dependencies = context.dependencies;
+  final session = context.session;
+  try {
+    await dependencies.authService.deleteAccount();
+    dependencies.cachedRepository?.clearProtectedContent();
+    await session.signOut();
+    if (!context.mounted) return;
+    showSuccessSnack(context, 'Akaunti na data zako zimefutwa.');
+    AppNavigator.replaceWithAuth(context);
+  } on AuthException catch (error) {
+    if (!context.mounted) return;
+    showErrorSnack(context, error.message);
+  } catch (_) {
+    if (!context.mounted) return;
+    showErrorSnack(
+      context,
+      'Imeshindikana kufuta akaunti. Angalia mtandao wako na ujaribu tena.',
     );
   }
 }

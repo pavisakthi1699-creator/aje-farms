@@ -26,6 +26,7 @@ class AppSessionState {
     this.preferredLocation,
     this.displayName,
     this.role,
+    this.termsAcceptedVersion,
     this.themePreference = AppThemePreference.system,
   });
 
@@ -48,6 +49,7 @@ class AppSessionState {
   final String? preferredLocation;
   final String? displayName;
   final String? role;
+  final String? termsAcceptedVersion;
   final AppThemePreference themePreference;
 
   bool get isAdmin => role == 'admin';
@@ -91,6 +93,7 @@ class AppSessionState {
     String? preferredLocation,
     String? displayName,
     String? role,
+    String? termsAcceptedVersion,
     AppThemePreference? themePreference,
     bool clearEmail = false,
     bool clearSubscription = false,
@@ -98,6 +101,7 @@ class AppSessionState {
     bool clearPreferredLocation = false,
     bool clearDisplayName = false,
     bool clearRole = false,
+    bool clearTermsAcceptedVersion = false,
   }) {
     return AppSessionState(
       hasStarted: hasStarted ?? this.hasStarted,
@@ -122,6 +126,9 @@ class AppSessionState {
           : preferredLocation ?? this.preferredLocation,
       displayName: clearDisplayName ? null : displayName ?? this.displayName,
       role: clearRole ? null : role ?? this.role,
+      termsAcceptedVersion: clearTermsAcceptedVersion
+          ? null
+          : termsAcceptedVersion ?? this.termsAcceptedVersion,
       themePreference: themePreference ?? this.themePreference,
     );
   }
@@ -148,6 +155,7 @@ class AppSessionController extends ChangeNotifier {
   static const _preferredLocationKey = 'app_session.preferred_location';
   static const _displayNameKey = 'app_session.display_name';
   static const _roleKey = 'app_session.role';
+  static const _termsAcceptedVersionKey = 'app_session.terms_accepted_version';
   static const _themePreferenceKey = 'app_session.theme_preference';
 
   SharedPreferences? _preferences;
@@ -188,6 +196,7 @@ class AppSessionController extends ChangeNotifier {
       preferredLocation: preferences.getString(_preferredLocationKey),
       displayName: preferences.getString(_displayNameKey),
       role: preferences.getString(_roleKey),
+      termsAcceptedVersion: preferences.getString(_termsAcceptedVersionKey),
       themePreference: AppThemePreference.fromStorage(
         preferences.getString(_themePreferenceKey),
       ),
@@ -225,6 +234,19 @@ class AppSessionController extends ChangeNotifier {
   /// `authService.signOut()` to end the Supabase session itself.
   Future<void> signOut() async {
     _state = const AppSessionState();
+    notifyListeners();
+    await _save();
+  }
+
+  /// Admin privileges are never available from an unverified offline snapshot.
+  /// Learner state is left intact so a temporary network outage does not erase
+  /// progress or force an unnecessary sign-in.
+  Future<void> restrictOfflinePrivileges() async {
+    if (!_state.isAdmin) return;
+    _state = _state.copyWith(
+      clearRole: true,
+      clearAccountStatus: true,
+    );
     notifyListeners();
     await _save();
   }
@@ -356,6 +378,8 @@ class AppSessionController extends ChangeNotifier {
       clearDisplayName: displayName == null || displayName.isEmpty,
       clearPreferredLocation:
           preferredLocation == null || preferredLocation.isEmpty,
+      termsAcceptedVersion: session.termsAcceptedVersion,
+      clearTermsAcceptedVersion: session.termsAcceptedVersion == null,
     );
     notifyListeners();
     await _save();
@@ -511,6 +535,15 @@ class AppSessionController extends ChangeNotifier {
       await preferences.remove(_roleKey);
     } else {
       await preferences.setString(_roleKey, role);
+    }
+    final termsAcceptedVersion = _state.termsAcceptedVersion;
+    if (termsAcceptedVersion == null) {
+      await preferences.remove(_termsAcceptedVersionKey);
+    } else {
+      await preferences.setString(
+        _termsAcceptedVersionKey,
+        termsAcceptedVersion,
+      );
     }
     await preferences.setString(
       _themePreferenceKey,

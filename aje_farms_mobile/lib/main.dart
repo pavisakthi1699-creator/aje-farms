@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'src/app.dart';
+import 'src/services/secure_supabase_storage.dart';
 
 // The publishable key is safe to ship in the client — it identifies the
 // project, not a secret, and every legitimate write still goes through
@@ -20,6 +21,10 @@ Future<void> main() async {
   await Supabase.initialize(
     url: _supabaseUrl,
     publishableKey: _supabasePublishableKey,
+    authOptions: FlutterAuthClientOptions(
+      localStorage: SecureSupabaseLocalStorage(projectUrl: _supabaseUrl),
+      pkceAsyncStorage: const SecureSupabasePkceStorage(),
+    ),
   );
   runApp(const AjeFarmsApp());
 }

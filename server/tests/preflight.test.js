@@ -6,6 +6,13 @@ import { releasePreflight } from '../preflight.js';
 const SUPABASE_AUTH_ENV = {
   SUPABASE_URL: 'https://project.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+  SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
+  AJE_PRIVACY_POLICY_URL: 'https://ajefarms.co.tz/privacy',
+  AJE_ACCOUNT_DELETION_URL: 'https://ajefarms.co.tz/delete-account',
+  AJE_PRIVACY_CONTACT_EMAIL: 'privacy@ajefarms.co.tz',
+  AJE_ANDROID_APP_SIGNING_SHA256:
+    'AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA',
+  AJE_PLAY_DISTRIBUTION_MODE: 'consumption_only',
 };
 
 test('release preflight reports missing production blockers', () => {
@@ -23,6 +30,80 @@ test('release preflight reports missing production blockers', () => {
       'aje_farms_mobile/android/key.properties is required to sign release builds.',
     ),
   );
+  assert.ok(
+    result.blockers.includes(
+      'AJE_PLAY_DISTRIBUTION_MODE is required for release.',
+    ),
+  );
+});
+
+test('release preflight rejects external-payment and unknown Play modes', () => {
+  for (const mode of ['external_payment', 'play_billing', 'unknown']) {
+    const result = releasePreflight(
+      {
+        NODE_ENV: 'production',
+        APP_URL: 'https://api.ajefarms.co.tz',
+        AJE_STORE: 'supabase',
+        SUPABASE_DATABASE_URL:
+          'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+        ...SUPABASE_AUTH_ENV,
+        AJE_PLAY_DISTRIBUTION_MODE: mode,
+        AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+        AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+      },
+      () => true,
+    );
+    assert.ok(
+      result.blockers.includes(
+        'AJE_PLAY_DISTRIBUTION_MODE must be "consumption_only" for this release.',
+      ),
+    );
+  }
+});
+
+test('release preflight requires a valid privacy contact mailbox', () => {
+  for (const email of ['', 'not-an-email']) {
+    const result = releasePreflight({
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL:
+        'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      ...SUPABASE_AUTH_ENV,
+      AJE_PRIVACY_CONTACT_EMAIL: email,
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+    }, () => true);
+    assert.ok(result.blockers.some((blocker) =>
+      blocker.startsWith('AJE_PRIVACY_CONTACT_EMAIL ')));
+  }
+});
+
+test('release preflight never embeds a Supabase service-role secret', () => {
+  const secretJwt = [
+    'header',
+    Buffer.from(JSON.stringify({ role: 'service_role' })).toString('base64url'),
+    'signature',
+  ].join('.');
+  for (const publishableKey of [
+    'service-role-key',
+    'sb_secret_do-not-embed',
+    secretJwt,
+  ]) {
+    const result = releasePreflight({
+      NODE_ENV: 'production',
+      APP_URL: 'https://api.ajefarms.co.tz',
+      AJE_STORE: 'supabase',
+      SUPABASE_DATABASE_URL:
+        'postgresql://postgres.example:pass@db.example.supabase.co:5432/postgres',
+      ...SUPABASE_AUTH_ENV,
+      SUPABASE_PUBLISHABLE_KEY: publishableKey,
+      AJE_ANDROID_API_BASE_URL: 'https://api.ajefarms.co.tz',
+      AJE_WHATSAPP_EXPERT_PHONE: '255700000000',
+    }, () => true);
+    assert.ok(result.blockers.some((blocker) =>
+      blocker.startsWith('SUPABASE_PUBLISHABLE_KEY ')));
+  }
 });
 
 test('release preflight accepts dedicated Supabase config', () => {

@@ -5,17 +5,10 @@ set local role authenticated;
 
 do $$
 begin
-  if exists (select 1 from public.courses where status <> 'published') then
-    raise exception 'Learner can read non-published courses';
-  end if;
-
-  if exists (select 1 from public.source_segments) then
-    raise exception 'Learner can read source segments';
-  end if;
-
-  if exists (select 1 from public.curriculum_import_batches) then
-    raise exception 'Learner can read import batches';
-  end if;
+  perform 1 from public.courses limit 1;
+  raise exception 'Learner can read curriculum tables directly';
+exception
+  when insufficient_privilege then null;
 end $$;
 
 reset role;
@@ -25,9 +18,10 @@ set local role authenticated;
 
 do $$
 begin
-  if not exists (select 1 from public.courses where code = 'kilimo-cha-mpunga-kibiashara') then
-    raise exception 'Editor cannot read draft seed course';
-  end if;
+  perform 1 from public.lessons limit 1;
+  raise exception 'Editor can bypass the API and read curriculum directly';
+exception
+  when insufficient_privilege then null;
 end $$;
 
 rollback;

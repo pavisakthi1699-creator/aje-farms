@@ -45,12 +45,25 @@ class LocalAuthService implements AuthService {
     return const AuthSession(
       email: 'mkulima@demo.aje',
       accountStatus: 'active',
+      termsAcceptedVersion: currentTermsVersion,
     );
   }
 
   @override
   Future<AuthSession> cancelSubscription() async {
     return const AuthSession(email: 'mkulima@demo.aje');
+  }
+
+  @override
+  Future<void> deleteAccount() async {}
+
+  @override
+  Future<AuthSession> acceptCommunityTerms() async {
+    return const AuthSession(
+      email: 'mkulima@demo.aje',
+      accountStatus: 'active',
+      termsAcceptedVersion: currentTermsVersion,
+    );
   }
 
   @override

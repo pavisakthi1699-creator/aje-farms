@@ -44,13 +44,13 @@ export class JsonStore {
     this.#syncCommunityFromFile();
   }
 
-  catalogSnapshot() {
+  catalogSnapshot(viewerUserId = null) {
     return {
       courses: this.approvedContentCourses(),
       documents: this.approvedContentDocuments(),
       problemCategories: this.catalog.problemCategories,
       plans: this.activePlans(),
-      communityPosts: this.community.communityPosts(),
+      communityPosts: this.community.communityPosts(viewerUserId),
       homeTopics: this.homeTopics(),
       communityTopics: this.communityTopics(),
     };
@@ -529,12 +529,23 @@ export class JsonStore {
   // Supabase Auth existed is matched by email and keeps its existing `id`, so
   // every row that already points at that id (progress, community posts,
   // moderation history) stays attached.
-  async linkOrCreateUserForAuth({ authUserId, email }) {
+  async linkOrCreateUserForAuth({
+    authUserId,
+    email,
+    termsAcceptedVersion = null,
+    termsAcceptedAt = null,
+  }) {
     const normalizedEmail = normalizeEmail(email);
     const linked = await this.getUserByAuthUserId(authUserId);
     if (linked) {
       if (normalizedEmail && linked.email !== normalizedEmail) {
         linked.email = normalizedEmail;
+        linked.updatedAt = new Date().toISOString();
+        this.#saveAll();
+      }
+      if (termsAcceptedVersion) {
+        linked.termsAcceptedVersion = termsAcceptedVersion;
+        linked.termsAcceptedAt = termsAcceptedAt ?? new Date().toISOString();
         linked.updatedAt = new Date().toISOString();
         this.#saveAll();
       }
@@ -546,6 +557,10 @@ export class JsonStore {
       existing.authUserId = authUserId;
       existing.email = normalizedEmail;
       existing.updatedAt = new Date().toISOString();
+      if (termsAcceptedVersion) {
+        existing.termsAcceptedVersion = termsAcceptedVersion;
+        existing.termsAcceptedAt = termsAcceptedAt ?? existing.updatedAt;
+      }
       this.#saveAll();
       return existing;
     }
@@ -562,8 +577,20 @@ export class JsonStore {
       subscriptionStartedAt: null,
       createdAt: now,
       updatedAt: now,
+      termsAcceptedVersion,
+      termsAcceptedAt: termsAcceptedVersion ? termsAcceptedAt ?? now : null,
     };
     this.state.users.push(user);
+    this.#saveAll();
+    return user;
+  }
+
+  async acceptCommunityTerms({ userId, version, acceptedAt = null }) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+    user.termsAcceptedVersion = version;
+    user.termsAcceptedAt = acceptedAt ?? new Date().toISOString();
+    user.updatedAt = new Date().toISOString();
     this.#saveAll();
     return user;
   }
@@ -673,6 +700,206 @@ export class JsonStore {
     user.updatedAt = new Date().toISOString();
     this.#saveAll();
     return user;
+  }
+
+  async deleteUserAccount(userId) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+    if (user.role === 'admin') {
+      const error = new Error('Admin accounts require a supervised deletion.');
+      error.code = 'ADMIN_ACCOUNT_PROTECTED';
+      throw error;
+    }
+
+    const authUserId = user.authUserId ?? null;
+    const removedPostIds = new Set(
+      this.community.state.communityPosts
+        .filter((post) => post.authorUserId === userId)
+        .map((post) => post.id),
+    );
+    this.community.state.communityPosts =
+      this.community.state.communityPosts
+        .filter((post) => post.authorUserId !== userId)
+        .map((post) => ({
+          ...post,
+          replies: (post.replies ?? []).filter(
+            (reply) => reply.authorUserId !== userId,
+          ),
+        }));
+    this.community.state.reportedPostIds =
+      this.community.state.reportedPostIds.filter(
+        (postId) => !removedPostIds.has(postId),
+      );
+    this.community.state.communityReports =
+      this.community.state.communityReports.filter(
+        (report) =>
+          report.reporterUserId !== userId && !removedPostIds.has(report.postId),
+      );
+    this.community.state.blockedCommunityUsers =
+      this.community.state.blockedCommunityUsers.filter(
+        (item) =>
+          item.blockerUserId !== userId && item.blockedUserId !== userId,
+      );
+
+    this.state.authSessions = this.state.authSessions.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.learningProgress = this.state.learningProgress.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.notificationSettings = this.state.notificationSettings.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.notificationDevices = this.state.notificationDevices.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.notifications = this.state.notifications.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.paymentTransactions = this.state.paymentTransactions.filter(
+      (item) => item.userId !== userId,
+    );
+    const removedAnswerIds = new Set(
+      this.state.aiAnswers
+        .filter((item) => item.userId === userId)
+        .map((item) => item.id),
+    );
+    this.state.aiAnswers = this.state.aiAnswers.filter(
+      (item) => item.userId !== userId,
+    );
+    this.state.aiReports = this.state.aiReports.filter(
+      (item) =>
+        item.reporterUserId !== userId && !removedAnswerIds.has(item.answerId),
+    );
+
+    const now = new Date().toISOString();
+    Object.assign(user, {
+      authUserId: null,
+      email: null,
+      phoneNumber: null,
+      displayName: null,
+      preferredLocation: null,
+      role: 'learner',
+      accountStatus: 'suspended',
+      subscriptionPlan: null,
+      subscriptionStartedAt: null,
+      deletedAt: now,
+      termsAcceptedVersion: null,
+      termsAcceptedAt: null,
+      updatedAt: now,
+    });
+    this.#saveAll();
+    return { authUserId };
+  }
+
+  async createAccountDeletionRequest({ email }) {
+    const normalizedEmail = normalizeEmail(email);
+    const existing = this.state.accountDeletionRequests.find(
+      (item) => item.email === normalizedEmail && item.status === 'pending',
+    );
+    if (existing) return existing;
+    const request = {
+      id: createId('deletion'),
+      email: normalizedEmail,
+      status: 'pending',
+      requestedAt: new Date().toISOString(),
+      processedAt: null,
+      processedBy: null,
+      resolutionNote: null,
+    };
+    this.state.accountDeletionRequests.push(request);
+    this.#saveAll();
+    return request;
+  }
+
+  async accountDeletionRequestsForAdmin() {
+    return [...this.state.accountDeletionRequests].sort(
+      (left, right) => Date.parse(right.requestedAt) - Date.parse(left.requestedAt),
+    );
+  }
+
+  async resolveAccountDeletionRequest({ requestId, status, actorUserId, note }) {
+    const request = this.state.accountDeletionRequests.find(
+      (item) => item.id === requestId,
+    );
+    if (!request) return null;
+    request.status = status;
+    request.processedAt = new Date().toISOString();
+    request.processedBy = actorUserId;
+    request.resolutionNote = String(note ?? '').trim() || null;
+    this.#saveAll();
+    return request;
+  }
+
+  async createAiAnswer({ userId, prompt, answer, sources }) {
+    const record = {
+      id: createId('ai-answer'),
+      userId,
+      prompt,
+      answer,
+      sourceIds: sources.map((source) => source.id),
+      createdAt: new Date().toISOString(),
+    };
+    this.state.aiAnswers.push(record);
+    this.#saveAll();
+    return record;
+  }
+
+  async reportAiAnswer({ answerId, reporterUserId, reason, details = null }) {
+    const answer = this.state.aiAnswers.find(
+      (item) => item.id === answerId && item.userId === reporterUserId,
+    );
+    if (!answer) return null;
+    const existing = this.state.aiReports.find(
+      (item) =>
+        item.answerId === answerId &&
+        item.reporterUserId === reporterUserId &&
+        item.status === 'open',
+    );
+    if (existing) return existing;
+    const report = {
+      id: createId('ai-report'),
+      answerId,
+      reporterUserId,
+      reason,
+      details: details?.trim() || null,
+      status: 'open',
+      reportedAt: new Date().toISOString(),
+      resolvedAt: null,
+      resolvedBy: null,
+      resolutionNote: null,
+    };
+    this.state.aiReports.push(report);
+    this.#saveAll();
+    return report;
+  }
+
+  async aiReportsForAdmin() {
+    return this.state.aiReports
+      .filter((report) => report.status === 'open')
+      .map((report) => ({
+        report,
+        answer: this.state.aiAnswers.find(
+          (answer) => answer.id === report.answerId,
+        ),
+      }))
+      .filter((item) => item.answer)
+      .sort(
+        (left, right) =>
+          Date.parse(right.report.reportedAt) -
+          Date.parse(left.report.reportedAt),
+      );
+  }
+
+  async resolveAiReport({ reportId, actorUserId, note = null }) {
+    const report = this.state.aiReports.find((item) => item.id === reportId);
+    if (!report) return null;
+    report.status = 'resolved';
+    report.resolvedAt = new Date().toISOString();
+    report.resolvedBy = actorUserId;
+    report.resolutionNote = String(note ?? '').trim() || null;
+    this.#saveAll();
+    return report;
   }
 
   async adminUsersForAdmin({ search = '', limit = 50, offset = 0 } = {}) {
@@ -887,8 +1114,8 @@ export class JsonStore {
     return progress;
   }
 
-  communityPosts() {
-    return this.community.communityPosts();
+  communityPosts(viewerUserId = null) {
+    return this.community.communityPosts(viewerUserId);
   }
 
   async createPaymentTransaction(transaction) {
@@ -944,8 +1171,8 @@ export class JsonStore {
     return this.community.communityPostAuthorUserId(postId);
   }
 
-  reportCommunityPost(postId) {
-    return this.community.reportCommunityPost(postId);
+  reportCommunityPost(payload) {
+    return this.community.reportCommunityPost(payload);
   }
 
   reportedCommunityPosts() {
@@ -954,6 +1181,14 @@ export class JsonStore {
 
   resolveCommunityReport(payload) {
     return this.community.resolveCommunityReport(payload);
+  }
+
+  blockCommunityPostAuthor(payload) {
+    return this.community.blockCommunityPostAuthor(payload);
+  }
+
+  unblockCommunityPostAuthor(payload) {
+    return this.community.unblockCommunityPostAuthor(payload);
   }
 
   // Only used by the NODE_ENV=development dev-session issuer (see auth.js) so
@@ -1059,6 +1294,8 @@ export class JsonStore {
     const nextState = {
       communityPosts: this.community.state.communityPosts,
       reportedPostIds: this.community.state.reportedPostIds,
+      communityReports: this.community.state.communityReports,
+      blockedCommunityUsers: this.community.state.blockedCommunityUsers,
       users: this.state.users,
       paymentTransactions: this.state.paymentTransactions,
       authSessions: this.state.authSessions,
@@ -1073,6 +1310,9 @@ export class JsonStore {
       entitlements: this.state.entitlements,
       auditEvents: this.state.auditEvents,
       homeTopics: this.state.homeTopics,
+      accountDeletionRequests: this.state.accountDeletionRequests,
+      aiAnswers: this.state.aiAnswers,
+      aiReports: this.state.aiReports,
     };
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     const tmpPath = `${this.filePath}.tmp`;
@@ -1136,6 +1376,9 @@ function initialMutableState() {
     auditEvents: [],
     homeTopics: [...defaultHomeTopics],
     communityTopics: [...defaultCommunityTopics],
+    accountDeletionRequests: [],
+    aiAnswers: [],
+    aiReports: [],
   };
 }
 
@@ -1179,6 +1422,11 @@ function normalizeMutableState(raw) {
     auditEvents: Array.isArray(raw.auditEvents)
       ? raw.auditEvents
       : seed.auditEvents,
+    accountDeletionRequests: Array.isArray(raw.accountDeletionRequests)
+      ? raw.accountDeletionRequests
+      : seed.accountDeletionRequests,
+    aiAnswers: Array.isArray(raw.aiAnswers) ? raw.aiAnswers : seed.aiAnswers,
+    aiReports: Array.isArray(raw.aiReports) ? raw.aiReports : seed.aiReports,
     homeTopics: (() => {
       try {
         return normalizeHomeTopics(raw.homeTopics);
@@ -1216,6 +1464,25 @@ function normalizeCommunityState(raw, catalog) {
     communityPosts: [...storedPosts, ...seedPosts],
     reportedPostIds: Array.isArray(raw.reportedPostIds)
       ? raw.reportedPostIds
+      : [],
+    communityReports: Array.isArray(raw.communityReports)
+      ? raw.communityReports
+      : (Array.isArray(raw.reportedPostIds) ? raw.reportedPostIds : []).map(
+          (postId) => ({
+            id: createId('legacy-report'),
+            postId,
+            reporterUserId: null,
+            reason: 'other',
+            details: null,
+            status: 'open',
+            reportedAt: new Date().toISOString(),
+            resolvedAt: null,
+            resolvedBy: null,
+            resolution: null,
+          }),
+        ),
+    blockedCommunityUsers: Array.isArray(raw.blockedCommunityUsers)
+      ? raw.blockedCommunityUsers
       : [],
   };
 }

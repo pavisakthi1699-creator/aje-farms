@@ -120,14 +120,21 @@ class CourseDetailScreen extends StatelessWidget {
                       const SizedBox(height: AppSpacing.md),
                       Card(
                         child: ListTile(
-                          leading: Icon(Icons.play_circle_fill_outlined, color: context.colors.primary),
+                          leading: Icon(Icons.play_circle_fill_outlined,
+                              color: context.colors.primary),
                           title: const Text('Tazama video fupi ya utangulizi'),
                           subtitle: const Text('Utangulizi wa kozi hii'),
                           trailing: const Icon(Icons.open_in_new),
                           onTap: () async {
-                            final uri = Uri.tryParse(currentCourse.introVideoUrl!);
-                            if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                              if (context.mounted) showErrorSnack(context, 'Imeshindikana kufungua video.');
+                            final uri =
+                                Uri.tryParse(currentCourse.introVideoUrl!);
+                            if (uri == null ||
+                                !await launchUrl(uri,
+                                    mode: LaunchMode.externalApplication)) {
+                              if (context.mounted) {
+                                showErrorSnack(
+                                    context, 'Imeshindikana kufungua video.');
+                              }
                             }
                           },
                         ),

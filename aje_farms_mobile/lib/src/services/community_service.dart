@@ -25,7 +25,19 @@ abstract class CommunityService {
     required String body,
   });
 
-  Future<void> reportPost(String postId);
+  Future<void> reportPost(
+    String postId, {
+    required String reason,
+    String? details,
+  });
+
+  Future<void> reportAuthor(
+    String postId, {
+    required String reason,
+    String? details,
+  });
+
+  Future<void> blockAuthor(String postId);
 }
 
 class CommunityException implements Exception {

@@ -8,3 +8,14 @@ import 'package:flutter/foundation.dart';
 /// store builds always evaluate this to false.
 const kInternalBuild =
     !kReleaseMode || bool.fromEnvironment('AJE_INTERNAL_BUILD');
+
+const privacyPolicyUrl = String.fromEnvironment('AJE_PRIVACY_POLICY_URL');
+const accountDeletionUrl = String.fromEnvironment('AJE_ACCOUNT_DELETION_URL');
+
+/// The Play build is intentionally consumption-only: learners can use access
+/// already assigned to their account, but cannot buy or be directed to buy
+/// digital access from inside the application.
+const kPlayConsumptionOnly = bool.fromEnvironment(
+  'AJE_PLAY_CONSUMPTION_ONLY',
+  defaultValue: true,
+);

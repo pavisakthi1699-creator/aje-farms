@@ -13,6 +13,11 @@ export function releaseDartDefines(env) {
   return [
     `--dart-define=AJE_API_BASE_URL=${env.AJE_ANDROID_API_BASE_URL}`,
     `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${env.AJE_WHATSAPP_EXPERT_PHONE}`,
+    `--dart-define=SUPABASE_URL=${env.SUPABASE_URL}`,
+    `--dart-define=SUPABASE_PUBLISHABLE_KEY=${env.SUPABASE_PUBLISHABLE_KEY}`,
+    `--dart-define=AJE_PRIVACY_POLICY_URL=${env.AJE_PRIVACY_POLICY_URL}`,
+    `--dart-define=AJE_ACCOUNT_DELETION_URL=${env.AJE_ACCOUNT_DELETION_URL}`,
+    `--dart-define=AJE_PLAY_CONSUMPTION_ONLY=${env.AJE_PLAY_DISTRIBUTION_MODE === 'consumption_only'}`,
   ];
 }
 

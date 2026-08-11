@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+export const currentTermsVersion = '2026-08-11';
+
 export function configuredAdminEmails() {
   return String(process.env.AJE_ADMIN_EMAILS ?? '')
     .split(',')
@@ -44,6 +46,18 @@ function supabaseAdminClient() {
   return cachedSupabaseAdmin;
 }
 
+export async function deleteSupabaseAuthUser(authUserId) {
+  if (!authUserId) return;
+  const { error } = await supabaseAdminClient().auth.admin.deleteUser(authUserId);
+  if (error) throw error;
+}
+
+export function hasSupabaseAdminConfiguration() {
+  return Boolean(
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
+
 function devModeEnabled() {
   return (
     ['development', 'test'].includes(process.env.NODE_ENV) &&
@@ -76,18 +90,34 @@ export function requireAuthSession(store) {
         next();
         return;
       }
+      if (!hasSupabaseAdminConfiguration()) {
+        res.status(401).json({ error: 'Kikao kimeisha. Ingia tena.' });
+        return;
+      }
     }
 
     try {
       const supabase = supabaseAdminClient();
       const { data, error } = await supabase.auth.getUser(token);
-      if (error || !data?.user) {
+      if (error) {
+        const status = authVerificationFailureStatus(error);
+        res.status(status).json({
+          error: status === 401
+            ? 'Kikao kimeisha. Ingia tena.'
+            : 'Huduma ya kuingia haipatikani kwa sasa. Jaribu tena.',
+        });
+        return;
+      }
+      if (!data?.user) {
         res.status(401).json({ error: 'Kikao kimeisha. Ingia tena.' });
         return;
       }
       const user = await store.linkOrCreateUserForAuth({
         authUserId: data.user.id,
         email: data.user.email,
+        termsAcceptedVersion:
+          data.user.user_metadata?.terms_accepted_version ?? null,
+        termsAcceptedAt: data.user.user_metadata?.terms_accepted_at ?? null,
       });
       const reconciledUser = await store.reconcileUserEntitlements(user.id);
       req.userId = reconciledUser.id;
@@ -95,8 +125,30 @@ export function requireAuthSession(store) {
       next();
     } catch (error) {
       console.error('Failed to verify auth session:', error);
-      res.status(401).json({ error: 'Kikao kimeisha. Ingia tena.' });
+      res.status(503).json({
+        error: 'Huduma ya kuingia haipatikani kwa sasa. Jaribu tena.',
+      });
     }
+  };
+}
+
+export function authVerificationFailureStatus(error) {
+  const status = Number(error?.status ?? error?.statusCode);
+  return status === 401 || status === 403 ? 401 : 503;
+}
+
+export function requireCommunityTerms(store) {
+  return async (req, res, next) => {
+    const user = await store.getUser(req.userId);
+    if (user?.termsAcceptedVersion !== currentTermsVersion) {
+      res.status(403).json({
+        error: 'Kubali Masharti na Mwongozo wa Jamii ili kuendelea.',
+        code: 'COMMUNITY_TERMS_REQUIRED',
+        termsVersion: currentTermsVersion,
+      });
+      return;
+    }
+    next();
   };
 }
 

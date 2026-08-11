@@ -2,7 +2,10 @@
 
 import 'dart:async';
 
-import "../../ui.dart";
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../app/build_flags.dart';
+import '../../ui.dart';
 
 enum _AuthMode { signIn, signUp }
 
@@ -22,6 +25,8 @@ class AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   String? _emailError;
   String? _passwordError;
+  String? _termsError;
+  bool _acceptedTerms = false;
   String? _pendingConfirmationEmail;
   DateTime? _resendAvailableAt;
   Timer? _resendTimer;
@@ -143,10 +148,14 @@ class AuthScreenState extends State<AuthScreen> {
     final password = _passwordController.text;
     final emailError = _validateEmail(email);
     final passwordError = _validatePassword(password);
-    if (emailError != null || passwordError != null) {
+    final termsError = _mode == _AuthMode.signUp && !_acceptedTerms
+        ? 'Kubali Masharti na Mwongozo wa Jamii ili kujisajili.'
+        : null;
+    if (emailError != null || passwordError != null || termsError != null) {
       setState(() {
         _emailError = emailError;
         _passwordError = passwordError;
+        _termsError = termsError;
       });
       if (emailError != null) {
         _emailFocus.requestFocus();
@@ -158,6 +167,7 @@ class AuthScreenState extends State<AuthScreen> {
     setState(() {
       _emailError = null;
       _passwordError = null;
+      _termsError = null;
       _isLoading = true;
     });
 
@@ -283,6 +293,7 @@ class AuthScreenState extends State<AuthScreen> {
                           _mode = selection.first;
                           _emailError = null;
                           _passwordError = null;
+                          _termsError = null;
                         });
                       },
               ),
@@ -319,6 +330,47 @@ class AuthScreenState extends State<AuthScreen> {
                 },
                 onSubmitted: (_) => _submit(),
               ),
+              if (isSignUp) ...[
+                const SizedBox(height: AppSpacing.md),
+                CheckboxListTile(
+                  value: _acceptedTerms,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    'Ninakubali Masharti ya Matumizi na Mwongozo wa Jamii',
+                  ),
+                  subtitle: _termsError == null
+                      ? null
+                      : Text(
+                          _termsError!,
+                          style: TextStyle(color: context.colors.error),
+                        ),
+                  onChanged: _isLoading
+                      ? null
+                      : (value) => setState(() {
+                            _acceptedTerms = value ?? false;
+                            if (_acceptedTerms) _termsError = null;
+                          }),
+                ),
+                if (privacyPolicyUrl.isNotEmpty)
+                  Wrap(
+                    children: [
+                      TextButton(
+                        onPressed: () => _openAuthPolicy('/terms'),
+                        child: const Text('Soma Masharti'),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            _openAuthPolicy('/community-guidelines'),
+                        child: const Text('Mwongozo wa Jamii'),
+                      ),
+                      TextButton(
+                        onPressed: () => _openAuthPolicy('/privacy'),
+                        child: const Text('Sera ya Faragha'),
+                      ),
+                    ],
+                  ),
+              ],
               if (!isSignUp) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Align(
@@ -384,4 +436,10 @@ class AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
+}
+
+Future<void> _openAuthPolicy(String path) async {
+  final base = Uri.tryParse(privacyPolicyUrl);
+  if (base == null) return;
+  await launchUrl(base.resolve(path), mode: LaunchMode.externalApplication);
 }

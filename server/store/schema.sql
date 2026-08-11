@@ -233,6 +233,43 @@ CREATE TABLE IF NOT EXISTS reported_community_posts (
   reported_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS community_reports (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  reporter_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'open'
+    CHECK (status IN ('open', 'resolved', 'dismissed')),
+  reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT REFERENCES users(id),
+  resolution TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_community_reports_open_reporter
+  ON community_reports (post_id, reporter_user_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_community_reports_queue
+  ON community_reports (status, reported_at DESC);
+
+CREATE TABLE IF NOT EXISTS community_user_blocks (
+  blocker_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  source_post_id TEXT REFERENCES community_posts(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (blocker_user_id, blocked_user_id),
+  CHECK (blocker_user_id <> blocked_user_id)
+);
+
+ALTER TABLE community_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_user_blocks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS deny_direct_client_access ON community_reports;
+CREATE POLICY deny_direct_client_access ON community_reports
+  FOR ALL TO public USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON community_user_blocks;
+CREATE POLICY deny_direct_client_access ON community_user_blocks
+  FOR ALL TO public USING (false) WITH CHECK (false);
+
 -- Private authorship key. `author` is a public display label served by the
 -- unauthenticated community feed and must never hold a phone number.
 ALTER TABLE community_posts
@@ -370,6 +407,9 @@ CREATE POLICY deny_direct_client_access ON reported_community_posts
 -- id column in this schema.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_user_id TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_version TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL
   DEFAULT 'pending_activation';
@@ -384,6 +424,62 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth_user_id
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
   ON users (lower(email)) WHERE email IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS account_deletion_requests (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'completed', 'rejected')),
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  processed_by TEXT REFERENCES users(id),
+  resolution_note TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_deletion_pending_email
+  ON account_deletion_requests (lower(email)) WHERE status = 'pending';
+
+ALTER TABLE account_deletion_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS deny_direct_client_access ON account_deletion_requests;
+CREATE POLICY deny_direct_client_access ON account_deletion_requests
+  FOR ALL TO public USING (false) WITH CHECK (false);
+
+CREATE TABLE IF NOT EXISTS ai_answers (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  prompt TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  source_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_answer_reports (
+  id TEXT PRIMARY KEY,
+  answer_id TEXT NOT NULL REFERENCES ai_answers(id) ON DELETE CASCADE,
+  reporter_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'open'
+    CHECK (status IN ('open', 'resolved', 'dismissed')),
+  reported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT REFERENCES users(id),
+  resolution_note TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_answer_reports_open_reporter
+  ON ai_answer_reports (answer_id, reporter_user_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_ai_answer_reports_queue
+  ON ai_answer_reports (status, reported_at DESC);
+
+ALTER TABLE ai_answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_answer_reports ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS deny_direct_client_access ON ai_answers;
+CREATE POLICY deny_direct_client_access ON ai_answers
+  FOR ALL TO public USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON ai_answer_reports;
+CREATE POLICY deny_direct_client_access ON ai_answer_reports
+  FOR ALL TO public USING (false) WITH CHECK (false);
 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_account_status_check;
 ALTER TABLE users ADD CONSTRAINT users_account_status_check

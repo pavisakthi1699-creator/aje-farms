@@ -82,9 +82,33 @@ class BackendCommunityService implements CommunityService {
   }
 
   @override
-  Future<void> reportPost(String postId) async {
+  Future<void> reportPost(
+    String postId, {
+    required String reason,
+    String? details,
+  }) async {
     await _post(
       '/api/community/posts/${Uri.encodeComponent(postId)}/report',
+      {'reason': reason, if (details != null) 'details': details},
+    );
+  }
+
+  @override
+  Future<void> reportAuthor(
+    String postId, {
+    required String reason,
+    String? details,
+  }) async {
+    await _post(
+      '/api/community/posts/${Uri.encodeComponent(postId)}/report-author',
+      {'reason': reason, if (details != null) 'details': details},
+    );
+  }
+
+  @override
+  Future<void> blockAuthor(String postId) async {
+    await _post(
+      '/api/community/posts/${Uri.encodeComponent(postId)}/block-author',
       const {},
     );
   }

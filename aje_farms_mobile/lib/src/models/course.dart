@@ -75,6 +75,7 @@ class Course {
   final IconData icon;
   final double progress;
   final String imageUrl;
+
   /// A short, public orientation video shown on the course preview.
   final String? introVideoUrl;
   final List<String> outcomes;

@@ -63,11 +63,15 @@ class AdminModerationReportStatus {
     required this.postId,
     required this.reportedAt,
     required this.status,
+    this.count = 0,
+    this.reasons = const [],
   });
 
   final String postId;
   final DateTime reportedAt;
   final String status;
+  final int count;
+  final List<String> reasons;
 }
 
 class AdminModerationReport {
@@ -78,6 +82,38 @@ class AdminModerationReport {
 
   final CommunityPost post;
   final AdminModerationReportStatus report;
+}
+
+class AdminAiReport {
+  const AdminAiReport({
+    required this.id,
+    required this.reason,
+    required this.reportedAt,
+    required this.prompt,
+    required this.answer,
+    this.details,
+  });
+
+  final String id;
+  final String reason;
+  final String? details;
+  final DateTime reportedAt;
+  final String prompt;
+  final String answer;
+}
+
+class AdminAccountDeletionRequest {
+  const AdminAccountDeletionRequest({
+    required this.id,
+    required this.email,
+    required this.status,
+    required this.requestedAt,
+  });
+
+  final String id;
+  final String email;
+  final String status;
+  final DateTime requestedAt;
 }
 
 class AdminUserSummary {

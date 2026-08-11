@@ -51,7 +51,7 @@ void main() {
     expect(capturedRequest.url.path, '/auth/v1/signup');
     expect(
       capturedRequest.url.queryParameters['redirect_to'],
-      'ajefarms://app/auth',
+      'https://aje-farms-api-production.up.railway.app/auth',
     );
   });
 
@@ -78,7 +78,7 @@ void main() {
     expect(capturedRequest.url.path, '/auth/v1/resend');
     expect(
       capturedRequest.url.queryParameters['redirect_to'],
-      'ajefarms://app/auth',
+      'https://aje-farms-api-production.up.railway.app/auth',
     );
     expect(jsonDecode(capturedRequest.body)['type'], 'signup');
   });
@@ -178,7 +178,60 @@ void main() {
 
     expect(
       () => service.getSession(),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.statusCode,
+          'statusCode',
+          401,
+        ),
+      ),
+    );
+  });
+
+  test('treats malformed successful auth responses as rejected sessions', () {
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client:
+          MockClient((_) async => http.Response('<html>broken</html>', 200)),
+    );
+
+    expect(
+      () => service.getSession(),
       throwsA(isA<AuthException>()),
+    );
+  });
+
+  test('separates network failures from server-rejected sessions', () {
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async {
+        throw http.ClientException('offline');
+      }),
+    );
+
+    expect(
+      () => service.getSession(),
+      throwsA(isA<AuthNetworkException>()),
+    );
+  });
+
+  test('treats a temporary backend outage as a network failure', () {
+    final service = BackendAuthService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async {
+        return http.Response('{"error":"Service unavailable"}', 503);
+      }),
+    );
+
+    expect(
+      () => service.getSession(),
+      throwsA(
+        isA<AuthNetworkException>().having(
+          (error) => error.statusCode,
+          'statusCode',
+          503,
+        ),
+      ),
     );
   });
 

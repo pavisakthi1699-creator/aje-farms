@@ -27,7 +27,9 @@ class BackendAuthService implements AuthService {
   final supabase.GoTrueClient? _authClient;
   final Duration timeout;
 
-  static const _signUpRedirectUrl = 'ajefarms://app/auth';
+  static const _authLinkOrigin =
+      'https://aje-farms-api-production.up.railway.app';
+  static const _signUpRedirectUrl = '$_authLinkOrigin/auth';
 
   supabase.GoTrueClient get _auth =>
       _authClient ?? supabase.Supabase.instance.client.auth;
@@ -45,6 +47,10 @@ class BackendAuthService implements AuthService {
         email: email,
         password: password,
         emailRedirectTo: _signUpRedirectUrl,
+        data: {
+          'terms_accepted_version': currentTermsVersion,
+          'terms_accepted_at': DateTime.now().toUtc().toIso8601String(),
+        },
       );
       return SignUpResult(
         emailConfirmationRequired: response.session == null,
@@ -78,7 +84,11 @@ class BackendAuthService implements AuthService {
 
   @override
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } on supabase.AuthException catch (error) {
+      throw _appAuthException(error);
+    }
   }
 
   @override
@@ -86,7 +96,7 @@ class BackendAuthService implements AuthService {
     try {
       await _auth.resetPasswordForEmail(
         email,
-        redirectTo: 'ajefarms://login-callback',
+        redirectTo: '$_authLinkOrigin/login-callback',
       );
     } on supabase.AuthException catch (error) {
       throw _appAuthException(error);
@@ -113,6 +123,30 @@ class BackendAuthService implements AuthService {
     final response = await _post(
       '/api/users/me/subscription/cancel',
       const {},
+      authenticated: true,
+    );
+    return _sessionFromResponse(response);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _post(
+      '/api/users/me/delete',
+      const {'confirmation': 'DELETE'},
+      authenticated: true,
+    );
+    try {
+      await _auth.signOut(scope: supabase.SignOutScope.local);
+    } on supabase.AuthException catch (error) {
+      throw _appAuthException(error);
+    }
+  }
+
+  @override
+  Future<AuthSession> acceptCommunityTerms() async {
+    final response = await _post(
+      '/api/users/me/terms',
+      const {'version': currentTermsVersion, 'accepted': true},
       authenticated: true,
     );
     return _sessionFromResponse(response);
@@ -153,29 +187,47 @@ class BackendAuthService implements AuthService {
     Map<String, dynamic> body, {
     bool authenticated = false,
   }) async {
-    final response = await _client
-        .post(
-          _baseUrl.resolve(path),
-          headers: await _headers(authenticated: authenticated),
-          body: jsonEncode(body),
-        )
-        .timeout(timeout);
-
-    return _decodeResponse(response);
+    try {
+      final response = await _client
+          .post(
+            _baseUrl.resolve(path),
+            headers: await _headers(authenticated: authenticated),
+            body: jsonEncode(body),
+          )
+          .timeout(timeout);
+      return _decodeResponse(response);
+    } on TimeoutException {
+      throw const AuthNetworkException(
+        'Mtandao umechukua muda mrefu. Jaribu tena.',
+      );
+    } on http.ClientException {
+      throw const AuthNetworkException(
+        'Imeshindikana kuunganisha na huduma. Kagua mtandao wako.',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _get(
     String path, {
     bool authenticated = false,
   }) async {
-    final response = await _client
-        .get(
-          _baseUrl.resolve(path),
-          headers: await _headers(authenticated: authenticated),
-        )
-        .timeout(timeout);
-
-    return _decodeResponse(response);
+    try {
+      final response = await _client
+          .get(
+            _baseUrl.resolve(path),
+            headers: await _headers(authenticated: authenticated),
+          )
+          .timeout(timeout);
+      return _decodeResponse(response);
+    } on TimeoutException {
+      throw const AuthNetworkException(
+        'Mtandao umechukua muda mrefu. Jaribu tena.',
+      );
+    } on http.ClientException {
+      throw const AuthNetworkException(
+        'Imeshindikana kuunganisha na huduma. Kagua mtandao wako.',
+      );
+    }
   }
 
   Future<Map<String, String>> _headers({required bool authenticated}) async {
@@ -190,13 +242,33 @@ class BackendAuthService implements AuthService {
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
-    final payload = jsonDecode(response.body);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    Object? payload;
+    try {
+      payload = jsonDecode(response.body);
+    } on FormatException {
+      if (_isTransientStatus(response.statusCode)) {
+        throw AuthNetworkException(
+          'Huduma haipatikani kwa sasa. Jaribu tena.',
+          statusCode: response.statusCode,
+        );
+      }
       throw AuthException(
-        payload is Map<String, dynamic> && payload['error'] is String
-            ? payload['error'] as String
-            : 'Auth request failed.',
+        'Auth service returned an invalid response.',
+        statusCode: response.statusCode,
       );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final message =
+          payload is Map<String, dynamic> && payload['error'] is String
+              ? payload['error'] as String
+              : 'Auth request failed.';
+      if (_isTransientStatus(response.statusCode)) {
+        throw AuthNetworkException(
+          message,
+          statusCode: response.statusCode,
+        );
+      }
+      throw AuthException(message, statusCode: response.statusCode);
     }
 
     if (payload is! Map<String, dynamic>) {
@@ -205,6 +277,9 @@ class BackendAuthService implements AuthService {
     return payload;
   }
 }
+
+bool _isTransientStatus(int statusCode) =>
+    statusCode == 408 || statusCode == 429 || statusCode >= 500;
 
 AuthSession _sessionFromResponse(Map<String, dynamic> response) {
   final user = response['user'];
@@ -221,6 +296,7 @@ AuthSession _sessionFromResponse(Map<String, dynamic> response) {
     subscriptionStartedAt: _dateTimeFromJson(user['subscriptionStartedAt']),
     displayName: user['displayName'] as String?,
     preferredLocation: user['preferredLocation'] as String?,
+    termsAcceptedVersion: user['termsAcceptedVersion'] as String?,
   );
 }
 

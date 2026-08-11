@@ -6,8 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../models/app_document.dart';
 import '../models/community_post.dart';
-import '../models/community_topics.dart';
 import '../models/course.dart';
+import '../models/community_topics.dart';
 import '../models/home_topics.dart';
 import '../models/plan_option.dart';
 import '../models/problem_category.dart';
@@ -219,13 +219,24 @@ CatalogSnapshot _snapshotFromJson(Map<String, dynamic> json, Uri baseUrl) {
 }
 
 List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
-  return parseHomeTopics(payload['homeTopicsV2']) ??
-      parseHomeTopics(payload['homeTopics']) ??
-      defaultHomeTopics;
+  final topics = parseHomeTopics(payload['homeTopicsV2']) ??
+      parseHomeTopics(payload['homeTopics']);
+  if (topics == null) {
+    throw const CatalogException(
+      'Catalog service returned invalid home topics.',
+    );
+  }
+  return topics;
 }
 
 List<String> _communityTopicsFromJson(Object? value) {
-  return parseCommunityTopics(value) ?? defaultCommunityTopics;
+  final topics = parseCommunityTopics(value);
+  if (topics == null) {
+    throw const CatalogException(
+      'Catalog service returned invalid community topics.',
+    );
+  }
+  return topics;
 }
 
 AppDocument _documentFromJson(Map<String, dynamic> json) {

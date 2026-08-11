@@ -190,6 +190,30 @@ void main() {
     expect(catalog.homeTopics, ['Mazao', 'Nafaka', 'Mifugo', 'Soko']);
   });
 
+  test('rejects catalog data when both home topic fields are malformed',
+      () async {
+    final payload = jsonDecode(_catalogJson) as Map<String, dynamic>;
+    payload['homeTopicsV2'] = <String>[];
+    payload['homeTopics'] = <String>[];
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async => http.Response(jsonEncode(payload), 200)),
+    );
+
+    await expectLater(service.loadCatalog(), throwsA(isA<CatalogException>()));
+  });
+
+  test('rejects catalog data when community topics are malformed', () async {
+    final payload = jsonDecode(_catalogJson) as Map<String, dynamic>;
+    payload['communityTopics'] = <String>[];
+    final service = BackendCatalogService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((_) async => http.Response(jsonEncode(payload), 200)),
+    );
+
+    await expectLater(service.loadCatalog(), throwsA(isA<CatalogException>()));
+  });
+
   test('cached repository keeps fallback then notifies after refresh',
       () async {
     const fallback = DemoAppRepository();

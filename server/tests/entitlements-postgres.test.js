@@ -111,7 +111,7 @@ test(
   'postgres: payment amount and currency must match the selected plan',
   { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
   async () => {
-    await withStore(async (store) => {
+    await withPostgresStore(async (store) => {
       const { admin, learner } = await seedUsers(store);
       await assert.rejects(
         () =>
@@ -124,6 +124,39 @@ test(
           }),
         /PAYMENT_AMOUNT_MISMATCH|must match/,
       );
+    });
+  },
+);
+
+test(
+  'postgres: reversal and expiry reconciliation serialize without stale access',
+  { skip: databaseUrl ? false : 'DATABASE_URL is not set' },
+  async () => {
+    await withPostgresStore(async (store) => {
+      const { admin, learner } = await seedUsers(store);
+      const record = await store.recordPaymentRecord({
+        userId: learner.id,
+        planId: 'mwezi-1',
+        method: 'bank_transfer',
+        amountTzs: 10000,
+        recordedByUserId: admin.id,
+      });
+      await store.approvePaymentRecord({
+        paymentRecordId: record.id,
+        approvedByUserId: admin.id,
+      });
+
+      await Promise.all([
+        store.reversePaymentRecord({
+          paymentRecordId: record.id,
+          actorUserId: admin.id,
+        }),
+        store.reconcileUserEntitlements(learner.id),
+      ]);
+
+      const reconciled = await store.reconcileUserEntitlements(learner.id);
+      assert.equal(reconciled.accountStatus, 'suspended');
+      assert.equal(await store.hasActiveEntitlement(learner.id), false);
     });
   },
 );

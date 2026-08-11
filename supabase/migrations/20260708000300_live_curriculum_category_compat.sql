@@ -2,7 +2,6 @@
 -- This is intentionally additive so it can run against the older live schema.
 
 create extension if not exists pgcrypto;
-
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
@@ -13,7 +12,6 @@ create table if not exists public.categories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 alter table public.courses
   add column if not exists category_id uuid references public.categories(id) on delete set null,
   add column if not exists summary_sw text,
@@ -22,15 +20,12 @@ alter table public.courses
   add column if not exists published_at timestamptz,
   add column if not exists created_by uuid references auth.users(id) on delete set null,
   add column if not exists updated_by uuid references auth.users(id) on delete set null;
-
 alter table public.course_modules
   add column if not exists summary_sw text,
   add column if not exists published_at timestamptz;
-
 alter table public.lessons
   add column if not exists duration_minutes integer check (duration_minutes is null or duration_minutes > 0),
   add column if not exists published_at timestamptz;
-
 alter table public.learning_paths
   add column if not exists description_sw text,
   add column if not exists import_source text not null default 'manual',
@@ -38,14 +33,11 @@ alter table public.learning_paths
   add column if not exists source_reference text,
   add column if not exists sort_order integer not null default 0,
   add column if not exists published_at timestamptz;
-
 alter table public.learning_path_courses
   add column if not exists prerequisite_course_id uuid references public.courses(id) on delete restrict;
-
 create unique index if not exists learning_paths_external_import_unique
   on public.learning_paths(import_source, external_id)
   where external_id is not null;
-
 create or replace function public.current_app_role()
 returns text
 language sql
@@ -57,7 +49,6 @@ as $$
     'learner'
   );
 $$;
-
 create or replace function public.is_content_editor()
 returns boolean
 language sql
@@ -65,7 +56,6 @@ stable
 as $$
   select public.current_app_role() in ('editor', 'admin');
 $$;
-
 create or replace function public.validate_course_sources(course_id_input uuid)
 returns jsonb
 language plpgsql
@@ -163,19 +153,15 @@ begin
   return report;
 end;
 $$;
-
 revoke all on function public.validate_course_sources(uuid) from public, anon;
 grant execute on function public.validate_course_sources(uuid) to authenticated;
-
 alter table public.categories enable row level security;
 grant select on public.categories to anon, authenticated;
 grant all on public.categories to authenticated;
-
 drop policy if exists "Published categories are readable" on public.categories;
 create policy "Published categories are readable" on public.categories
 for select to anon, authenticated
 using (status = 'published' or public.is_content_editor());
-
 drop policy if exists "Editors manage categories" on public.categories;
 create policy "Editors manage categories" on public.categories
 for all to authenticated

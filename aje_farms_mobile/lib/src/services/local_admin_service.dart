@@ -130,6 +130,31 @@ class LocalAdminService implements AdminService {
   }
 
   @override
+  Future<List<AdminAiReport>> listAiReports() async => const [];
+
+  @override
+  Future<void> resolveAiReport(String reportId, {String? note}) async {
+    throw const AdminException(
+      'Usimamizi wa ripoti za AI unahitaji backend iliyounganishwa.',
+    );
+  }
+
+  @override
+  Future<List<AdminAccountDeletionRequest>>
+      listAccountDeletionRequests() async => const [];
+
+  @override
+  Future<void> resolveAccountDeletionRequest({
+    required String requestId,
+    required String status,
+    String? note,
+  }) async {
+    throw const AdminException(
+      'Maombi ya kufuta akaunti yanahitaji backend iliyounganishwa.',
+    );
+  }
+
+  @override
   Future<void> updateUserAccess({
     required String userId,
     required String action,

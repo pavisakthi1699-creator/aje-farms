@@ -1,12 +1,10 @@
 // ignore_for_file: use_key_in_widget_constructors
 
 import "../../ui.dart";
+import '../../app/build_flags.dart';
 
-/// Shown instead of a self-service checkout: AJE Farms activates paid access
-/// after staff record and approve a cash or bank-transfer payment outside the
-/// app. This screen deliberately shows no payment instructions or bank
-/// details — Google Play does not allow that for digital learning access —
-/// only status, a way to check again, and a way to reach support.
+/// Consumption-only access status. The Play app neither sells digital access
+/// nor directs a learner to an external purchase flow.
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
 
@@ -72,7 +70,17 @@ class PaywallScreenState extends State<PaywallScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: AppSpacing.lg),
-            const PaymentBenefitsCard(),
+            const AccessBenefitsCard(),
+            if (kPlayConsumptionOnly) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Programu hii haitoi ununuzi ndani ya programu.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
@@ -90,18 +98,6 @@ class PaywallScreenState extends State<PaywallScreen> {
                       )
                     : const Icon(Icons.refresh),
                 label: const Text('Onyesha Hali Upya'),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  AppFeedback.tap();
-                  AppNavigator.pushWhatsApp(context);
-                },
-                icon: const Icon(Icons.support_agent),
-                label: const Text('Pata Msaada wa Akaunti'),
               ),
             ),
           ],

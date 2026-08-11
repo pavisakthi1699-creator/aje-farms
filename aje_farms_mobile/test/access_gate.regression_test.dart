@@ -20,6 +20,22 @@ class _TrackingAuthService extends StubAuthService {
   }
 }
 
+class _NoLocalSessionAuthService extends _TrackingAuthService {
+  _NoLocalSessionAuthService() : super('active');
+
+  @override
+  bool get hasLocalSession => false;
+}
+
+class _RejectedSessionAuthService extends _TrackingAuthService {
+  _RejectedSessionAuthService() : super('active');
+
+  @override
+  Future<AuthSession> getSession() async {
+    throw const AuthException('Kikao kimeisha.', statusCode: 401);
+  }
+}
+
 void main() {
   void useTallViewport(WidgetTester tester) {
     tester.view.physicalSize = const Size(800, 1200);
@@ -84,6 +100,57 @@ void main() {
     expect(find.byType(AuthScreen), findsOneWidget);
     expect(find.textContaining('Karibu'), findsOneWidget);
     expect(find.text('Nyumbani'), findsNothing);
+  });
+
+  testWidgets('a restored account without a Supabase session fails closed',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    SharedPreferences.setMockInitialValues({
+      'app.auth_flow_version': 1,
+      'app_session.has_started': true,
+      'app_session.email': 'stale@aje.test',
+      'app_session.role': 'admin',
+      'app_session.account_status': 'active',
+    });
+    final authService = _NoLocalSessionAuthService();
+
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          authService: authService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.text('Dashibodi ya Admin'), findsNothing);
+  });
+
+  testWidgets('a backend-rejected restored session fails closed',
+      (WidgetTester tester) async {
+    useTallViewport(tester);
+    SharedPreferences.setMockInitialValues({
+      'app.auth_flow_version': 1,
+      'app_session.has_started': true,
+      'app_session.email': 'revoked@aje.test',
+      'app_session.role': 'admin',
+      'app_session.account_status': 'active',
+    });
+    final authService = _RejectedSessionAuthService();
+
+    await tester.pumpWidget(
+      AjeFarmsApp(
+        dependencies: AppDependencies.demo().copyWith(
+          authService: authService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(authService.signOutCalls, 1);
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.text('Dashibodi ya Admin'), findsNothing);
   });
 
   testWidgets('sign in routes an unapproved account to confirmation waiting',

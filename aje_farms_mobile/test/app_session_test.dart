@@ -34,7 +34,8 @@ void main() {
     await session.activateSubscription('Wiki 1');
 
     await session.syncAccountStatusFromAuthSession(
-      const AuthSession(email: 'farmer@aje.test', accountStatus: 'pending_activation'),
+      const AuthSession(
+          email: 'farmer@aje.test', accountStatus: 'pending_activation'),
     );
 
     expect(session.hasActiveAccess, isFalse);

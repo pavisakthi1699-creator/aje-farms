@@ -17,6 +17,13 @@ class _UnverifiedMwalimuAiService implements MwalimuAiService {
       statusCode: 403,
     );
   }
+
+  @override
+  Future<void> reportAnswer(
+    String messageId, {
+    required String reason,
+    String? details,
+  }) async {}
 }
 
 class _RecordingCommunityService extends LocalCommunityService {
@@ -410,7 +417,7 @@ void main() {
     expect(find.text('Jamii'), findsOneWidget);
   });
 
-  testWidgets('awaiting-activation screen is Play-safe and shows account help',
+  testWidgets('awaiting-activation screen is strict consumption-only',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       AppDependenciesScope(
@@ -422,14 +429,33 @@ void main() {
       ),
     );
 
-    // No payment method chips, bank details, or "Lipa" button — activation
-    // happens outside the app, per Google Play policy for digital access.
+    // No payment method, purchase instructions, or support link that could
+    // steer a locked learner to an external transaction.
     expect(find.text('Akaunti bado haijawashwa'), findsOneWidget);
     expect(find.text('Ufikiaji wa Mwalimu AI'), findsOneWidget);
     expect(find.text('Onyesha Hali Upya'), findsOneWidget);
-    expect(find.text('Pata Msaada wa Akaunti'), findsOneWidget);
+    expect(find.text('Programu hii haitoi ununuzi ndani ya programu.'),
+        findsOneWidget);
+    expect(find.text('Pata Msaada wa Akaunti'), findsNothing);
     expect(find.text('Wiki 1'), findsNothing);
     expect(find.text('TZS 3,000'), findsNothing);
+  });
+
+  testWidgets('notifications do not direct locked learners to purchase access',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      AppDependenciesScope(
+        dependencies: AppDependencies.demo(),
+        child: AppSessionScope(
+          controller: AppSessionController(),
+          child: const MaterialApp(home: NotificationsScreen()),
+        ),
+      ),
+    );
+
+    expect(find.text('Ufikiaji unasubiri idhini'), findsOneWidget);
+    expect(find.textContaining('Lipia'), findsNothing);
+    expect(find.textContaining('TZS'), findsNothing);
   });
 
   testWidgets('auth demo flow signs in with email and password',

@@ -72,6 +72,13 @@ class DemoMwalimuAiService implements MwalimuAiService {
     return _plain(
         'Sina taarifa ya kutosha kwenye maelezo yako. Eleza zao au mnyama, eneo, dalili kuu, na muda ambao tatizo limeanza ili nipendekeze hatua salama inayofuata.');
   }
+
+  @override
+  Future<void> reportAnswer(
+    String messageId, {
+    required String reason,
+    String? details,
+  }) async {}
 }
 
 MwalimuAiAnswer _answer(String text, MwalimuAiSource source) {

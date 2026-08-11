@@ -359,6 +359,10 @@ export function userFromRow(row) {
       : null,
     displayName: row.display_name ?? null,
     preferredLocation: row.preferred_location ?? null,
+    termsAcceptedVersion: row.terms_accepted_version ?? null,
+    termsAcceptedAt: row.terms_accepted_at
+      ? new Date(row.terms_accepted_at).toISOString()
+      : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };

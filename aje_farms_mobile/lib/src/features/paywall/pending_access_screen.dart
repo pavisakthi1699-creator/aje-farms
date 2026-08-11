@@ -1,8 +1,9 @@
 // ignore_for_file: use_key_in_widget_constructors
 
 import "../../ui.dart";
+import '../../app/build_flags.dart';
 
-/// The wall an account sits behind until staff approve a recorded payment.
+/// The wall an account sits behind until staff approve access.
 ///
 /// Registering creates an account, not access: the server only unlocks content
 /// once an admin approves a payment and an entitlement row exists (see
@@ -148,7 +149,17 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
               ),
             ],
             const SizedBox(height: AppSpacing.lg),
-            const PaymentBenefitsCard(),
+            const AccessBenefitsCard(),
+            if (kPlayConsumptionOnly) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Programu hii haitoi ununuzi ndani ya programu.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
@@ -178,18 +189,6 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
                           : const Icon(Icons.refresh),
                       label: const Text('Onyesha Hali Upya'),
                     ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  AppFeedback.tap();
-                  AppNavigator.pushWhatsApp(context);
-                },
-                icon: const Icon(Icons.support_agent),
-                label: const Text('Pata Msaada wa Akaunti'),
-              ),
             ),
             if (!isGuest) ...[
               const SizedBox(height: AppSpacing.md),

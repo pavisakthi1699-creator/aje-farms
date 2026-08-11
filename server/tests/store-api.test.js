@@ -131,6 +131,117 @@ test('auth flow creates and restores a user session', async () => {
   });
 });
 
+test('learner can permanently delete account data from inside the app', async () => {
+  await withTestServer(async (baseUrl) => {
+    const email = 'delete-me@aje.test';
+    const { sessionToken } = await signIn(baseUrl, email);
+    const headers = await authHeaders(sessionToken);
+
+    const post = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        content: 'Hili ni chapisho la kufutwa pamoja na akaunti.',
+        location: 'Arusha',
+        tags: ['Mengineyo'],
+      },
+      headers,
+    );
+    assert.equal(post.response.status, 200);
+    await postJson(
+      baseUrl,
+      '/api/users/me/notifications/devices',
+      { token: 'delete-me-device', platform: 'android' },
+      headers,
+    );
+
+    const missingConfirmation = await postJson(
+      baseUrl,
+      '/api/users/me/delete',
+      {},
+      headers,
+    );
+    assert.equal(missingConfirmation.response.status, 400);
+
+    const deleted = await postJson(
+      baseUrl,
+      '/api/users/me/delete',
+      { confirmation: 'DELETE' },
+      headers,
+    );
+    assert.equal(deleted.response.status, 200);
+    assert.equal(deleted.payload.status, 'deleted');
+
+    const oldSession = await getJson(baseUrl, '/api/users/me', headers);
+    assert.equal(oldSession.response.status, 401);
+
+    const feed = await getJson(baseUrl, '/api/community/posts');
+    assert.ok(!feed.payload.posts.some((item) => item.id === post.payload.id));
+
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const users = await getJson(
+      baseUrl,
+      '/api/admin/users?search=delete-me%40aje.test',
+      await authHeaders(adminToken),
+    );
+    assert.equal(users.response.status, 200);
+    assert.equal(users.payload.total, 0);
+  });
+});
+
+test('public privacy and account-deletion pages accept a support request', async () => {
+  await withTestServer(async (baseUrl) => {
+    const { sessionToken: deletionTargetToken } = await signIn(
+      baseUrl,
+      'web-delete@aje.test',
+    );
+    const privacy = await fetch(`${baseUrl}/privacy`);
+    assert.equal(privacy.status, 200);
+    assert.match(privacy.headers.get('content-type'), /text\/html/);
+    assert.match(await privacy.text(), /Sera ya Faragha ya AJE Farms/);
+
+    const deletionPage = await fetch(`${baseUrl}/delete-account`);
+    assert.equal(deletionPage.status, 200);
+    assert.match(await deletionPage.text(), /Tuma ombi la ufutaji/);
+
+    const submitted = await fetch(`${baseUrl}/delete-account/requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ email: 'web-delete@aje.test' }),
+    });
+    assert.equal(submitted.status, 202);
+    assert.match(await submitted.text(), /Ombi limepokelewa/);
+
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const queue = await getJson(
+      baseUrl,
+      '/api/admin/account-deletion-requests',
+      await authHeaders(adminToken),
+    );
+    assert.equal(queue.response.status, 200);
+    const request = queue.payload.requests.find(
+      (item) => item.email === 'web-delete@aje.test',
+    );
+    assert.equal(request.status, 'pending');
+
+    const resolved = await putJson(
+      baseUrl,
+      `/api/admin/account-deletion-requests/${request.id}`,
+      { status: 'completed', note: 'Identity verified by support.' },
+      await authHeaders(adminToken),
+    );
+    assert.equal(resolved.response.status, 200);
+    assert.equal(resolved.payload.request.status, 'completed');
+    assert.equal(resolved.payload.deletedAccount, true);
+    const deletedSession = await getJson(
+      baseUrl,
+      '/api/users/me',
+      await authHeaders(deletionTargetToken),
+    );
+    assert.equal(deletedSession.response.status, 401);
+  });
+});
+
 test('health endpoint reports development readiness', async () => {
   await withTestServer(async (baseUrl) => {
     const health = await getJson(baseUrl, '/api/health');
@@ -511,7 +622,7 @@ test('admin moderation can review reports and hide a community post', async () =
     const report = await postJson(
       baseUrl,
       `/api/community/posts/${post.payload.id}/report`,
-      {},
+      { reason: 'misinformation' },
       await authHeaders(farmerToken),
     );
     assert.equal(report.response.status, 200);
@@ -589,6 +700,82 @@ test('admin moderation can review reports and hide a community post', async () =
       ),
       true,
     );
+  });
+});
+
+test('learners can report users and block their posts from the authenticated feed', async () => {
+  await withTestServer(async (baseUrl) => {
+    const { sessionToken: authorToken } = await signIn(
+      baseUrl,
+      'community-author@aje.test',
+    );
+    const post = await postJson(
+      baseUrl,
+      '/api/community/posts',
+      {
+        content: 'Chapisho la kupima usalama wa jamii na kuzuia mtumiaji.',
+        location: 'Dodoma',
+        tags: ['Mengineyo'],
+      },
+      await authHeaders(authorToken),
+    );
+    assert.equal(post.response.status, 200);
+
+    const { sessionToken: viewerToken } = await signIn(
+      baseUrl,
+      'community-viewer@aje.test',
+    );
+    const reported = await postJson(
+      baseUrl,
+      `/api/community/posts/${post.payload.id}/report-author`,
+      { reason: 'harassment' },
+      await authHeaders(viewerToken),
+    );
+    assert.equal(reported.response.status, 200);
+
+    const blocked = await postJson(
+      baseUrl,
+      `/api/community/posts/${post.payload.id}/block-author`,
+      {},
+      await authHeaders(viewerToken),
+    );
+    assert.equal(blocked.response.status, 200);
+
+    const viewerCatalog = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(viewerToken),
+    );
+    assert.equal(
+      viewerCatalog.payload.communityPosts.some(
+        (item) => item.id === post.payload.id,
+      ),
+      false,
+    );
+
+    const authorCatalog = await getJson(
+      baseUrl,
+      '/api/catalog',
+      await authHeaders(authorToken),
+    );
+    assert.equal(
+      authorCatalog.payload.communityPosts.some(
+        (item) => item.id === post.payload.id,
+      ),
+      true,
+    );
+
+    const { sessionToken: adminToken } = await signIn(baseUrl, ADMIN_EMAIL);
+    const queue = await getJson(
+      baseUrl,
+      '/api/admin/moderation/reports',
+      await authHeaders(adminToken),
+    );
+    const entry = queue.payload.reports.find(
+      (item) => item.post.id === post.payload.id,
+    );
+    assert.equal(entry.report.count, 1);
+    assert.deepEqual(entry.report.reasons, ['user_harassment']);
   });
 });
 

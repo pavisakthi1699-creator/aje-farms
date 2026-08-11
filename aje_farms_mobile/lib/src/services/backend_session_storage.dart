@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// The bearer token for every AJE backend request. Supabase Auth owns
-/// session persistence and refresh itself (it ships its own secure storage
-/// and refreshes the access token before it expires), so in production this
-/// is just a thin accessor rather than a second copy of the token.
+/// session persistence and refresh itself. The app configures Supabase with
+/// secure local storage at startup, so this remains a thin accessor
+/// rather than a second copy of the token.
 ///
 /// Tests that don't run a real Supabase session use [writeToken] to inject a
 /// fake one directly.

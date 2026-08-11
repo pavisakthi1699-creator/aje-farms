@@ -22,9 +22,18 @@ export class CommunityJsonStore {
     this.state = this.#load();
   }
 
-  communityPosts() {
+  communityPosts(viewerUserId = null) {
+    const blockedUserIds = new Set(
+      this.state.blockedCommunityUsers
+        .filter((item) => item.blockerUserId === viewerUserId)
+        .map((item) => item.blockedUserId),
+    );
     return this.state.communityPosts
-      .filter((post) => post.moderationStatus !== 'hidden')
+      .filter(
+        (post) =>
+          post.moderationStatus !== 'hidden' &&
+          !blockedUserIds.has(post.authorUserId),
+      )
       .map((post) => toPublicPost(post));
   }
 
@@ -93,18 +102,45 @@ export class CommunityJsonStore {
     return toPublicReply(reply);
   }
 
-  reportCommunityPost(postId) {
-    if (!this.state.reportedPostIds.includes(postId)) {
-      this.state.reportedPostIds.push(postId);
-      this.#save();
-    }
+  reportCommunityPost({ postId, reporterUserId, reason, details = null }) {
+    const post = this.state.communityPosts.find(
+      (item) => item.id === postId && item.moderationStatus !== 'hidden',
+    );
+    if (!post) return null;
+    const existing = this.state.communityReports.find(
+      (item) =>
+        item.postId === postId &&
+        item.reporterUserId === reporterUserId &&
+        item.status === 'open',
+    );
+    if (existing) return existing;
+    const report = {
+      id: createId('report'),
+      postId,
+      reporterUserId,
+      reason,
+      details: details?.trim() || null,
+      status: 'open',
+      reportedAt: new Date().toISOString(),
+      resolvedAt: null,
+      resolvedBy: null,
+      resolution: null,
+    };
+    this.state.communityReports.push(report);
+    this.state.reportedPostIds = [
+      ...new Set([...this.state.reportedPostIds, postId]),
+    ];
+    this.#save();
+    return report;
   }
 
   reportedCommunityPosts() {
     return this.state.communityPosts
       .filter(
         (post) =>
-          this.state.reportedPostIds.includes(post.id) ||
+          this.state.communityReports.some(
+            (report) => report.postId === post.id && report.status === 'open',
+          ) ||
           (post.moderationStatus === 'hidden' &&
             post.moderatedBy !== 'content-readiness-migration'),
       )
@@ -113,9 +149,20 @@ export class CommunityJsonStore {
           post,
           report: {
             postId: post.id,
-            reportedAt:
-              post.moderatedAt ?? post.createdAt ?? new Date().toISOString(),
+            reportedAt: latestReportAt(this.state.communityReports, post),
             status: post.moderationStatus === 'hidden' ? 'hidden' : 'open',
+            count: this.state.communityReports.filter(
+              (report) => report.postId === post.id && report.status === 'open',
+            ).length,
+            reasons: [
+              ...new Set(
+                this.state.communityReports
+                  .filter(
+                    (report) => report.postId === post.id && report.status === 'open',
+                  )
+                  .map((report) => report.reason),
+              ),
+            ],
           },
         };
       })
@@ -138,11 +185,53 @@ export class CommunityJsonStore {
       post.moderatedAt = new Date().toISOString();
       post.moderatedBy = moderatorUserId;
     }
+    const resolvedAt = new Date().toISOString();
+    for (const report of this.state.communityReports) {
+      if (report.postId !== postId || report.status !== 'open') continue;
+      report.status = action === 'dismiss' ? 'dismissed' : 'resolved';
+      report.resolvedAt = resolvedAt;
+      report.resolvedBy = moderatorUserId;
+      report.resolution = action;
+    }
     this.state.reportedPostIds = this.state.reportedPostIds.filter(
       (item) => item !== postId,
     );
     this.#save();
     return post;
+  }
+
+  blockCommunityPostAuthor({ postId, blockerUserId }) {
+    const post = this.state.communityPosts.find((item) => item.id === postId);
+    const blockedUserId = post?.authorUserId;
+    if (!blockedUserId || blockedUserId === blockerUserId) return null;
+    if (
+      !this.state.blockedCommunityUsers.some(
+        (item) =>
+          item.blockerUserId === blockerUserId &&
+          item.blockedUserId === blockedUserId,
+      )
+    ) {
+      this.state.blockedCommunityUsers.push({
+        blockerUserId,
+        blockedUserId,
+        createdAt: new Date().toISOString(),
+      });
+      this.#save();
+    }
+    return { postId, blocked: true };
+  }
+
+  unblockCommunityPostAuthor({ postId, blockerUserId }) {
+    const post = this.state.communityPosts.find((item) => item.id === postId);
+    const blockedUserId = post?.authorUserId;
+    if (!blockedUserId) return null;
+    this.state.blockedCommunityUsers = this.state.blockedCommunityUsers.filter(
+      (item) =>
+        item.blockerUserId !== blockerUserId ||
+        item.blockedUserId !== blockedUserId,
+    );
+    this.#save();
+    return { postId, blocked: false };
   }
 
   #load() {
@@ -204,6 +293,8 @@ function initialCommunityState(catalog) {
       replies: post.replies.map((reply) => ({ ...reply })),
     })),
     reportedPostIds: [],
+    communityReports: [],
+    blockedCommunityUsers: [],
   };
 }
 
@@ -225,5 +316,31 @@ function normalizeCommunityState(raw, catalog) {
     reportedPostIds: Array.isArray(raw.reportedPostIds)
       ? raw.reportedPostIds
       : seed.reportedPostIds,
+    communityReports: Array.isArray(raw.communityReports)
+      ? raw.communityReports
+      : (Array.isArray(raw.reportedPostIds) ? raw.reportedPostIds : []).map(
+          (postId) => ({
+            id: createId('legacy-report'),
+            postId,
+            reporterUserId: null,
+            reason: 'other',
+            details: null,
+            status: 'open',
+            reportedAt: new Date().toISOString(),
+            resolvedAt: null,
+            resolvedBy: null,
+            resolution: null,
+          }),
+        ),
+    blockedCommunityUsers: Array.isArray(raw.blockedCommunityUsers)
+      ? raw.blockedCommunityUsers
+      : seed.blockedCommunityUsers,
   };
+}
+
+function latestReportAt(reports, post) {
+  const latest = reports
+    .filter((report) => report.postId === post.id && report.status === 'open')
+    .sort((left, right) => Date.parse(right.reportedAt) - Date.parse(left.reportedAt))[0];
+  return latest?.reportedAt ?? post.moderatedAt ?? post.createdAt ?? new Date().toISOString();
 }

@@ -5,7 +5,8 @@ void main() {
   test('accepts the minimum and maximum supported topic counts', () {
     expect(parseHomeTopics(const ['Mada moja']), const ['Mada moja']);
 
-    final maximum = List.generate(maxHomeTopics, (index) => 'Mada ${index + 1}');
+    final maximum =
+        List.generate(maxHomeTopics, (index) => 'Mada ${index + 1}');
     expect(parseHomeTopics(maximum), maximum);
   });
 

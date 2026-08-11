@@ -5,7 +5,9 @@
         android:label="AJE Farms"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher">
+        android:roundIcon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -44,6 +46,26 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="ajefarms" android:host="login-callback"/>
+            </intent-filter>
+            <!-- Verified HTTPS callbacks prevent another Android app from
+                 claiming AJE Farms authentication and password-reset links. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="aje-farms-api-production.up.railway.app"
+                    android:pathPrefix="/auth"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="aje-farms-api-production.up.railway.app"
+                    android:pathPrefix="/login-callback"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

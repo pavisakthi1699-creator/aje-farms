@@ -298,6 +298,52 @@ void main() {
       DateTime.parse('2026-07-26T12:30:00.000Z'),
     );
   });
+
+  test('loads and resolves AI and account-deletion moderation queues',
+      () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    final requests = <http.Request>[];
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/ai-reports') &&
+            request.method == 'GET') {
+          return http.Response(
+            '{"reports":[{"report":{"id":"ai-report-1","reason":"inaccurate","details":"Si sahihi","reportedAt":"2026-08-11T10:00:00.000Z"},"answer":{"prompt":"Nifanye nini?","answer":"Jibu la AI"}}]}',
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/account-deletion-requests') &&
+            request.method == 'GET') {
+          return http.Response(
+            '{"requests":[{"id":"deletion-1","email":"farmer@aje.test","status":"pending","requestedAt":"2026-08-11T11:00:00.000Z"}]}',
+            200,
+          );
+        }
+        return http.Response('{"status":"ok"}', 200);
+      }),
+    );
+
+    final aiReports = await service.listAiReports();
+    final deletionRequests = await service.listAccountDeletionRequests();
+    await service.resolveAiReport(aiReports.single.id);
+    await service.resolveAccountDeletionRequest(
+      requestId: deletionRequests.single.id,
+      status: 'completed',
+    );
+
+    expect(aiReports.single.reason, 'inaccurate');
+    expect(deletionRequests.single.email, 'farmer@aje.test');
+    expect(requests.map((request) => request.method),
+        ['GET', 'GET', 'PUT', 'PUT']);
+    expect(
+      requests.every(
+        (request) => request.headers['Authorization'] == 'Bearer token-admin',
+      ),
+      isTrue,
+    );
+  });
 }
 
 const _courseResponse = '''

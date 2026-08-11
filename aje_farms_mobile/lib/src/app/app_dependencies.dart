@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 import '../models/app_document.dart';
+import '../models/community_post.dart';
 import '../models/course.dart';
+import '../models/plan_option.dart';
 import '../models/problem_category.dart';
 import '../repositories/cached_app_repository.dart';
 import '../repositories/community_repository.dart';
@@ -99,10 +101,11 @@ class AppDependencies {
     await Future<void>.delayed(const Duration(milliseconds: 450));
   }
 
-  factory AppDependencies.production() {
-    const fallbackRepository = DemoAppRepository();
+  factory AppDependencies.production({Uri? baseUrl}) {
     const emptyLearningRepository = _EmptyLearningRepository();
-    final apiBaseUrl = Uri.tryParse(_apiBaseUrl);
+    const emptyCommunityRepository = _EmptyCommunityRepository();
+    const emptySubscriptionRepository = _EmptySubscriptionRepository();
+    final apiBaseUrl = baseUrl ?? Uri.tryParse(_apiBaseUrl);
     final hasBackend = apiBaseUrl != null &&
         apiBaseUrl.hasScheme &&
         apiBaseUrl.host.isNotEmpty;
@@ -117,8 +120,8 @@ class AppDependencies {
     Listenable? refreshListenable;
     final cachedRepository = CachedAppRepository(
       learningSeed: emptyLearningRepository,
-      communitySeed: fallbackRepository,
-      subscriptionSeed: fallbackRepository,
+      communitySeed: emptyCommunityRepository,
+      subscriptionSeed: emptySubscriptionRepository,
     );
     learningRepository = cachedRepository;
     communityRepository = cachedRepository;
@@ -177,17 +180,33 @@ class _EmptyLearningRepository implements LearningRepository {
   List<AppDocument> get documents => const [];
 
   @override
-  List<ProblemCategory> get problemCategories =>
-      const DemoAppRepository().problemCategories;
+  List<ProblemCategory> get problemCategories => const [];
 
   @override
-  List<String> get homeTopics => const DemoAppRepository().homeTopics;
+  List<String> get homeTopics => const [];
 
   @override
   Course? get featuredCourse => null;
 
   @override
   Course? get suggestedCourse => null;
+}
+
+class _EmptyCommunityRepository implements CommunityRepository {
+  const _EmptyCommunityRepository();
+
+  @override
+  List<CommunityPost> get posts => const [];
+
+  @override
+  List<String> get communityTopics => const [];
+}
+
+class _EmptySubscriptionRepository implements SubscriptionRepository {
+  const _EmptySubscriptionRepository();
+
+  @override
+  List<PlanOption> get plans => const [];
 }
 
 class AppDependenciesScope extends InheritedNotifier<Listenable> {

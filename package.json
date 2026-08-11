@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "dev": "NODE_ENV=development node server/index.js",
     "dev:supabase": "NODE_ENV=development AJE_STORE=supabase node server/index.js",
@@ -10,7 +13,7 @@
     "preview": "npm run start",
     "test:frontend": "bash aje_farms_mobile/scripts/frontend_quality_gate.sh",
     "test:server": "node --test server/tests/*.test.js",
-    "test:server:postgres": "node --test server/tests/store-api-postgres.test.js",
+    "test:server:postgres": "node --test --test-concurrency=1 server/tests/entitlements-postgres.test.js server/tests/store-api-postgres.test.js",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "node server/scripts/migrate.js",
@@ -36,10 +39,10 @@
     "@google/genai": "^1.29.0",
     "@supabase/supabase-js": "^2.111.0",
     "dotenv": "^17.2.3",
-    "express": "^4.21.2",
+    "express": "^5.2.1",
     "pg": "^8.22.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21"
+    "@types/express": "^5.0.6"
   }
 }

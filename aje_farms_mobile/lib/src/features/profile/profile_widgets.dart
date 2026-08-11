@@ -21,8 +21,7 @@ class ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semanticLabel =
-        subtitle == null ? title : '$title. $subtitle';
+    final semanticLabel = subtitle == null ? title : '$title. $subtitle';
     return Column(
       children: [
         Semantics(
@@ -65,12 +64,10 @@ class ProfileRow extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             subtitle!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: context.colors.muted,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: context.colors.muted,
+                                    ),
                           ),
                         ],
                       ],

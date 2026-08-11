@@ -55,11 +55,45 @@ class BackendMwalimuAiService implements MwalimuAiService {
 
     return MwalimuAiAnswer(
       text: payload['text'] as String,
+      messageId: payload['messageId'] as String?,
       sources: (payload['sources'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>()
           .map(_sourceFromJson)
           .toList(),
     );
+  }
+
+  @override
+  Future<void> reportAnswer(
+    String messageId, {
+    required String reason,
+    String? details,
+  }) async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+    final response = await _client
+        .post(
+          _baseUrl.resolve(
+            '/api/mwalimu-chat/${Uri.encodeComponent(messageId)}/report',
+          ),
+          headers: headers,
+          body: jsonEncode({
+            'reason': reason,
+            if (details != null) 'details': details,
+          }),
+        )
+        .timeout(timeout);
+    final payload =
+        response.body.isEmpty ? const {} : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw MwalimuAiException(
+        payload is Map<String, dynamic> && payload['error'] is String
+            ? payload['error'] as String
+            : 'Imeshindikana kutuma ripoti ya AI.',
+        statusCode: response.statusCode,
+      );
+    }
   }
 }
 

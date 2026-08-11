@@ -133,10 +133,10 @@ class NotificationsScreenState extends State<NotificationsScreen> {
     return [
       if (state.subscriptionPlan == null)
         _NotificationTile(
-          icon: Icons.payment,
-          title: 'Jaribio linaendelea',
+          icon: Icons.hourglass_top_rounded,
+          title: 'Ufikiaji unasubiri idhini',
           body:
-              'Lipia kifurushi ili uendelee kupata mafunzo na AI bila kikomo.',
+              'Msimamizi akiwasha akaunti yako, mafunzo na Mwalimu AI vitafunguka.',
           accentColor: context.colors.surfacePeach,
         )
       else

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../ui.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -122,31 +124,74 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
       // Supabase can retain a credential after an APK update or Android backup.
       // It is not enough to enter the app: our own signed-in state must agree.
       if (!_sessionController.state.hasStarted ||
-          _sessionController.state.isGuest ||
-          !_dependencies.authService.hasLocalSession) {
+          _sessionController.state.isGuest) {
+        return;
+      }
+      if (!_dependencies.authService.hasLocalSession) {
+        if (widget.sessionController == null) {
+          _dependencies.cachedRepository?.clearProtectedContent();
+          await _sessionController.signOut();
+        }
         return;
       }
 
-      final session = await _dependencies.authService.getSession();
+      final session = await _dependencies.authService.getSession().timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => throw const AuthNetworkException(
+              'Mtandao umechukua muda mrefu. Jaribu tena.',
+            ),
+          );
       await _sessionController.signInWithEmail(session.email,
           role: session.role);
       await _sessionController.syncAccountStatusFromAuthSession(session);
       await _sessionController.syncRoleFromAuthSession(session);
       await _sessionController.syncProfileFromAuthSession(session);
-      await _dependencies.refreshCatalog();
-      final completedLessons =
-          await _dependencies.learningProgressService.completedLessons();
-      await _sessionController.syncCompletedLessons(completedLessons);
+      _finishBootstrap();
+      unawaited(_syncAuthenticatedContent(session.email));
+    } on AuthNetworkException {
+      // A temporary outage may retain learner state, but a cached admin role is
+      // never enough to expose administration controls.
+      await _sessionController.restrictOfflinePrivileges();
     } on AuthException {
-      // Keep the locally restored session usable when the backend is temporarily
-      // unreachable. Mutating actions still require backend success.
+      // The server responded but rejected (or could not validate) the session.
+      // Fail closed so stale roles and entitlements cannot unlock the shell.
+      if (widget.sessionController == null) {
+        _dependencies.cachedRepository?.clearProtectedContent();
+        try {
+          await _dependencies.authService.signOut();
+        } on AuthException {
+          // Local application state is still cleared below.
+        }
+        await _sessionController.signOut();
+      }
     } on LearningProgressException {
       // Progress sync should not block opening the app.
     } finally {
-      if (mounted) {
-        setState(() => _isBootstrapping = false);
-      }
+      _finishBootstrap();
     }
+  }
+
+  void _finishBootstrap() {
+    if (mounted && _isBootstrapping) {
+      setState(() => _isBootstrapping = false);
+    }
+  }
+
+  Future<void> _syncAuthenticatedContent(String verifiedEmail) async {
+    await Future.wait([
+      _dependencies.refreshCatalog(),
+      () async {
+        try {
+          final completedLessons =
+              await _dependencies.learningProgressService.completedLessons();
+          if (_sessionController.email == verifiedEmail) {
+            await _sessionController.syncCompletedLessons(completedLessons);
+          }
+        } on LearningProgressException {
+          // Progress refresh is best effort and must not block the shell.
+        }
+      }(),
+    ]);
   }
 
   Future<bool> _resetLegacyAuthenticationIfNeeded() async {

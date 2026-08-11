@@ -32,7 +32,11 @@ class _AppPhotoState extends State<AppPhoto> {
       key: ValueKey('${widget.source}-$_retry'),
       imageUrl: widget.source,
       fit: BoxFit.cover,
-      placeholder: (_, __) => ColoredBox(color: context.colors.primaryContainer, child: const Center(child: LoadingSkeleton(width: 72, height: 72, borderRadius: AppRadius.xl))),
+      placeholder: (_, __) => ColoredBox(
+          color: context.colors.primaryContainer,
+          child: const Center(
+              child: LoadingSkeleton(
+                  width: 72, height: 72, borderRadius: AppRadius.xl))),
       errorWidget: (_, __, ___) => _fallback(context),
     );
   }
@@ -44,12 +48,15 @@ class _AppPhotoState extends State<AppPhoto> {
         if (mounted) setState(() => _retry++);
       },
       child: Container(
-      color: context.colors.primaryContainer,
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.broken_image_outlined, color: context.colors.primary, size: 44),
-        const SizedBox(height: 6),
-        Text('Picha haijapatikana. Gusa ujaribu tena.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall),
-      ]),
+        color: context.colors.primaryContainer,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.broken_image_outlined,
+              color: context.colors.primary, size: 44),
+          const SizedBox(height: 6),
+          Text('Picha haijapatikana. Gusa ujaribu tena.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelSmall),
+        ]),
       ),
     );
   }

@@ -12,7 +12,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('profile hides admin dashboard entry for non-admin', (tester) async {
+  testWidgets('profile hides admin dashboard entry for non-admin',
+      (tester) async {
     final session = AppSessionController();
     await session.signInWithEmail('learner@aje.test', role: 'learner');
 

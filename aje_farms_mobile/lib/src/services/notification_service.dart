@@ -45,7 +45,8 @@ class AppNotification {
 abstract interface class NotificationService {
   Future<NotificationInbox> inbox();
   Future<NotificationSettings> updateSettings({required bool enabled});
-  Future<void> registerDevice({required String token, required String platform});
+  Future<void> registerDevice(
+      {required String token, required String platform});
   Future<void> markRead({required String notificationId});
 }
 

@@ -57,6 +57,14 @@ abstract interface class AdminService {
     required String postId,
     required String action,
   });
+  Future<List<AdminAiReport>> listAiReports();
+  Future<void> resolveAiReport(String reportId, {String? note});
+  Future<List<AdminAccountDeletionRequest>> listAccountDeletionRequests();
+  Future<void> resolveAccountDeletionRequest({
+    required String requestId,
+    required String status,
+    String? note,
+  });
   Future<AdminUsersPage> listUsers({
     String search = '',
     int limit = 50,

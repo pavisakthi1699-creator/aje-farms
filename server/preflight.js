@@ -39,6 +39,71 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     'SUPABASE_SERVICE_ROLE_KEY',
     env.SUPABASE_SERVICE_ROLE_KEY,
   );
+  requireValue(
+    blockers,
+    'SUPABASE_PUBLISHABLE_KEY',
+    env.SUPABASE_PUBLISHABLE_KEY,
+    (value) => validateSupabasePublishableKey(
+      value,
+      env.SUPABASE_SERVICE_ROLE_KEY,
+    ),
+  );
+  requireValue(blockers, 'AJE_PRIVACY_POLICY_URL', env.AJE_PRIVACY_POLICY_URL);
+  validateHttpsUrl(
+    blockers,
+    'AJE_PRIVACY_POLICY_URL',
+    env.AJE_PRIVACY_POLICY_URL,
+  );
+  validateProductionHostname(
+    blockers,
+    'AJE_PRIVACY_POLICY_URL',
+    env.AJE_PRIVACY_POLICY_URL,
+  );
+  requireValue(
+    blockers,
+    'AJE_ACCOUNT_DELETION_URL',
+    env.AJE_ACCOUNT_DELETION_URL,
+  );
+  requireValue(
+    blockers,
+    'AJE_PRIVACY_CONTACT_EMAIL',
+    env.AJE_PRIVACY_CONTACT_EMAIL,
+    (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+      ? null
+      : 'must be a valid monitored email address.',
+  );
+  requireValue(
+    blockers,
+    'AJE_ANDROID_APP_SIGNING_SHA256',
+    env.AJE_ANDROID_APP_SIGNING_SHA256,
+    (value) => {
+      const fingerprints = value.split(',').map((item) => item.trim());
+      return fingerprints.every((item) =>
+        /^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$/.test(item),
+      )
+        ? null
+        : 'must contain comma-separated SHA-256 certificate fingerprints.';
+    },
+  );
+  validateHttpsUrl(
+    blockers,
+    'AJE_ACCOUNT_DELETION_URL',
+    env.AJE_ACCOUNT_DELETION_URL,
+  );
+  validateProductionHostname(
+    blockers,
+    'AJE_ACCOUNT_DELETION_URL',
+    env.AJE_ACCOUNT_DELETION_URL,
+  );
+  requireValue(
+    blockers,
+    'AJE_PLAY_DISTRIBUTION_MODE',
+    env.AJE_PLAY_DISTRIBUTION_MODE,
+    (value) =>
+      value === 'consumption_only'
+        ? null
+        : 'must be "consumption_only" for this release.',
+  );
   // Gates the dev-only /api/auth/dev-session bypass in api.js — must never
   // be reachable in a release build.
   if (env.AJE_ENABLE_DEBUG_OTP === 'true') {
@@ -104,6 +169,29 @@ export function releasePreflight(env = process.env, fileExists = () => false) {
     blockers,
     warnings,
   };
+}
+
+function validateSupabasePublishableKey(value, serviceRoleKey) {
+  if (value === String(serviceRoleKey ?? '').trim()) {
+    return 'must not equal SUPABASE_SERVICE_ROLE_KEY.';
+  }
+  if (value.startsWith('sb_secret_')) {
+    return 'must be a client-safe publishable key, not an sb_secret_ key.';
+  }
+  const parts = value.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(
+        Buffer.from(parts[1], 'base64url').toString('utf8'),
+      );
+      if (payload?.role === 'service_role') {
+        return 'must not contain a service_role JWT.';
+      }
+    } catch {
+      // Key format validation belongs to Supabase; only block known secrets.
+    }
+  }
+  return null;
 }
 
 function requireValue(blockers, name, value, validate) {

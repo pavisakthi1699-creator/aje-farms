@@ -21,10 +21,22 @@ class StubAuthService implements AuthService {
         role: role,
         accountStatus: accountStatus,
         subscriptionPlan: accountStatus == 'active' ? 'Wiki 1' : null,
+        termsAcceptedVersion: currentTermsVersion,
       );
 
   @override
   Future<AuthSession> cancelSubscription() async => getSession();
+
+  @override
+  Future<void> deleteAccount() async {}
+
+  @override
+  Future<AuthSession> acceptCommunityTerms() async => AuthSession(
+        email: 'mkulima@aje.test',
+        role: role,
+        accountStatus: accountStatus,
+        termsAcceptedVersion: currentTermsVersion,
+      );
 
   @override
   Future<AuthSession> updateProfile({

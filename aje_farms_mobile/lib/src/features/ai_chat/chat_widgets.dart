@@ -9,11 +9,15 @@ class ChatMessage {
     required this.role,
     required this.text,
     this.sources = const [],
+    this.messageId,
+    this.isReported = false,
   });
 
   final ChatRole role;
   final String text;
   final List<MwalimuAiSource> sources;
+  final String? messageId;
+  final bool isReported;
 }
 
 class IntakeContextCard extends StatelessWidget {
@@ -78,10 +82,15 @@ class IntakeContextCard extends StatelessWidget {
 }
 
 class ChatBubble extends StatelessWidget {
-  const ChatBubble({required this.message, required this.onEscalate});
+  const ChatBubble({
+    required this.message,
+    required this.onEscalate,
+    required this.onReport,
+  });
 
   final ChatMessage message;
   final VoidCallback onEscalate;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +99,7 @@ class ChatBubble extends StatelessWidget {
         (message.sources.isNotEmpty ||
             message.text.toLowerCase().contains('mtaalamu') ||
             message.text.toLowerCase().contains('whatsapp'));
+    final canReport = !isUser && message.messageId != null;
     const bubbleRadius = Radius.circular(AppRadius.xl);
 
     return Align(
@@ -179,6 +189,21 @@ class ChatBubble extends StatelessWidget {
                           },
                         ),
                       ],
+                    ),
+                  ],
+                  if (canReport) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    TextButton.icon(
+                      onPressed: message.isReported ? null : onReport,
+                      icon: Icon(
+                        message.isReported ? Icons.flag : Icons.flag_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        message.isReported
+                            ? 'Jibu limeripotiwa'
+                            : 'Ripoti jibu hili',
+                      ),
                     ),
                   ],
                 ],

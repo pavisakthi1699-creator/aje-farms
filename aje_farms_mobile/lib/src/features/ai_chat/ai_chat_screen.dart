@@ -29,6 +29,37 @@ class AiChatScreenState extends State<AiChatScreen> {
   ];
   bool _isLoading = false;
 
+  Future<void> _reportAnswer(ChatMessage message) async {
+    final messageId = message.messageId;
+    if (messageId == null || message.isReported) return;
+    final reason = await _selectAiReportReason(context);
+    if (reason == null || !mounted) return;
+    try {
+      await context.dependencies.mwalimuAiService.reportAnswer(
+        messageId,
+        reason: reason,
+      );
+      if (!mounted) return;
+      final index = _messages.indexOf(message);
+      if (index >= 0) {
+        setState(() {
+          _messages[index] = ChatMessage(
+            role: message.role,
+            text: message.text,
+            sources: message.sources,
+            messageId: message.messageId,
+            isReported: true,
+          );
+        });
+      }
+      showSuccessSnack(context, 'Ripoti ya jibu la AI imepokelewa.');
+    } on MwalimuAiException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+    } catch (_) {
+      if (mounted) showErrorSnack(context, 'Imeshindikana kutuma ripoti.');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -88,6 +119,7 @@ class AiChatScreenState extends State<AiChatScreen> {
         role: ChatRole.model,
         text: answer.text,
         sources: answer.sources,
+        messageId: answer.messageId,
       ));
       _isLoading = false;
     });
@@ -172,6 +204,7 @@ class AiChatScreenState extends State<AiChatScreen> {
                   return ChatBubble(
                     message: _messages[index],
                     onEscalate: () => AppNavigator.pushWhatsApp(context),
+                    onReport: () => _reportAnswer(_messages[index]),
                   );
                 },
               ),
@@ -244,4 +277,37 @@ class AiChatScreenState extends State<AiChatScreen> {
       'Matatizo ya nyanya'
     ];
   }
+}
+
+Future<String?> _selectAiReportReason(BuildContext context) {
+  const reasons = <String, String>{
+    'offensive': 'Jibu linaudhi au halifai',
+    'unsafe': 'Jibu linaweza kusababisha madhara',
+    'inaccurate': 'Jibu si sahihi au linapotosha',
+    'personal_data': 'Jibu lina taarifa binafsi',
+    'other': 'Sababu nyingine',
+  };
+  return showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Text(
+              'Kwa nini unaripoti jibu hili?',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          for (final entry in reasons.entries)
+            ListTile(
+              title: Text(entry.value),
+              onTap: () => Navigator.of(context).pop(entry.key),
+            ),
+        ],
+      ),
+    ),
+  );
 }

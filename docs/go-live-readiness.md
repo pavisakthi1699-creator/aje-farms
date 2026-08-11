@@ -1,9 +1,13 @@
 # AJE Farms Go-Live Readiness
 
-Last verified: 2026-08-02.
+Last verified: 2026-08-11.
 
 This checklist tracks the remaining work before a production Android release.
-Payment provider integration is intentionally deferred to the final slice.
+The Google Play build is consumption-only. Learners cannot purchase or be
+directed to purchase digital access in the app. This does not change the
+existing access gate: new accounts remain locked until an administrator grants
+access through the admin panel. The repository blocks a release with incomplete
+policy, identity, signing, or App Link configuration.
 
 ## Verified Locally
 
@@ -30,26 +34,25 @@ Payment provider integration is intentionally deferred to the final slice.
    - `APP_URL=https://<deployed-api-host>`
    - `AJE_STORE=supabase`
    - `SUPABASE_DATABASE_URL=<managed Supabase Postgres URL>`
+   - `SUPABASE_URL=<Supabase project URL>`
+   - `SUPABASE_SERVICE_ROLE_KEY=<server-only service role key>`
+   - `SUPABASE_PUBLISHABLE_KEY=<client-safe publishable key>`
    - `AJE_OTP_PEPPER=<unique secret, 32+ chars>`
    - `AJE_ENABLE_DEBUG_OTP=false`
    - `AJE_ANDROID_API_BASE_URL=https://<deployed-api-host>`
    - `AJE_WHATSAPP_EXPERT_PHONE=<digits only, country code included>`
-   - `AJE_ADMIN_PHONE_NUMBERS=<comma-separated admin phone numbers>`
+   - `AJE_ADMIN_EMAILS=<comma-separated admin emails>`
+   - `AJE_PRIVACY_POLICY_URL=<public HTTPS privacy page>`
+   - `AJE_ACCOUNT_DELETION_URL=<public HTTPS deletion page>`
+   - `AJE_PRIVACY_CONTACT_EMAIL=<monitored privacy mailbox>`
+   - `AJE_ANDROID_APP_SIGNING_SHA256=<fingerprint from Play App Signing>`
+   - `AJE_PLAY_DISTRIBUTION_MODE=consumption_only`
 
 3. Configure non-payment providers.
-   - SMS OTP:
-     - `AJE_SMS_PROVIDER=africas_talking`
-     - `AFRICASTALKING_USERNAME=<production app username>`
-     - `AFRICASTALKING_API_KEY=<server-only API key>`
-     - `AFRICASTALKING_ENVIRONMENT=production`
-     - Optional: `AFRICASTALKING_SENDER_ID=<approved sender ID>`
-   - Keep the Africa's Talking API key only in Railway. Never place it in
-     Flutter build arguments or the APK.
-   - Before testing login, verify delivery directly:
-     `npm run smoke:sms -- +255700000000`.
-   - Sandbox messages appear in the Africa's Talking simulator, not on a real
-     handset. Use live credentials and `AFRICASTALKING_ENVIRONMENT=production`
-     for a real-phone test.
+   - Authentication and email confirmation are provided by Supabase Auth.
+     Add both verified HTTPS callback URLs to the Supabase redirect allowlist:
+     `https://aje-farms-api-production.up.railway.app/auth` and
+     `https://aje-farms-api-production.up.railway.app/login-callback`.
    - Gemini AI: set `GEMINI_API`, or accept the knowledge-base fallback.
    - Push notifications: set `AJE_PUSH_PROVIDER=fcm` and configure either
      `FCM_SERVICE_ACCOUNT_JSON` or `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, and
@@ -73,11 +76,12 @@ AJE_OTP_PEPPER=<32-plus-character-secret> \
 AJE_ENABLE_DEBUG_OTP=false \
 AJE_ANDROID_API_BASE_URL=https://api.your-domain.example \
 AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
-AJE_ADMIN_PHONE_NUMBERS=255700000000 \
-AJE_SMS_PROVIDER=africas_talking \
-AFRICASTALKING_USERNAME=<africas-talking-username> \
-AFRICASTALKING_API_KEY=<africas-talking-api-key> \
-AFRICASTALKING_ENVIRONMENT=production \
+AJE_ADMIN_EMAILS=admin@your-domain.example \
+AJE_PRIVACY_POLICY_URL=https://aje-farms-api-production.up.railway.app/privacy \
+AJE_ACCOUNT_DELETION_URL=https://aje-farms-api-production.up.railway.app/delete-account \
+AJE_PRIVACY_CONTACT_EMAIL=privacy@your-domain.example \
+AJE_ANDROID_APP_SIGNING_SHA256=<play-app-signing-sha256> \
+AJE_PLAY_DISTRIBUTION_MODE=consumption_only \
 AFRICASTALKING_SENDER_ID=<optional-approved-sender-id> \
 GEMINI_API=<gemini-key> \
 AJE_PUSH_PROVIDER=fcm \

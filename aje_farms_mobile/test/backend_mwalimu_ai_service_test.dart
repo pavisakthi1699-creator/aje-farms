@@ -76,8 +76,8 @@ void main() {
     await expectLater(
       service.answer('Swali'),
       throwsA(
-        isA<MwalimuAiException>()
-            .having((e) => e.requiresVerifiedAccount, 'requiresVerified', false),
+        isA<MwalimuAiException>().having(
+            (e) => e.requiresVerifiedAccount, 'requiresVerified', false),
       ),
     );
   });
@@ -88,18 +88,43 @@ void main() {
       baseUrl: Uri.parse('http://localhost:3000'),
       client: MockClient((request) async {
         capturedRequest = request;
-        return http.Response('{"text":"Jibu la backend"}', 200);
+        return http.Response(
+          '{"text":"Jibu la backend","messageId":"ai-answer-1"}',
+          200,
+        );
       }),
     );
 
     final answer = await service.answer('Nisaidie kuhusu nyanya');
 
     expect(answer.text, 'Jibu la backend');
+    expect(answer.messageId, 'ai-answer-1');
     expect(answer.sources, isEmpty);
     expect(capturedRequest.url.toString(),
         'http://localhost:3000/api/mwalimu-chat');
     expect(capturedRequest.method, 'POST');
     expect(capturedRequest.body, contains('Nisaidie kuhusu nyanya'));
+  });
+
+  test('reports a generated answer without leaving the app', () async {
+    late http.Request capturedRequest;
+    final service = BackendMwalimuAiService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        capturedRequest = request;
+        return http.Response('{"status":"received"}', 200);
+      }),
+    );
+
+    await service.reportAnswer('ai-answer-1', reason: 'unsafe');
+
+    expect(
+      capturedRequest.url.toString(),
+      'http://localhost:3000/api/mwalimu-chat/ai-answer-1/report',
+    );
+    expect(
+        capturedRequest.headers['Authorization'], 'Bearer mwalimu-test-token');
+    expect(capturedRequest.body, contains('"reason":"unsafe"'));
   });
 
   test('throws typed exception for backend errors', () async {

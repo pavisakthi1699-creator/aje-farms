@@ -123,9 +123,8 @@ class AppTheme {
         fontWeight: FontWeight.w500,
       ),
     );
-    final baseTextTheme = useBrandFont
-        ? textTheme.apply(fontFamily: brandFontFamily)
-        : textTheme;
+    final baseTextTheme =
+        useBrandFont ? textTheme.apply(fontFamily: brandFontFamily) : textTheme;
 
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),

@@ -3,49 +3,41 @@
 -- until linked to reviewed source_segments and explicitly published.
 
 create extension if not exists pgcrypto;
-
 do $$
 begin
   create type public.content_status as enum ('draft', 'needs_review', 'approved', 'published', 'archived', 'failed');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.content_risk_level as enum ('normal', 'medium', 'high');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.lesson_type as enum ('reading', 'video', 'pdf', 'checklist', 'quiz', 'practical_task', 'audio');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.import_source as enum ('manual', 'notebooklm', 'gemini_api', 'csv_import');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.source_link_status as enum ('linked', 'source_missing', 'pending_review');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.ingestion_job_status as enum ('queued', 'running', 'completed', 'failed', 'cancelled');
 exception when duplicate_object then null;
 end $$;
-
 do $$
 begin
   create type public.ingestion_job_type as enum ('extract_source_segments', 'generate_course_draft');
 exception when duplicate_object then null;
 end $$;
-
 create table if not exists public.source_documents (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -65,7 +57,6 @@ create table if not exists public.source_documents (
   unique (storage_bucket, storage_path),
   unique (checksum, version_number)
 );
-
 create table if not exists public.source_segments (
   id uuid primary key default gen_random_uuid(),
   source_document_id uuid not null references public.source_documents(id) on delete cascade,
@@ -85,7 +76,6 @@ create table if not exists public.source_segments (
   unique (source_document_id, content_hash),
   unique (source_document_id, segment_order)
 );
-
 create table if not exists public.ingestion_jobs (
   id uuid primary key default gen_random_uuid(),
   source_document_id uuid not null references public.source_documents(id) on delete cascade,
@@ -101,11 +91,9 @@ create table if not exists public.ingestion_jobs (
   updated_at timestamptz not null default now(),
   unique (idempotency_key)
 );
-
 create unique index if not exists ingestion_jobs_one_active_per_document_type
   on public.ingestion_jobs (source_document_id, job_type)
   where status in ('queued', 'running');
-
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
@@ -116,7 +104,6 @@ create table if not exists public.categories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.courses (
   id uuid primary key default gen_random_uuid(),
   category_id uuid references public.categories(id) on delete set null,
@@ -139,11 +126,9 @@ create table if not exists public.courses (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create unique index if not exists courses_external_import_unique
   on public.courses(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.course_modules (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
@@ -162,11 +147,9 @@ create table if not exists public.course_modules (
   updated_at timestamptz not null default now(),
   unique (course_id, code)
 );
-
 create unique index if not exists modules_external_import_unique
   on public.course_modules(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.lessons (
   id uuid primary key default gen_random_uuid(),
   module_id uuid not null references public.course_modules(id) on delete cascade,
@@ -187,11 +170,9 @@ create table if not exists public.lessons (
   updated_at timestamptz not null default now(),
   unique (module_id, code)
 );
-
 create unique index if not exists lessons_external_import_unique
   on public.lessons(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.checklists (
   id uuid primary key default gen_random_uuid(),
   lesson_id uuid references public.lessons(id) on delete cascade,
@@ -211,7 +192,6 @@ create table if not exists public.checklists (
   updated_at timestamptz not null default now(),
   check (lesson_id is not null or course_id is not null)
 );
-
 create unique index if not exists checklists_lesson_code_unique
   on public.checklists(lesson_id, code)
   where lesson_id is not null;
@@ -221,7 +201,6 @@ create unique index if not exists checklists_course_code_unique
 create unique index if not exists checklists_external_import_unique
   on public.checklists(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.quiz_questions (
   id uuid primary key default gen_random_uuid(),
   lesson_id uuid references public.lessons(id) on delete cascade,
@@ -243,7 +222,6 @@ create table if not exists public.quiz_questions (
   updated_at timestamptz not null default now(),
   check (lesson_id is not null or course_id is not null)
 );
-
 create unique index if not exists quiz_questions_lesson_code_unique
   on public.quiz_questions(lesson_id, code)
   where lesson_id is not null;
@@ -253,7 +231,6 @@ create unique index if not exists quiz_questions_course_code_unique
 create unique index if not exists quiz_external_import_unique
   on public.quiz_questions(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.faq_entries (
   id uuid primary key default gen_random_uuid(),
   course_id uuid references public.courses(id) on delete cascade,
@@ -273,7 +250,6 @@ create table if not exists public.faq_entries (
   updated_at timestamptz not null default now(),
   check (lesson_id is not null or course_id is not null)
 );
-
 create unique index if not exists faq_lesson_code_unique
   on public.faq_entries(lesson_id, code)
   where lesson_id is not null;
@@ -283,7 +259,6 @@ create unique index if not exists faq_course_code_unique
 create unique index if not exists faq_external_import_unique
   on public.faq_entries(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.content_gaps (
   id uuid primary key default gen_random_uuid(),
   course_id uuid references public.courses(id) on delete cascade,
@@ -301,11 +276,9 @@ create table if not exists public.content_gaps (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create unique index if not exists content_gaps_external_import_unique
   on public.content_gaps(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.learning_paths (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
@@ -320,11 +293,9 @@ create table if not exists public.learning_paths (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create unique index if not exists learning_paths_external_import_unique
   on public.learning_paths(import_source, external_id)
   where external_id is not null;
-
 create table if not exists public.learning_path_courses (
   id uuid primary key default gen_random_uuid(),
   learning_path_id uuid not null references public.learning_paths(id) on delete cascade,
@@ -335,7 +306,6 @@ create table if not exists public.learning_path_courses (
   created_at timestamptz not null default now(),
   unique (learning_path_id, course_id)
 );
-
 create table if not exists public.content_source_links (
   id uuid primary key default gen_random_uuid(),
   content_type text not null check (content_type in ('course', 'module', 'lesson', 'checklist', 'quiz_question', 'faq_entry')),
@@ -349,7 +319,6 @@ create table if not exists public.content_source_links (
   updated_at timestamptz not null default now(),
   unique (content_type, content_id, source_segment_id)
 );
-
 create table if not exists public.content_reviews (
   id uuid primary key default gen_random_uuid(),
   content_type text not null check (content_type in ('course', 'module', 'lesson', 'checklist', 'quiz_question', 'faq_entry', 'source_segment')),
@@ -361,7 +330,6 @@ create table if not exists public.content_reviews (
   reviewed_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.content_change_log (
   id uuid primary key default gen_random_uuid(),
   content_type text not null,
@@ -373,7 +341,6 @@ create table if not exists public.content_change_log (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.curriculum_import_batches (
   id uuid primary key default gen_random_uuid(),
   import_source public.import_source not null default 'notebooklm',
@@ -388,7 +355,6 @@ create table if not exists public.curriculum_import_batches (
   created_at timestamptz not null default now(),
   completed_at timestamptz
 );
-
 create table if not exists public.curriculum_import_errors (
   id uuid primary key default gen_random_uuid(),
   batch_id uuid not null references public.curriculum_import_batches(id) on delete cascade,
@@ -400,7 +366,6 @@ create table if not exists public.curriculum_import_errors (
   raw_row jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
-
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -410,7 +375,6 @@ begin
   return new;
 end;
 $$;
-
 do $$
 declare
   table_name text;
@@ -425,7 +389,6 @@ begin
     execute format('create trigger set_%I_updated_at before update on public.%I for each row execute function public.set_updated_at()', table_name, table_name);
   end loop;
 end $$;
-
 create or replace function public.current_app_role()
 returns text
 language sql
@@ -437,7 +400,6 @@ as $$
     'learner'
   );
 $$;
-
 create or replace function public.is_content_editor()
 returns boolean
 language sql
@@ -445,7 +407,6 @@ stable
 as $$
   select public.current_app_role() in ('editor', 'admin');
 $$;
-
 create or replace function public.is_content_admin()
 returns boolean
 language sql
@@ -453,7 +414,6 @@ stable
 as $$
   select public.current_app_role() = 'admin';
 $$;
-
 create or replace function public.mark_content_link_status(
   target_type text,
   target_id uuid,
@@ -480,7 +440,6 @@ begin
   end if;
 end;
 $$;
-
 create or replace function public.sync_source_document_on_link()
 returns trigger
 language plpgsql
@@ -494,12 +453,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists sync_source_document_on_link on public.content_source_links;
 create trigger sync_source_document_on_link
 before insert or update on public.content_source_links
 for each row execute function public.sync_source_document_on_link();
-
 create or replace function public.content_source_links_after_change()
 returns trigger
 language plpgsql
@@ -539,12 +496,10 @@ begin
   return coalesce(new, old);
 end;
 $$;
-
 drop trigger if exists content_source_links_after_change on public.content_source_links;
 create trigger content_source_links_after_change
 after insert or update or delete on public.content_source_links
 for each row execute function public.content_source_links_after_change();
-
 create or replace function public.validate_course_sources(course_id_input uuid)
 returns jsonb
 language plpgsql
@@ -637,7 +592,6 @@ begin
   return report;
 end;
 $$;
-
 create or replace function public.publish_course(course_id_input uuid)
 returns jsonb
 language plpgsql
@@ -737,7 +691,6 @@ begin
   return jsonb_build_object('published', true, 'validation', validation);
 end;
 $$;
-
 create or replace function public.enforce_published_learning_path_courses()
 returns trigger
 language plpgsql
@@ -763,12 +716,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists enforce_published_learning_path_courses on public.learning_path_courses;
 create trigger enforce_published_learning_path_courses
 before insert or update on public.learning_path_courses
 for each row execute function public.enforce_published_learning_path_courses();
-
 create or replace function public.enforce_learning_path_publish_ready()
 returns trigger
 language plpgsql
@@ -794,12 +745,10 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists enforce_learning_path_publish_ready on public.learning_paths;
 create trigger enforce_learning_path_publish_ready
 before insert or update on public.learning_paths
 for each row execute function public.enforce_learning_path_publish_ready();
-
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'source-documents',
@@ -812,7 +761,6 @@ on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
-
 alter table public.source_documents enable row level security;
 alter table public.source_segments enable row level security;
 alter table public.ingestion_jobs enable row level security;
@@ -831,57 +779,47 @@ alter table public.content_reviews enable row level security;
 alter table public.content_change_log enable row level security;
 alter table public.curriculum_import_batches enable row level security;
 alter table public.curriculum_import_errors enable row level security;
-
 grant usage on schema public to anon, authenticated;
 grant select on public.categories, public.courses, public.course_modules, public.lessons, public.checklists, public.quiz_questions, public.faq_entries, public.learning_paths, public.learning_path_courses to anon, authenticated;
 grant all on public.source_documents, public.source_segments, public.ingestion_jobs, public.categories, public.courses, public.course_modules, public.lessons, public.checklists, public.quiz_questions, public.faq_entries, public.content_gaps, public.learning_paths, public.learning_path_courses, public.content_source_links, public.content_reviews, public.content_change_log, public.curriculum_import_batches, public.curriculum_import_errors to authenticated;
-
 revoke all on function public.mark_content_link_status(text, uuid, public.source_link_status) from public, anon, authenticated;
 revoke all on function public.validate_course_sources(uuid) from public, anon;
 revoke all on function public.publish_course(uuid) from public, anon;
 grant execute on function public.validate_course_sources(uuid) to authenticated;
 grant execute on function public.publish_course(uuid) to authenticated;
-
 drop policy if exists "Editors manage source documents" on public.source_documents;
 create policy "Editors manage source documents" on public.source_documents
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage source segments" on public.source_segments;
 create policy "Editors manage source segments" on public.source_segments
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage ingestion jobs" on public.ingestion_jobs;
 create policy "Editors manage ingestion jobs" on public.ingestion_jobs
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published categories are readable" on public.categories;
 create policy "Published categories are readable" on public.categories
 for select to anon, authenticated
 using (status = 'published' or public.is_content_editor());
-
 drop policy if exists "Editors manage categories" on public.categories;
 create policy "Editors manage categories" on public.categories
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published courses are readable" on public.courses;
 create policy "Published courses are readable" on public.courses
 for select to anon, authenticated
 using (status = 'published' or public.is_content_editor());
-
 drop policy if exists "Editors manage courses" on public.courses;
 create policy "Editors manage courses" on public.courses
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published modules are readable" on public.course_modules;
 create policy "Published modules are readable" on public.course_modules
 for select to anon, authenticated
@@ -890,13 +828,11 @@ using (
   and exists (select 1 from public.courses c where c.id = course_id and c.status = 'published')
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage modules" on public.course_modules;
 create policy "Editors manage modules" on public.course_modules
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published lessons are readable" on public.lessons;
 create policy "Published lessons are readable" on public.lessons
 for select to anon, authenticated
@@ -910,13 +846,11 @@ using (
   )
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage lessons" on public.lessons;
 create policy "Editors manage lessons" on public.lessons
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published checklists are readable" on public.checklists;
 create policy "Published checklists are readable" on public.checklists
 for select to anon, authenticated
@@ -933,13 +867,11 @@ using (
   )
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage checklists" on public.checklists;
 create policy "Editors manage checklists" on public.checklists
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published quiz questions are readable" on public.quiz_questions;
 create policy "Published quiz questions are readable" on public.quiz_questions
 for select to anon, authenticated
@@ -956,13 +888,11 @@ using (
   )
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage quiz questions" on public.quiz_questions;
 create policy "Editors manage quiz questions" on public.quiz_questions
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published FAQs are readable" on public.faq_entries;
 create policy "Published FAQs are readable" on public.faq_entries
 for select to anon, authenticated
@@ -979,30 +909,25 @@ using (
   )
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage FAQs" on public.faq_entries;
 create policy "Editors manage FAQs" on public.faq_entries
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage content gaps" on public.content_gaps;
 create policy "Editors manage content gaps" on public.content_gaps
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published learning paths are readable" on public.learning_paths;
 create policy "Published learning paths are readable" on public.learning_paths
 for select to anon, authenticated
 using (status = 'published' or public.is_content_editor());
-
 drop policy if exists "Editors manage learning paths" on public.learning_paths;
 create policy "Editors manage learning paths" on public.learning_paths
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Published learning path courses are readable" on public.learning_path_courses;
 create policy "Published learning path courses are readable" on public.learning_path_courses
 for select to anon, authenticated
@@ -1015,68 +940,56 @@ using (
   )
   or public.is_content_editor()
 );
-
 drop policy if exists "Editors manage learning path courses" on public.learning_path_courses;
 create policy "Editors manage learning path courses" on public.learning_path_courses
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage source links" on public.content_source_links;
 create policy "Editors manage source links" on public.content_source_links
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage reviews" on public.content_reviews;
 create policy "Editors manage reviews" on public.content_reviews
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors read change log" on public.content_change_log;
 create policy "Editors read change log" on public.content_change_log
 for select to authenticated
 using (public.is_content_editor());
-
 drop policy if exists "Editors write change log" on public.content_change_log;
 create policy "Editors write change log" on public.content_change_log
 for insert to authenticated
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage import batches" on public.curriculum_import_batches;
 create policy "Editors manage import batches" on public.curriculum_import_batches
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors manage import errors" on public.curriculum_import_errors;
 create policy "Editors manage import errors" on public.curriculum_import_errors
 for all to authenticated
 using (public.is_content_editor())
 with check (public.is_content_editor());
-
 drop policy if exists "Editors upload source documents" on storage.objects;
 create policy "Editors upload source documents"
 on storage.objects for insert to authenticated
 with check (bucket_id = 'source-documents' and public.is_content_editor());
-
 drop policy if exists "Editors read source documents" on storage.objects;
 create policy "Editors read source documents"
 on storage.objects for select to authenticated
 using (bucket_id = 'source-documents' and public.is_content_editor());
-
 drop policy if exists "Editors update source documents" on storage.objects;
 create policy "Editors update source documents"
 on storage.objects for update to authenticated
 using (bucket_id = 'source-documents' and public.is_content_editor())
 with check (bucket_id = 'source-documents' and public.is_content_editor());
-
 drop policy if exists "Admins delete source documents" on storage.objects;
 create policy "Admins delete source documents"
 on storage.objects for delete to authenticated
 using (bucket_id = 'source-documents' and public.is_content_admin());
-
 with category_seed as (
   insert into public.categories (code, name_sw, description_sw, status, sort_order)
   values ('kilimo-cha-mazao', 'Kilimo cha Mazao', 'Maarifa ya uzalishaji wa mazao kwa wakulima.', 'published', 10)
@@ -1106,7 +1019,6 @@ cross join (values
   ('uvunaji-na-soko', 'Uvunaji na Soko', 40)
 ) as modules(module_code, module_title, module_order)
 on conflict (course_id, code) do update set title_sw = excluded.title_sw, sort_order = excluded.sort_order;
-
 insert into public.learning_path_courses (learning_path_id, course_id, sort_order, required)
 select lp.id, c.id, 10, true
 from public.learning_paths lp

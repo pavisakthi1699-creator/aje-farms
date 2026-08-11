@@ -2108,7 +2108,10 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
   bool _loading = true;
   String? _error;
   List<AdminModerationReport> _reports = const [];
+  List<AdminAiReport> _aiReports = const [];
+  List<AdminAccountDeletionRequest> _deletionRequests = const [];
   String? _resolvingPostId;
+  String? _resolvingQueueId;
 
   @override
   void didChangeDependencies() {
@@ -2128,11 +2131,18 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       _error = null;
     });
     try {
-      final reports =
-          await context.dependencies.adminService.listModerationReports();
+      final results = await Future.wait<dynamic>([
+        context.dependencies.adminService.listModerationReports(),
+        context.dependencies.adminService.listAiReports(),
+        context.dependencies.adminService.listAccountDeletionRequests(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _reports = reports;
+        _reports = results[0] as List<AdminModerationReport>;
+        _aiReports = results[1] as List<AdminAiReport>;
+        _deletionRequests = (results[2] as List<AdminAccountDeletionRequest>)
+            .where((request) => request.status == 'pending')
+            .toList();
         _loading = false;
       });
     } on AdminException catch (error) {
@@ -2147,6 +2157,50 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         _error = 'Imeshindikana kupakia moderation reports.';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _resolveAi(AdminAiReport report) async {
+    setState(() => _resolvingQueueId = report.id);
+    try {
+      await context.dependencies.adminService.resolveAiReport(report.id);
+      if (!mounted) return;
+      showSuccessSnack(context, 'Ripoti ya AI imekaguliwa.');
+      await _load();
+    } on AdminException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _resolvingQueueId = null);
+    }
+  }
+
+  Future<void> _resolveDeletion(
+    AdminAccountDeletionRequest request,
+    String status,
+  ) async {
+    final confirmed = await confirmAction(
+      context,
+      title: status == 'completed' ? 'Thibitisha ombi?' : 'Kataa ombi?',
+      message: status == 'completed'
+          ? 'Baada ya kuthibitisha utambulisho, mfumo utafuta akaunti na data zinazohusiana.'
+          : 'Ombi litawekwa kuwa limekataliwa baada ya ukaguzi.',
+      confirmLabel: status == 'completed' ? 'Imekamilika' : 'Kataa',
+      isDestructive: status == 'completed',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _resolvingQueueId = request.id);
+    try {
+      await context.dependencies.adminService.resolveAccountDeletionRequest(
+        requestId: request.id,
+        status: status,
+      );
+      if (!mounted) return;
+      showSuccessSnack(context, 'Ombi limesasishwa.');
+      await _load();
+    } on AdminException catch (error) {
+      if (mounted) showErrorSnack(context, error.message);
+    } finally {
+      if (mounted) setState(() => _resolvingQueueId = null);
     }
   }
 
@@ -2214,7 +2268,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         ),
       );
     }
-    if (_reports.isEmpty) {
+    if (_reports.isEmpty && _aiReports.isEmpty && _deletionRequests.isEmpty) {
       return Center(
         child: EmptyState(
           icon: Icons.verified_outlined,
@@ -2231,87 +2285,145 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
-          _AdminSectionHeader(
-            title: 'Ripoti na Machapisho Yaliyofichwa',
-            count: _reports.length,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (final report in _reports)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              report.post.content,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
+          if (_deletionRequests.isNotEmpty) ...[
+            _AdminSectionHeader(
+              title: 'Maombi ya Kufuta Akaunti',
+              count: _deletionRequests.length,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final request in _deletionRequests)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Card(
+                  child: ListTile(
+                    title: Text(request.email),
+                    subtitle: const Text(
+                      'Thibitisha utambulisho; kukamilisha kufuta akaunti na data.',
+                    ),
+                    trailing: _resolvingQueueId == request.id
+                        ? const CircularProgressIndicator()
+                        : PopupMenuButton<String>(
+                            onSelected: (status) =>
+                                _resolveDeletion(request, status),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'completed',
+                                child: Text('Weka limekamilika'),
+                              ),
+                              PopupMenuItem(
+                                value: 'rejected',
+                                child: Text('Kataa ombi'),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          _AdminStatusPill(status: report.report.status),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Mwandishi: ${report.post.author}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: context.colors.muted,
-                            ),
-                      ),
-                      if (report.post.location.trim().isNotEmpty) ...[
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          if (_aiReports.isNotEmpty) ...[
+            _AdminSectionHeader(
+              title: 'Ripoti za Majibu ya AI',
+              count: _aiReports.length,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final report in _aiReports)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Sababu: ${report.reason}'),
+                        if (report.details?.isNotEmpty ?? false)
+                          Text(report.details!),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text('Swali: ${report.prompt}'),
                         const SizedBox(height: AppSpacing.xs),
+                        Text('Jibu: ${report.answer}'),
+                        const SizedBox(height: AppSpacing.md),
+                        FilledButton.icon(
+                          onPressed: _resolvingQueueId == report.id
+                              ? null
+                              : () => _resolveAi(report),
+                          icon: const Icon(Icons.task_alt),
+                          label: const Text('Weka imekaguliwa'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          if (_reports.isNotEmpty) ...[
+            _AdminSectionHeader(
+              title: 'Ripoti na Machapisho Yaliyofichwa',
+              count: _reports.length,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final report in _reports)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                report.post.content,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            _AdminStatusPill(status: report.report.status),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Eneo: ${report.post.location}',
+                          'Mwandishi: ${report.post.author}',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: context.colors.muted,
                                   ),
                         ),
-                      ],
-                      const SizedBox(height: AppSpacing.md),
-                      Builder(
-                        builder: (context) {
-                          final isResolving =
-                              _resolvingPostId == report.post.id;
-                          final isHidden = report.report.status == 'hidden';
-                          if (isHidden) {
-                            return FilledButton.icon(
-                              onPressed: isResolving
-                                  ? null
-                                  : () {
-                                      AppFeedback.tap();
-                                      _resolve(report, 'restore');
-                                    },
-                              icon: isResolving
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.visibility_outlined),
-                              label: const Text('Rejesha chapisho'),
-                            );
-                          }
-                          return Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            children: [
-                              // Dismissing the report is the safe, reversible
-                              // choice, so it carries the primary emphasis.
-                              FilledButton.icon(
+                        if (report.report.count > 0) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Ripoti: ${report.report.count} · ${report.report.reasons.join(', ')}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        if (report.post.location.trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Eneo: ${report.post.location}',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: context.colors.muted,
+                                    ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        Builder(
+                          builder: (context) {
+                            final isResolving =
+                                _resolvingPostId == report.post.id;
+                            final isHidden = report.report.status == 'hidden';
+                            if (isHidden) {
+                              return FilledButton.icon(
                                 onPressed: isResolving
                                     ? null
                                     : () {
                                         AppFeedback.tap();
-                                        _resolve(report, 'dismiss');
+                                        _resolve(report, 'restore');
                                       },
                                 icon: isResolving
                                     ? const SizedBox.square(
@@ -2320,37 +2432,63 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Icon(Icons.close),
-                                label: const Text('Ondoa ripoti'),
-                              ),
-                              // Hiding is destructive: outlined and tinted with
-                              // the semantic error colour so it never reads as
-                              // the default action.
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: context.colors.error,
-                                  side: BorderSide(
-                                    color: context.colors.error,
-                                  ),
+                                    : const Icon(Icons.visibility_outlined),
+                                label: const Text('Rejesha chapisho'),
+                              );
+                            }
+                            return Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: [
+                                // Dismissing the report is the safe, reversible
+                                // choice, so it carries the primary emphasis.
+                                FilledButton.icon(
+                                  onPressed: isResolving
+                                      ? null
+                                      : () {
+                                          AppFeedback.tap();
+                                          _resolve(report, 'dismiss');
+                                        },
+                                  icon: isResolving
+                                      ? const SizedBox.square(
+                                          dimension: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.close),
+                                  label: const Text('Ondoa ripoti'),
                                 ),
-                                onPressed: isResolving
-                                    ? null
-                                    : () {
-                                        AppFeedback.tap();
-                                        _resolve(report, 'hide');
-                                      },
-                                icon: const Icon(Icons.visibility_off_outlined),
-                                label: const Text('Ficha chapisho'),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                                // Hiding is destructive: outlined and tinted with
+                                // the semantic error colour so it never reads as
+                                // the default action.
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: context.colors.error,
+                                    side: BorderSide(
+                                      color: context.colors.error,
+                                    ),
+                                  ),
+                                  onPressed: isResolving
+                                      ? null
+                                      : () {
+                                          AppFeedback.tap();
+                                          _resolve(report, 'hide');
+                                        },
+                                  icon:
+                                      const Icon(Icons.visibility_off_outlined),
+                                  label: const Text('Ficha chapisho'),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+          ],
         ],
       ),
     );

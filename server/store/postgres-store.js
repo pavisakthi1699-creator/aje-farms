@@ -107,13 +107,13 @@ export class PostgresStore {
     await this.pool.end();
   }
 
-  async catalogSnapshot() {
+  async catalogSnapshot(viewerUserId = null) {
     const [courses, documents, plans, communityPosts, homeTopics, communityTopics] =
       await Promise.all([
         this.approvedContentCourses(),
         this.approvedContentDocuments(),
         this.activePlans(),
-        this.communityPosts(),
+        this.communityPosts(viewerUserId),
         this.homeTopics(),
         this.communityTopics(),
       ]);
@@ -470,6 +470,21 @@ export class PostgresStore {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      // Every entitlement mutation uses the same lock order: user, then
+      // payment. This serializes approvals/reversals for one learner and avoids
+      // both deadlocks and stale account_status reconciliation.
+      const paymentOwner = await client.query(
+        `SELECT user_id FROM payment_records WHERE id = $1`,
+        [paymentRecordId],
+      );
+      if (!paymentOwner.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      await client.query(
+        `SELECT account_status FROM users WHERE id = $1 FOR UPDATE`,
+        [paymentOwner.rows[0].user_id],
+      );
       const existing = await client.query(
         `SELECT * FROM payment_records WHERE id = $1 FOR UPDATE`,
         [paymentRecordId],
@@ -577,6 +592,13 @@ export class PostgresStore {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      // Use the same user-first lock order as payment approval/reversal.
+      // Expiry reconciliation and staff actions for one learner then serialize
+      // instead of deadlocking or overwriting each other's final access state.
+      await client.query(
+        `SELECT account_status FROM users WHERE id = $1 FOR UPDATE`,
+        [userId],
+      );
       await client.query(
         `UPDATE entitlements
          SET status = 'expired', updated_at = now()
@@ -2152,7 +2174,8 @@ export class PostgresStore {
     const result = await this.pool.query(
       `SELECT id, phone_number, email, auth_user_id, account_status, role,
               subscription_plan, subscription_started_at,
-              display_name, preferred_location, created_at, updated_at
+              display_name, preferred_location, terms_accepted_version,
+              terms_accepted_at, created_at, updated_at
        FROM users
        WHERE id = $1`,
       [userId],
@@ -2165,7 +2188,8 @@ export class PostgresStore {
     const result = await this.pool.query(
       `SELECT id, phone_number, email, auth_user_id, account_status, role,
               subscription_plan, subscription_started_at,
-              display_name, preferred_location, created_at, updated_at
+              display_name, preferred_location, terms_accepted_version,
+              terms_accepted_at, created_at, updated_at
        FROM users
        WHERE auth_user_id = $1`,
       [authUserId],
@@ -2179,7 +2203,8 @@ export class PostgresStore {
     const result = await this.pool.query(
       `SELECT id, phone_number, email, auth_user_id, account_status, role,
               subscription_plan, subscription_started_at,
-              display_name, preferred_location, created_at, updated_at
+              display_name, preferred_location, terms_accepted_version,
+              terms_accepted_at, created_at, updated_at
        FROM users
        WHERE lower(email) = $1`,
       [normalizedEmail],
@@ -2191,9 +2216,14 @@ export class PostgresStore {
   // Supabase JWT, never from request input. An account created before
   // Supabase Auth existed is matched by email and keeps its existing `id`, so
   // every row that already points at that id stays attached.
-  async linkOrCreateUserForAuth({ authUserId, email }) {
+  async linkOrCreateUserForAuth({
+    authUserId,
+    email,
+    termsAcceptedVersion = null,
+    termsAcceptedAt = null,
+  }) {
     const normalizedEmail = normalizeEmail(email);
-    const linked = await this.getUserByAuthUserId(authUserId);
+    let linked = await this.getUserByAuthUserId(authUserId);
     if (linked) {
       if (normalizedEmail && linked.email !== normalizedEmail) {
         const updatedAt = new Date().toISOString();
@@ -2201,7 +2231,17 @@ export class PostgresStore {
           `UPDATE users SET email = $2, updated_at = $3 WHERE id = $1`,
           [linked.id, normalizedEmail, updatedAt],
         );
-        return { ...linked, email: normalizedEmail, updatedAt };
+        linked = { ...linked, email: normalizedEmail, updatedAt };
+      }
+      if (
+        termsAcceptedVersion &&
+        linked.termsAcceptedVersion !== termsAcceptedVersion
+      ) {
+        return this.acceptCommunityTerms({
+          userId: linked.id,
+          version: termsAcceptedVersion,
+          acceptedAt: termsAcceptedAt,
+        });
       }
       return linked;
     }
@@ -2213,7 +2253,14 @@ export class PostgresStore {
         `UPDATE users SET auth_user_id = $2, email = $3, updated_at = $4 WHERE id = $1`,
         [existing.id, authUserId, normalizedEmail, updatedAt],
       );
-      return { ...existing, authUserId, email: normalizedEmail, updatedAt };
+      if (termsAcceptedVersion) {
+        await this.acceptCommunityTerms({
+          userId: existing.id,
+          version: termsAcceptedVersion,
+          acceptedAt: termsAcceptedAt,
+        });
+      }
+      return this.getUser(existing.id);
     }
 
     const now = new Date().toISOString();
@@ -2228,12 +2275,15 @@ export class PostgresStore {
       subscriptionStartedAt: null,
       createdAt: now,
       updatedAt: now,
+      termsAcceptedVersion,
+      termsAcceptedAt: termsAcceptedVersion ? termsAcceptedAt ?? now : null,
     };
     await this.pool.query(
       `INSERT INTO users (
          id, auth_user_id, email, role, account_status, subscription_plan,
-         subscription_started_at, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         subscription_started_at, terms_accepted_version, terms_accepted_at,
+         created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         user.id,
         user.authUserId,
@@ -2242,11 +2292,29 @@ export class PostgresStore {
         user.accountStatus,
         user.subscriptionPlan,
         user.subscriptionStartedAt,
+        user.termsAcceptedVersion,
+        user.termsAcceptedAt,
         user.createdAt,
         user.updatedAt,
       ],
     );
     return user;
+  }
+
+  async acceptCommunityTerms({ userId, version, acceptedAt = null }) {
+    const result = await this.pool.query(
+      `UPDATE users
+       SET terms_accepted_version = $2,
+           terms_accepted_at = COALESCE($3::timestamptz, NOW()),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, phone_number, email, auth_user_id, account_status, role,
+                 subscription_plan, subscription_started_at,
+                 display_name, preferred_location, terms_accepted_version,
+                 terms_accepted_at, created_at, updated_at`,
+      [userId, version, acceptedAt],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
   }
 
   async setAccountStatus({ userId, accountStatus }) {
@@ -2403,6 +2471,187 @@ export class PostgresStore {
       [user.id, nextDisplayName, nextPreferredLocation, updatedAt],
     );
     return userFromRow(result.rows[0]);
+  }
+
+  async deleteUserAccount(userId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        `SELECT auth_user_id, role FROM users WHERE id = $1 FOR UPDATE`,
+        [userId],
+      );
+      const user = existing.rows[0];
+      if (!user) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      if (user.role === 'admin') {
+        const error = new Error('Admin accounts require a supervised deletion.');
+        error.code = 'ADMIN_ACCOUNT_PROTECTED';
+        throw error;
+      }
+
+      await client.query(
+        `DELETE FROM community_posts WHERE author_user_id = $1`,
+        [userId],
+      );
+      await client.query(
+        `DELETE FROM community_replies WHERE author_user_id = $1`,
+        [userId],
+      );
+      for (const table of [
+        'auth_sessions',
+        'learning_progress',
+        'notification_settings',
+        'notification_devices',
+        'notifications',
+        'payment_transactions',
+        'ai_answers',
+      ]) {
+        await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+      }
+      await client.query(
+        `UPDATE users
+         SET auth_user_id = NULL, email = NULL, phone_number = NULL,
+             display_name = NULL, preferred_location = NULL,
+             role = 'learner', account_status = 'suspended',
+             subscription_plan = NULL, subscription_started_at = NULL,
+             terms_accepted_version = NULL, terms_accepted_at = NULL,
+             deleted_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [userId],
+      );
+      await client.query('COMMIT');
+      return { authUserId: user.auth_user_id ?? null };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createAccountDeletionRequest({ email }) {
+    const normalizedEmail = normalizeEmail(email);
+    const existing = await this.pool.query(
+      `SELECT id, email, status, requested_at, processed_at, processed_by,
+              resolution_note
+       FROM account_deletion_requests
+       WHERE lower(email) = lower($1) AND status = 'pending'
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+    if (existing.rows[0]) return accountDeletionRequestFromRow(existing.rows[0]);
+    const result = await this.pool.query(
+      `INSERT INTO account_deletion_requests (id, email, status, requested_at)
+       VALUES ($1, $2, 'pending', NOW())
+       RETURNING id, email, status, requested_at, processed_at, processed_by,
+                 resolution_note`,
+      [createId('deletion'), normalizedEmail],
+    );
+    return accountDeletionRequestFromRow(result.rows[0]);
+  }
+
+  async accountDeletionRequestsForAdmin() {
+    const result = await this.pool.query(
+      `SELECT id, email, status, requested_at, processed_at, processed_by,
+              resolution_note
+       FROM account_deletion_requests
+       ORDER BY requested_at DESC
+       LIMIT 200`,
+    );
+    return result.rows.map(accountDeletionRequestFromRow);
+  }
+
+  async resolveAccountDeletionRequest({ requestId, status, actorUserId, note }) {
+    const result = await this.pool.query(
+      `UPDATE account_deletion_requests
+       SET status = $2, processed_at = NOW(), processed_by = $3,
+           resolution_note = NULLIF($4, '')
+       WHERE id = $1
+       RETURNING id, email, status, requested_at, processed_at, processed_by,
+                 resolution_note`,
+      [requestId, status, actorUserId, String(note ?? '').trim()],
+    );
+    return result.rows[0] ? accountDeletionRequestFromRow(result.rows[0]) : null;
+  }
+
+  async createAiAnswer({ userId, prompt, answer, sources }) {
+    const result = await this.pool.query(
+      `INSERT INTO ai_answers (id, user_id, prompt, answer, source_ids, created_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+       RETURNING id, user_id, prompt, answer, source_ids, created_at`,
+      [
+        createId('ai-answer'),
+        userId,
+        prompt,
+        answer,
+        JSON.stringify(sources.map((source) => source.id)),
+      ],
+    );
+    return aiAnswerFromRow(result.rows[0]);
+  }
+
+  async reportAiAnswer({ answerId, reporterUserId, reason, details = null }) {
+    const result = await this.pool.query(
+      `INSERT INTO ai_answer_reports (
+         id, answer_id, reporter_user_id, reason, details, status, reported_at
+       )
+       SELECT $1, a.id, $3, $4, NULLIF($5, ''), 'open', NOW()
+       FROM ai_answers a
+       WHERE a.id = $2 AND a.user_id = $3
+       ON CONFLICT (answer_id, reporter_user_id) WHERE status = 'open'
+       DO UPDATE SET reason = EXCLUDED.reason, details = EXCLUDED.details,
+                     reported_at = NOW()
+       RETURNING id`,
+      [
+        createId('ai-report'),
+        answerId,
+        reporterUserId,
+        reason,
+        String(details ?? '').trim(),
+      ],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async aiReportsForAdmin() {
+    const result = await this.pool.query(
+      `SELECT r.id AS report_id, r.answer_id, r.reporter_user_id, r.reason,
+              r.details, r.status, r.reported_at, r.resolved_at,
+              r.resolved_by, r.resolution_note,
+              a.user_id, a.prompt, a.answer, a.source_ids, a.created_at
+       FROM ai_answer_reports r
+       JOIN ai_answers a ON a.id = r.answer_id
+       WHERE r.status = 'open'
+       ORDER BY r.reported_at DESC
+       LIMIT 200`,
+    );
+    return result.rows.map((row) => ({
+      report: aiReportFromRow(row),
+      answer: aiAnswerFromRow({
+        id: row.answer_id,
+        user_id: row.user_id,
+        prompt: row.prompt,
+        answer: row.answer,
+        source_ids: row.source_ids,
+        created_at: row.created_at,
+      }),
+    }));
+  }
+
+  async resolveAiReport({ reportId, actorUserId, note = null }) {
+    const result = await this.pool.query(
+      `UPDATE ai_answer_reports
+       SET status = 'resolved', resolved_at = NOW(), resolved_by = $2,
+           resolution_note = NULLIF($3, '')
+       WHERE id = $1
+       RETURNING id AS report_id, answer_id, reporter_user_id, reason, details,
+                 status, reported_at, resolved_at, resolved_by, resolution_note`,
+      [reportId, actorUserId, String(note ?? '').trim()],
+    );
+    return result.rows[0] ? aiReportFromRow(result.rows[0]) : null;
   }
 
   async adminUsersForAdmin({ search = '', limit = 50, offset = 0 } = {}) {
@@ -2662,14 +2911,20 @@ export class PostgresStore {
     };
   }
 
-  async communityPosts() {
+  async communityPosts(viewerUserId = null) {
     const posts = await this.pool.query(
       `SELECT id, author, location, time_label, content, likes, comments, tags,
               related_topic, image_path, has_image, is_expert, is_urgent,
               moderation_status, moderated_at, moderated_by, created_at
        FROM community_posts
        WHERE moderation_status <> 'hidden'
+         AND NOT EXISTS (
+           SELECT 1 FROM community_user_blocks b
+           WHERE b.blocker_user_id = $1
+             AND b.blocked_user_id = community_posts.author_user_id
+         )
        ORDER BY created_at DESC`,
+      [viewerUserId],
     );
     const postIds = posts.rows.map((row) => row.id);
     if (postIds.length === 0) return [];
@@ -2983,28 +3238,46 @@ export class PostgresStore {
     return reply;
   }
 
-  async reportCommunityPost(postId) {
-    await this.pool.query(
-      `INSERT INTO reported_community_posts (post_id, reported_at)
-       VALUES ($1, $2)
-       ON CONFLICT (post_id) DO NOTHING`,
-      [postId, new Date().toISOString()],
+  async reportCommunityPost({ postId, reporterUserId, reason, details = null }) {
+    const result = await this.pool.query(
+      `INSERT INTO community_reports (
+         id, post_id, reporter_user_id, reason, details, status, reported_at
+       )
+       SELECT $1, p.id, $3, $4, NULLIF($5, ''), 'open', NOW()
+       FROM community_posts p
+       WHERE p.id = $2 AND p.moderation_status <> 'hidden'
+       ON CONFLICT (post_id, reporter_user_id) WHERE status = 'open'
+       DO UPDATE SET reason = EXCLUDED.reason, details = EXCLUDED.details,
+                     reported_at = NOW()
+       RETURNING id`,
+      [
+        createId('report'),
+        postId,
+        reporterUserId,
+        reason,
+        String(details ?? '').trim(),
+      ],
     );
+    return result.rows[0] ?? null;
   }
 
   async reportedCommunityPosts() {
     const reports = await this.pool.query(
-      `SELECT p.id AS post_id, COALESCE(r.reported_at, p.moderated_at, p.created_at) AS reported_at,
+      `SELECT p.id AS post_id,
+              COALESCE(MAX(r.reported_at), p.moderated_at, p.created_at) AS reported_at,
+              COUNT(r.id)::int AS report_count,
+              COALESCE(array_agg(DISTINCT r.reason) FILTER (WHERE r.id IS NOT NULL), '{}') AS reasons,
               p.id, p.author, p.location, p.time_label, p.content, p.likes,
               p.comments, p.tags, p.related_topic, p.image_path, p.has_image,
               p.is_expert, p.is_urgent, p.moderation_status, p.moderated_at,
               p.moderated_by, p.created_at
        FROM community_posts p
-       LEFT JOIN reported_community_posts r ON r.post_id = p.id
-       WHERE r.post_id IS NOT NULL
+       LEFT JOIN community_reports r ON r.post_id = p.id AND r.status = 'open'
+       WHERE r.id IS NOT NULL
           OR (p.moderation_status = 'hidden'
               AND COALESCE(p.moderated_by, '') <> 'content-readiness-migration')
-       ORDER BY COALESCE(r.reported_at, p.moderated_at, p.created_at) DESC`,
+       GROUP BY p.id
+       ORDER BY COALESCE(MAX(r.reported_at), p.moderated_at, p.created_at) DESC`,
     );
     return reports.rows.map((row) => ({
       post: communityPostFromRow(row, { includeModeration: true }),
@@ -3012,6 +3285,8 @@ export class PostgresStore {
         postId: row.post_id,
         reportedAt: new Date(row.reported_at).toISOString(),
         status: row.moderation_status === 'hidden' ? 'hidden' : 'open',
+        count: Number(row.report_count),
+        reasons: row.reasons,
       },
     }));
   }
@@ -3053,8 +3328,16 @@ export class PostgresStore {
         return null;
       }
       await client.query(
-        `DELETE FROM reported_community_posts WHERE post_id = $1`,
-        [postId],
+        `UPDATE community_reports
+         SET status = $2, resolved_at = NOW(), resolved_by = $3,
+             resolution = $4
+         WHERE post_id = $1 AND status = 'open'`,
+        [
+          postId,
+          action === 'dismiss' ? 'dismissed' : 'resolved',
+          moderatorUserId,
+          action,
+        ],
       );
       await client.query('COMMIT');
       return communityPostFromRow(result.rows[0], {
@@ -3066,6 +3349,34 @@ export class PostgresStore {
     } finally {
       client.release();
     }
+  }
+
+  async blockCommunityPostAuthor({ postId, blockerUserId }) {
+    const result = await this.pool.query(
+      `INSERT INTO community_user_blocks (
+         blocker_user_id, blocked_user_id, source_post_id, created_at
+       )
+       SELECT $2, author_user_id, id, NOW()
+       FROM community_posts
+       WHERE id = $1 AND author_user_id IS NOT NULL AND author_user_id <> $2
+       ON CONFLICT (blocker_user_id, blocked_user_id)
+       DO UPDATE SET source_post_id = EXCLUDED.source_post_id
+       RETURNING source_post_id`,
+      [postId, blockerUserId],
+    );
+    return result.rows[0] ? { postId, blocked: true } : null;
+  }
+
+  async unblockCommunityPostAuthor({ postId, blockerUserId }) {
+    const result = await this.pool.query(
+      `DELETE FROM community_user_blocks b
+       USING community_posts p
+       WHERE p.id = $1 AND b.blocker_user_id = $2
+         AND b.blocked_user_id = p.author_user_id
+       RETURNING b.source_post_id`,
+      [postId, blockerUserId],
+    );
+    return result.rows[0] ? { postId, blocked: false } : null;
   }
 
   // Only used by the NODE_ENV=development dev-session issuer (see auth.js) so
@@ -3101,6 +3412,10 @@ export class PostgresStore {
   async resetForTests() {
     await this.pool.query(`
       TRUNCATE TABLE
+        ai_answer_reports,
+        ai_answers,
+        community_user_blocks,
+        community_reports,
         reported_community_posts,
         community_replies,
         community_posts,
@@ -3113,6 +3428,7 @@ export class PostgresStore {
         content_courses,
         app_settings,
         payment_transactions,
+        account_deletion_requests,
         audit_events,
         entitlements,
         payment_records,
@@ -3378,6 +3694,48 @@ function paymentRecordFromRow(row) {
     reversedAt: row.reversed_at ? new Date(row.reversed_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
+function accountDeletionRequestFromRow(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    status: row.status,
+    requestedAt: new Date(row.requested_at).toISOString(),
+    processedAt: row.processed_at
+      ? new Date(row.processed_at).toISOString()
+      : null,
+    processedBy: row.processed_by ?? null,
+    resolutionNote: row.resolution_note ?? null,
+  };
+}
+
+function aiAnswerFromRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    prompt: row.prompt,
+    answer: row.answer,
+    sourceIds: row.source_ids ?? [],
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
+function aiReportFromRow(row) {
+  return {
+    id: row.report_id ?? row.id,
+    answerId: row.answer_id,
+    reporterUserId: row.reporter_user_id,
+    reason: row.reason,
+    details: row.details ?? null,
+    status: row.status,
+    reportedAt: new Date(row.reported_at).toISOString(),
+    resolvedAt: row.resolved_at
+      ? new Date(row.resolved_at).toISOString()
+      : null,
+    resolvedBy: row.resolved_by ?? null,
+    resolutionNote: row.resolution_note ?? null,
   };
 }
 

@@ -80,7 +80,8 @@ abstract final class AppDeepLinks {
       AppRoutes.paywall => const DeepLinkTarget.paywall(),
       AppRoutes.notifications => const DeepLinkTarget.notifications(),
       AppRoutes.auth => const DeepLinkTarget.auth(),
-      '/login-callback' || AppRoutes.passwordReset =>
+      '/login-callback' ||
+      AppRoutes.passwordReset =>
         const DeepLinkTarget.passwordReset(),
       AppRoutes.onboarding => const DeepLinkTarget.onboarding(),
       AppRoutes.problem => const DeepLinkTarget.problem(),

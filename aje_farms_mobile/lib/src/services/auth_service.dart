@@ -1,3 +1,5 @@
+const currentTermsVersion = '2026-08-11';
+
 /// Sign-up/sign-in/reset go straight to Supabase Auth; `getSession`,
 /// `updateProfile`, `cancelSubscription`, and admin diagnostics go to the AJE
 /// backend, authenticated with the Supabase access token. See
@@ -20,6 +22,8 @@ abstract interface class AuthService {
 
   Future<AuthSession> getSession();
   Future<AuthSession> cancelSubscription();
+  Future<void> deleteAccount();
+  Future<AuthSession> acceptCommunityTerms();
   Future<AuthSession> updateProfile({
     String? displayName,
     String? preferredLocation,
@@ -43,6 +47,7 @@ class AuthSession {
     this.subscriptionStartedAt,
     this.displayName,
     this.preferredLocation,
+    this.termsAcceptedVersion,
   });
 
   final String email;
@@ -55,6 +60,10 @@ class AuthSession {
   final DateTime? subscriptionStartedAt;
   final String? displayName;
   final String? preferredLocation;
+  final String? termsAcceptedVersion;
+
+  bool get hasAcceptedCurrentTerms =>
+      termsAcceptedVersion == currentTermsVersion;
 
   bool get hasActiveAccess => accountStatus == 'active';
 }
@@ -76,12 +85,17 @@ class AdminAccessDiagnostics {
 }
 
 class AuthException implements Exception {
-  const AuthException(this.message);
+  const AuthException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'AuthException: $message';
+}
+
+class AuthNetworkException extends AuthException {
+  const AuthNetworkException(super.message, {super.statusCode});
 }
 
 class AuthEmailConfirmationRequiredException extends AuthException {
