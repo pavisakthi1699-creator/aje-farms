@@ -31,7 +31,7 @@ export class CommunityJsonStore {
     return this.state.communityPosts
       .filter(
         (post) =>
-          post.moderationStatus !== 'hidden' &&
+          post.moderationStatus === 'visible' &&
           !blockedUserIds.has(post.authorUserId),
       )
       .map((post) => toPublicPost(post));
@@ -104,7 +104,7 @@ export class CommunityJsonStore {
 
   reportCommunityPost({ postId, reporterUserId, reason, details = null }) {
     const post = this.state.communityPosts.find(
-      (item) => item.id === postId && item.moderationStatus !== 'hidden',
+      (item) => item.id === postId && item.moderationStatus === 'visible',
     );
     if (!post) return null;
     const existing = this.state.communityReports.find(

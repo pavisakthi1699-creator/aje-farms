@@ -17,6 +17,11 @@ import { chatWithMwalimuServer } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
 import { installPolicyRoutes } from './policy-pages.js';
+import {
+  createSearchRateLimiter,
+  parseSearchRequest,
+  searchCatalogSnapshot,
+} from './search.js';
 import { createStore, resolveStoreConfig } from './store.js';
 import {
   communityDisplayName,
@@ -47,6 +52,7 @@ function legacyDevelopmentPaymentsEnabled() {
 
 export async function registerApiRoutes(app) {
   const store = await createStore(catalog);
+  const searchRateLimit = createSearchRateLimiter();
   const paymentProvider = createPaymentProvider();
   const notificationProvider = createNotificationProvider();
 
@@ -115,6 +121,26 @@ export async function registerApiRoutes(app) {
         return;
       }
       res.json(lockedCatalogSnapshot(compatibleSnapshot));
+    },
+  );
+
+  app.post(
+    '/api/search',
+    requireAuthSession(store),
+    searchRateLimit,
+    async (req, res) => {
+      const request = parseSearchRequest(req.body);
+      if (request.error) {
+        res.status(400).json({ error: request.error });
+        return;
+      }
+      const snapshot = withCompatibleHomeTopics(
+        await store.catalogSnapshot(req.userId),
+      );
+      const authorizedSnapshot = (await hasPaidLearningAccess(store, req.userId))
+        ? snapshot
+        : lockedCatalogSnapshot(snapshot);
+      res.json(searchCatalogSnapshot(authorizedSnapshot, request));
     },
   );
 
@@ -1632,7 +1658,7 @@ async function hasPaidLearningAccess(store, userId) {
   );
 }
 
-function lockedCatalogSnapshot(snapshot) {
+export function lockedCatalogSnapshot(snapshot) {
   return {
     ...snapshot,
     courses: snapshot.courses.map((course) => ({
@@ -1647,6 +1673,7 @@ function lockedCatalogSnapshot(snapshot) {
     })),
     documents: snapshot.documents.map((document) => ({
       ...document,
+      description: '',
       url: null,
       isPremium: true,
     })),

@@ -330,6 +330,8 @@ void main() {
       learningProgressService: demo.learningProgressService,
       notificationService: demo.notificationService,
       paymentService: demo.paymentService,
+      searchService: demo.searchService,
+      offlineSearchService: demo.offlineSearchService,
       refreshCatalog: () => repository.refresh(catalogService),
       refreshListenable: repository,
     );

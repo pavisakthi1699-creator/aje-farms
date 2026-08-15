@@ -16,6 +16,7 @@ abstract final class AppRoutes {
   static const whatsapp = '/support/whatsapp';
   static const createCommunityPost = '/community/new';
   static const aiChatSession = '/chat/session';
+  static const search = '/search';
 
   static const home = '/home';
   static const courses = '/courses';

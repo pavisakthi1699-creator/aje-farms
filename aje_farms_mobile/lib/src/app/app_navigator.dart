@@ -58,7 +58,11 @@ class AppNavigator {
       case AppRoutes.onboarding:
         return _page(settings, const OnboardingScreen());
       case AppRoutes.problem:
-        return _page(settings, const ProblemScreen());
+        final args = settings.arguments as ProblemRouteArgs?;
+        return _page(
+          settings,
+          ProblemScreen(initialTopic: args?.initialTopic),
+        );
       case AppRoutes.settings:
         return _page(settings, const SettingsScreen());
       case AppRoutes.adminDashboard:
@@ -83,10 +87,20 @@ class AppNavigator {
             initialPrompt: args?.initialPrompt,
           ),
         );
+      case AppRoutes.search:
+        final args = settings.arguments as SearchRouteArgs?;
+        return _gatedPage(
+          settings,
+          SearchScreen(
+            initialScope: args?.scope ?? SearchScope.all,
+            initialQuery: args?.initialQuery,
+          ),
+        );
     }
 
     if (name.startsWith(AppRoutes.coursePrefix)) {
       final courseId = name.substring(AppRoutes.coursePrefix.length);
+      final args = settings.arguments as CourseRouteArgs?;
       return MaterialPageRoute<void>(
         settings: settings,
         builder: (context) {
@@ -101,7 +115,10 @@ class AppNavigator {
                     message: 'Kozi haikupatikana kwa kiungo hiki.',
                   );
                 }
-                return CourseDetailScreen(course: course);
+                return CourseDetailScreen(
+                  course: course,
+                  initialLessonId: args?.initialLessonId,
+                );
               },
             ),
           );
@@ -112,15 +129,23 @@ class AppNavigator {
       final postId = name.substring(AppRoutes.communityPostPrefix.length);
       return MaterialPageRoute<void>(
         settings: settings,
-        builder: (context) {
-          final post = _findCommunityPost(context, postId);
-          if (post == null) {
-            return const _DeepLinkMissingScreen(
-              message: 'Post ya jamii haikupatikana kwa kiungo hiki.',
-            );
-          }
-          return CommunityPostDetailScreen(post: post);
-        },
+        builder: (context) => AccessGate(
+          child: Builder(
+            builder: (context) {
+              if (context.session.state.termsAcceptedVersion !=
+                  currentTermsVersion) {
+                return const CommunityScreen();
+              }
+              final post = _findCommunityPost(context, postId);
+              if (post == null) {
+                return const _DeepLinkMissingScreen(
+                  message: 'Post ya jamii haikupatikana kwa kiungo hiki.',
+                );
+              }
+              return CommunityPostDetailScreen(post: post);
+            },
+          ),
+        ),
       );
     }
 
@@ -151,12 +176,29 @@ class AppNavigator {
     return Navigator.of(context).pushNamed(AppRoutes.notifications);
   }
 
+  static Future<void> pushSearch(
+    BuildContext context, {
+    SearchScope scope = SearchScope.all,
+    String? initialQuery,
+  }) {
+    return Navigator.of(context).pushNamed(
+      AppRoutes.search,
+      arguments: SearchRouteArgs(scope: scope, initialQuery: initialQuery),
+    );
+  }
+
   static Future<void> pushAuth(BuildContext context) {
     return Navigator.of(context).pushNamed(AppRoutes.auth);
   }
 
-  static Future<void> pushProblem(BuildContext context) {
-    return Navigator.of(context).pushNamed(AppRoutes.problem);
+  static Future<void> pushProblem(
+    BuildContext context, {
+    String? initialTopic,
+  }) {
+    return Navigator.of(context).pushNamed(
+      AppRoutes.problem,
+      arguments: ProblemRouteArgs(initialTopic: initialTopic),
+    );
   }
 
   static Future<void> pushSettings(BuildContext context) {
@@ -187,8 +229,15 @@ class AppNavigator {
     return Navigator.of(context).pushNamed(AppRoutes.createCommunityPost);
   }
 
-  static Future<void> pushCourse(BuildContext context, Course course) {
-    return Navigator.of(context).pushNamed(AppRoutes.course(course.id));
+  static Future<void> pushCourse(
+    BuildContext context,
+    Course course, {
+    String? initialLessonId,
+  }) {
+    return Navigator.of(context).pushNamed(
+      AppRoutes.course(course.id),
+      arguments: CourseRouteArgs(initialLessonId: initialLessonId),
+    );
   }
 
   static Future<void> pushCommunityPost(

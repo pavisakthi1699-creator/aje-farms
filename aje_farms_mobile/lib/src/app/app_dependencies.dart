@@ -22,6 +22,7 @@ import '../services/backend_learning_progress_service.dart';
 import '../services/backend_mwalimu_ai_service.dart';
 import '../services/backend_notification_service.dart';
 import '../services/backend_payment_service.dart';
+import '../services/backend_search_service.dart';
 import '../services/community_service.dart';
 import '../services/demo_mwalimu_ai_service.dart';
 import '../services/catalog_service.dart';
@@ -32,10 +33,12 @@ import '../services/local_community_service.dart';
 import '../services/local_learning_progress_service.dart';
 import '../services/local_notification_service.dart';
 import '../services/local_payment_service.dart';
+import '../services/local_search_service.dart';
 import '../services/learning_progress_service.dart';
 import '../services/mwalimu_ai_service.dart';
 import '../services/notification_service.dart';
 import '../services/payment_service.dart';
+import '../services/search_service.dart';
 
 class AppDependencies {
   const AppDependencies({
@@ -50,6 +53,8 @@ class AppDependencies {
     required this.learningProgressService,
     required this.notificationService,
     required this.paymentService,
+    required this.searchService,
+    required this.offlineSearchService,
     required this.refreshCatalog,
     this.refreshListenable,
   });
@@ -60,6 +65,8 @@ class AppDependencies {
     CommunityService? communityService,
     CommunityRepository? communityRepository,
     MwalimuAiService? mwalimuAiService,
+    SearchService? searchService,
+    SearchService? offlineSearchService,
     Future<void> Function()? refreshCatalog,
   }) {
     return AppDependencies(
@@ -74,6 +81,8 @@ class AppDependencies {
       learningProgressService: learningProgressService,
       notificationService: notificationService,
       paymentService: paymentService,
+      searchService: searchService ?? this.searchService,
+      offlineSearchService: offlineSearchService ?? this.offlineSearchService,
       refreshCatalog: refreshCatalog ?? this.refreshCatalog,
       refreshListenable: refreshListenable,
     );
@@ -93,6 +102,14 @@ class AppDependencies {
       learningProgressService: LocalLearningProgressService(),
       notificationService: LocalNotificationService(),
       paymentService: LocalPaymentService(),
+      searchService: LocalSearchService(
+        learningRepository: repository,
+        communityRepository: repository,
+      ),
+      offlineSearchService: LocalSearchService(
+        learningRepository: repository,
+        communityRepository: repository,
+      ),
       refreshCatalog: _demoRefreshCatalog,
     );
   }
@@ -142,6 +159,11 @@ class AppDependencies {
       ),
       notificationService: BackendNotificationService(baseUrl: apiBaseUrl),
       paymentService: BackendPaymentService(baseUrl: apiBaseUrl),
+      searchService: BackendSearchService(baseUrl: apiBaseUrl),
+      offlineSearchService: LocalSearchService(
+        learningRepository: learningRepository,
+        communityRepository: communityRepository,
+      ),
       refreshListenable: refreshListenable,
       refreshCatalog: () => cachedRepository.refresh(catalogService),
     );
@@ -158,6 +180,8 @@ class AppDependencies {
   final LearningProgressService learningProgressService;
   final NotificationService notificationService;
   final PaymentService paymentService;
+  final SearchService searchService;
+  final SearchService offlineSearchService;
   final Future<void> Function() refreshCatalog;
   final Listenable? refreshListenable;
 

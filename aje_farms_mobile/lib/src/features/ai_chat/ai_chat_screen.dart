@@ -161,6 +161,7 @@ class AiChatScreenState extends State<AiChatScreen> {
           ],
         ),
         actions: [
+          const SearchActionButton(),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: ExcludeSemantics(

@@ -249,6 +249,8 @@ void main() {
       learningProgressService: demo.learningProgressService,
       notificationService: demo.notificationService,
       paymentService: demo.paymentService,
+      searchService: demo.searchService,
+      offlineSearchService: demo.offlineSearchService,
       refreshCatalog: () => cachedRepository.refresh(_FailingCatalogService()),
       refreshListenable: cachedRepository,
     );
@@ -292,7 +294,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final courseTitle = find.text(course.title);
-    await tester.ensureVisible(courseTitle);
+    await tester.scrollUntilVisible(
+      courseTitle,
+      260,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(courseTitle);
     await tester.pumpAndSettle();
 

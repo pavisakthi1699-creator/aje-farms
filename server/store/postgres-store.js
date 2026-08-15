@@ -2917,7 +2917,7 @@ export class PostgresStore {
               related_topic, image_path, has_image, is_expert, is_urgent,
               moderation_status, moderated_at, moderated_by, created_at
        FROM community_posts
-       WHERE moderation_status <> 'hidden'
+       WHERE moderation_status = 'visible'
          AND NOT EXISTS (
            SELECT 1 FROM community_user_blocks b
            WHERE b.blocker_user_id = $1
@@ -3245,7 +3245,7 @@ export class PostgresStore {
        )
        SELECT $1, p.id, $3, $4, NULLIF($5, ''), 'open', NOW()
        FROM community_posts p
-       WHERE p.id = $2 AND p.moderation_status <> 'hidden'
+       WHERE p.id = $2 AND p.moderation_status = 'visible'
        ON CONFLICT (post_id, reporter_user_id) WHERE status = 'open'
        DO UPDATE SET reason = EXCLUDED.reason, details = EXCLUDED.details,
                      reported_at = NOW()

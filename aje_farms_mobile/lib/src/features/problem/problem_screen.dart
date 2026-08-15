@@ -3,7 +3,9 @@
 import '../../ui.dart';
 
 class ProblemScreen extends StatefulWidget {
-  const ProblemScreen({super.key});
+  const ProblemScreen({this.initialTopic, super.key});
+
+  final String? initialTopic;
 
   @override
   State<ProblemScreen> createState() => ProblemScreenState();
@@ -53,6 +55,9 @@ class ProblemScreenState extends State<ProblemScreen> {
     final learningRepository = context.dependencies.learningRepository;
     final problemCategories = learningRepository.problemCategories;
     final suggestedCourse = learningRepository.suggestedCourse;
+    final selectedCategory = problemCategories
+        .where((category) => category.topic == widget.initialTopic)
+        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tueleze Changamoto')),
@@ -70,6 +75,23 @@ class ProblemScreenState extends State<ProblemScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: AppSpacing.xl),
+            if (selectedCategory != null) ...[
+              Semantics(
+                liveRegion: true,
+                child: Card(
+                  color: context.colors.primaryContainer,
+                  child: ListTile(
+                    leading: Icon(
+                      selectedCategory.icon,
+                      color: context.colors.primary,
+                    ),
+                    title: const Text('Changamoto uliyochagua'),
+                    subtitle: Text(selectedCategory.title),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
             AppTextField(
               controller: _detailController,
               labelText: 'Zao au mnyama (hiari)',

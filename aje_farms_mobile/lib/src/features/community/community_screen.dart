@@ -65,7 +65,9 @@ class CommunityScreenState extends State<CommunityScreen> {
     if (context.session.isSignedIn &&
         context.session.state.termsAcceptedVersion != currentTermsVersion) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Jamii ya Wakulima')),
+        appBar: AppBar(
+          title: const Text('Jamii ya Wakulima'),
+        ),
         body: AppLayout(
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl),
@@ -106,7 +108,10 @@ class CommunityScreenState extends State<CommunityScreen> {
     final refreshListenable = dependencies.refreshListenable ?? kIdleListenable;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Jamii ya Wakulima')),
+      appBar: AppBar(
+        title: const Text('Jamii ya Wakulima'),
+        actions: const [SearchActionButton(scope: SearchScope.community)],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           AppFeedback.tap();
@@ -144,6 +149,11 @@ class CommunityScreenState extends State<CommunityScreen> {
                       padding: const EdgeInsets.all(AppSpacing.xl),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
+                          const ContextualSearchBar(
+                            hint: 'Tafuta kwenye jamii',
+                            scope: SearchScope.community,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
                           CommunitySummaryCard(posts: allPosts),
                           const SizedBox(height: AppSpacing.lg),
                           CommunityFilters(

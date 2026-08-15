@@ -1446,6 +1446,7 @@ function normalizeMutableState(raw) {
 
 function normalizeCommunityState(raw, catalog) {
   const seedPosts = catalog.communityPosts.map((post) => ({
+    moderationStatus: 'visible',
     ...post,
     replies: post.replies.map((reply) => ({ ...reply })),
   }));

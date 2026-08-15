@@ -24,7 +24,10 @@ class ProfileScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Akaunti Yangu')),
+      appBar: AppBar(
+        title: const Text('Akaunti Yangu'),
+        actions: const [SearchActionButton()],
+      ),
       body: AppLayout(
         child: ListView(
           key: AppPageStorage.profile,
@@ -552,7 +555,10 @@ class SavedDocumentsScreen extends StatelessWidget {
         documents.where((document) => savedIds.contains(document.id)).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nyaraka Zilizohifadhiwa')),
+      appBar: AppBar(
+        title: const Text('Nyaraka Zilizohifadhiwa'),
+        actions: const [SearchActionButton(scope: SearchScope.documents)],
+      ),
       body: AppLayout(
         child: CustomScrollView(
           key: AppPageStorage.savedDocuments,
@@ -561,6 +567,11 @@ class SavedDocumentsScreen extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.xl),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  const ContextualSearchBar(
+                    hint: 'Tafuta nyaraka',
+                    scope: SearchScope.documents,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   if (saved.isEmpty)
                     const EmptyState(
                       icon: Icons.bookmark_add_outlined,

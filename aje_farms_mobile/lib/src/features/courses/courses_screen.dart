@@ -17,7 +17,10 @@ class CoursesScreen extends StatelessWidget {
     final refreshListenable = dependencies.refreshListenable ?? kIdleListenable;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mafunzo')),
+      appBar: AppBar(
+        title: const Text('Mafunzo'),
+        actions: const [SearchActionButton(scope: SearchScope.learning)],
+      ),
       body: AppLayout(
         child: ListenableBuilder(
           listenable: refreshListenable,
@@ -56,6 +59,11 @@ class CoursesScreen extends StatelessWidget {
                             padding: const EdgeInsets.all(AppSpacing.xl),
                             sliver: SliverList(
                               delegate: SliverChildListDelegate([
+                                const ContextualSearchBar(
+                                  hint: 'Tafuta kozi au somo',
+                                  scope: SearchScope.learning,
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
                                 Text(
                                   'Chagua Mada.\nJifunze Kilimo.',
                                   style:

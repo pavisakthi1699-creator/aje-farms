@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="sw">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AJE Farms search experience wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 36px;
+      background: #eceff1;
+      color: #20252b;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    .intro { margin: 0 0 28px; color: #59636e; }
+    .board { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+    .panel { width: 340px; }
+    .panel > h2 { margin: 0 0 8px; font-size: 15px; }
+    .phone {
+      min-height: 690px;
+      overflow: hidden;
+      border: 2px solid #20252b;
+      border-radius: 26px;
+      background: #fff;
+      box-shadow: 5px 6px 0 #b8bec4;
+    }
+    .status { padding: 10px 18px 5px; font-size: 11px; display: flex; justify-content: space-between; }
+    .appbar { min-height: 58px; padding: 10px 14px; border-bottom: 1px solid #c8cdd2; display: flex; align-items: center; gap: 10px; }
+    .appbar strong { flex: 1; font-size: 18px; }
+    .icon { width: 44px; height: 44px; border: 1px solid #69727b; border-radius: 22px; display: grid; place-items: center; font-size: 20px; }
+    .content { padding: 18px; }
+    .searchbox { height: 52px; border: 2px solid #454d55; border-radius: 15px; padding: 0 14px; display: flex; align-items: center; gap: 10px; color: #59636e; }
+    .filter-row { display: flex; gap: 7px; overflow: hidden; margin: 14px 0 18px; }
+    .chip { border: 1px solid #8b939b; border-radius: 18px; padding: 7px 11px; font-size: 12px; white-space: nowrap; }
+    .chip.selected { border-width: 2px; color: #111; }
+    .section-title { display: flex; justify-content: space-between; align-items: center; margin: 18px 0 8px; font-weight: 700; }
+    .result { border-top: 1px solid #d6dade; padding: 12px 0; display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: start; }
+    .result:first-of-type { border-top: 0; }
+    .result-icon { width: 36px; height: 36px; border: 1px solid #8b939b; border-radius: 9px; display: grid; place-items: center; }
+    .result strong { display: block; font-size: 14px; }
+    .meta { color: #69727b; font-size: 12px; line-height: 1.35; margin-top: 3px; }
+    .lock { font-size: 13px; border: 1px solid #8b939b; border-radius: 12px; padding: 3px 7px; }
+    .banner { padding: 10px 14px; border-bottom: 1px solid #69727b; background: #f2f2f2; font-size: 12px; }
+    .empty { margin: 78px 16px 0; text-align: center; }
+    .empty-icon { width: 72px; height: 72px; margin: 0 auto 16px; border: 2px dashed #69727b; border-radius: 36px; display: grid; place-items: center; font-size: 27px; }
+    .empty h3 { margin: 0 0 8px; font-size: 18px; }
+    .empty p { margin: 0 auto; max-width: 250px; color: #69727b; line-height: 1.45; }
+    .suggestions { margin-top: 20px; }
+    .suggestion { padding: 12px 0; border-bottom: 1px solid #d6dade; display: flex; gap: 10px; font-size: 14px; }
+    .nav { margin-top: auto; padding: 11px 12px 14px; border-top: 1px solid #c8cdd2; display: flex; justify-content: space-around; font-size: 10px; }
+    .screen { min-height: 617px; display: flex; flex-direction: column; }
+    .note { margin-top: 10px; color: #59636e; font-size: 12px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <h1>Unified learner search — interaction sketch</h1>
+  <p class="intro">Rough layout only. Search stays visible without competing with learning content.</p>
+  <main class="board">
+    <!-- State 1: contextual search is prominent only on content-heavy screens. -->
+    <section class="panel">
+      <h2>1. Entry points</h2>
+      <div class="phone">
+        <div class="status"><span>09:41</span><span>4G · 82%</span></div>
+        <div class="screen">
+          <header class="appbar"><strong>Mafunzo</strong><span class="icon" aria-label="Tafuta">⌕</span></header>
+          <div class="content">
+            <div class="searchbox"><span>⌕</span><span>Tafuta kozi au somo</span></div>
+            <h3>Chagua Mada.<br>Jifunze Kilimo.</h3>
+            <p class="meta">Chagua kozi ili kuongeza tija kwenye shamba lako.</p>
+            <div class="section-title"><span>Kozi zako</span><small>Ona zote</small></div>
+            <div class="result"><span class="result-icon">▤</span><div><strong>Magonjwa ya kuku</strong><div class="meta">Masomo 8 · Umefika 35%</div></div><span>›</span></div>
+            <div class="result"><span class="result-icon">▤</span><div><strong>Kilimo cha nyanya</strong><div class="meta">Masomo 12 · Bado hujaanza</div></div><span>›</span></div>
+          </div>
+          <nav class="nav"><span>Nyumbani</span><strong>Mafunzo</strong><span>Uliza AI</span><span>Jamii</span><span>Akaunti</span></nav>
+        </div>
+      </div>
+      <p class="note">Every main tab gets the app-bar search icon. Courses, Community, and Saved Documents also get a contextual field.</p>
+    </section>
+
+    <!-- State 2: one result model, grouped by content type. -->
+    <section class="panel">
+      <h2>2. Unified results</h2>
+      <div class="phone">
+        <div class="status"><span>09:42</span><span>4G · 81%</span></div>
+        <div class="appbar"><span class="icon" aria-label="Rudi">‹</span><div class="searchbox" style="flex:1"><span>⌕</span><strong>nyanya ugonjwa</strong><span>×</span></div></div>
+        <div class="content">
+          <div class="filter-row"><span class="chip selected">Zote</span><span class="chip">Mafunzo</span><span class="chip">Jamii</span><span class="chip">Nyaraka</span></div>
+          <div class="section-title"><span>Matokeo bora</span><small>Matokeo 12</small></div>
+          <div class="result"><span class="result-icon">▤</span><div><strong>Magonjwa ya nyanya</strong><div class="meta">Kozi · Dalili, kinga na tiba salama</div></div><span>›</span></div>
+          <div class="result"><span class="result-icon">▶</span><div><strong>Kutambua ukungu wa mapema</strong><div class="meta">Somo katika “Kilimo cha nyanya”</div></div><span class="lock">Funga</span></div>
+          <div class="section-title"><span>Jamii</span><small>Ona 4</small></div>
+          <div class="result"><span class="result-icon">◎</span><div><strong>Majani ya nyanya yana madoa</strong><div class="meta">Morogoro · Majibu 6 · siku 2 zilizopita</div></div><span>›</span></div>
+          <div class="section-title"><span>Nyaraka</span></div>
+          <div class="result"><span class="result-icon">▧</span><div><strong>Mwongozo wa afya ya nyanya</strong><div class="meta">PDF · Kurasa 18</div></div><span>›</span></div>
+        </div>
+      </div>
+      <p class="note">Title matches rank first, followed by lesson and body matches. Type filters narrow results without starting a separate search.</p>
+    </section>
+
+    <!-- State 3: offline state remains useful and does not imply completeness. -->
+    <section class="panel">
+      <h2>3. Offline and zero results</h2>
+      <div class="phone">
+        <div class="status"><span>09:44</span><span>Hakuna mtandao</span></div>
+        <div class="banner">Matokeo yanatoka kwenye maudhui yaliyohifadhiwa. Huenda si kamili.</div>
+        <div class="appbar"><span class="icon" aria-label="Rudi">‹</span><div class="searchbox" style="flex:1"><span>⌕</span><strong>parachichi</strong><span>×</span></div></div>
+        <div class="content">
+          <div class="empty">
+            <div class="empty-icon">⌕</div>
+            <h3>Hakuna matokeo yaliyopatikana</h3>
+            <p>Jaribu neno tofauti, angalia tahajia, au unganisha mtandao kutafuta maudhui yote.</p>
+          </div>
+          <div class="suggestions">
+            <div class="section-title"><span>Jaribu kutafuta</span></div>
+            <div class="suggestion"><span>⌕</span><span>Magonjwa ya mimea</span></div>
+            <div class="suggestion"><span>⌕</span><span>Wadudu</span></div>
+            <div class="suggestion"><span>⌕</span><span>Mbolea</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="note">Offline search never silently pretends to be complete. Zero results offer configured agricultural topics, not AI-generated guesses.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -222,6 +222,8 @@ void main() {
           learningProgressService: demo.learningProgressService,
           notificationService: demo.notificationService,
           paymentService: demo.paymentService,
+          searchService: demo.searchService,
+          offlineSearchService: demo.offlineSearchService,
           refreshCatalog: demo.refreshCatalog,
         ),
         sessionController: session,

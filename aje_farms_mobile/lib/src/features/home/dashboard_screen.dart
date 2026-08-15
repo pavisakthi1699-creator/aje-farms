@@ -13,6 +13,7 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const BrandHeader(compact: true),
         actions: [
+          const SearchActionButton(),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
             child: CircleIconButton(

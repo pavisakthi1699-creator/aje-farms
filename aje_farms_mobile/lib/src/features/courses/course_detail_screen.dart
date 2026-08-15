@@ -4,18 +4,47 @@ import 'package:url_launcher/url_launcher.dart';
 
 import "../../ui.dart";
 
-class CourseDetailScreen extends StatelessWidget {
-  const CourseDetailScreen({required this.course, super.key});
+class CourseDetailScreen extends StatefulWidget {
+  const CourseDetailScreen({
+    required this.course,
+    this.initialLessonId,
+    super.key,
+  });
 
   final Course course;
+  final String? initialLessonId;
+
+  @override
+  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
+}
+
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  final _targetLessonKey = GlobalKey();
+  bool _scheduledTargetScroll = false;
+
+  void _scheduleTargetScroll() {
+    if (_scheduledTargetScroll || widget.initialLessonId == null) return;
+    _scheduledTargetScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final targetContext = _targetLessonKey.currentContext;
+      if (!mounted || targetContext == null) return;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: AppMotion.durationOf(context, AppMotion.standard),
+        curve: AppMotion.standardCurve,
+        alignment: 0.25,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final course = context.dependencies.learningRepository.courses
-        .where((candidate) => candidate.id == this.course.id)
+        .where((candidate) => candidate.id == widget.course.id)
         .firstOrNull;
-    final currentCourse = course ?? this.course;
+    final currentCourse = course ?? widget.course;
     final heroLesson = _heroLesson(context, currentCourse);
+    _scheduleTargetScroll();
 
     return Scaffold(
       body: CustomScrollView(
@@ -210,8 +239,10 @@ class CourseDetailScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    ...currentCourse.lessons.map(
-                      (lesson) => LessonTile(
+                    ...currentCourse.lessons.map((lesson) {
+                      final isTarget =
+                          lessonContentId(lesson) == widget.initialLessonId;
+                      final tile = LessonTile(
                         lesson: lesson,
                         isCompleted: lesson.isCompleted ||
                             context.session.isLessonCompleted(
@@ -219,8 +250,24 @@ class CourseDetailScreen extends StatelessWidget {
                             ),
                         onTap: () =>
                             _openLessonPreview(context, currentCourse, lesson),
-                      ),
-                    ),
+                      );
+                      if (!isTarget) return tile;
+                      return Container(
+                        key: _targetLessonKey,
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: context.colors.primary,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                        ),
+                        child: Semantics(
+                          liveRegion: true,
+                          label: 'Somo lililopatikana: ${lesson.title}',
+                          child: tile,
+                        ),
+                      );
+                    }),
                     const SizedBox(height: AppSpacing.xl),
                     AskAiPanel(
                       courseTitle: currentCourse.title,
