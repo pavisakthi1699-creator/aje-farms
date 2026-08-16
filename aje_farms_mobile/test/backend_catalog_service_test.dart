@@ -290,9 +290,11 @@ void main() {
       subscriptionSeed: seed,
     );
     await repository.refresh(_FakeCatalogService());
+    final refreshedGeneration = repository.contentGeneration;
 
     repository.clearProtectedContent();
 
+    expect(repository.contentGeneration, refreshedGeneration + 1);
     expect(repository.courses, isEmpty);
     expect(repository.documents, isEmpty);
     expect(repository.isInitialLoadPending, isFalse);
@@ -315,12 +317,46 @@ void main() {
 
     final refresh = repository.refresh(deferredService);
     expect(repository.isRefreshing, isTrue);
+    final initialGeneration = repository.contentGeneration;
 
     repository.clearProtectedContent();
     deferredService.complete(unlockedSnapshot);
     await refresh;
 
     expect(repository.isRefreshing, isFalse);
+    expect(repository.contentGeneration, initialGeneration + 1);
+    expect(repository.courses, isEmpty);
+    expect(repository.documents, isEmpty);
+  });
+
+  test('catalog publication advances the searchable content generation',
+      () async {
+    const seed = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: seed,
+      communitySeed: seed,
+      subscriptionSeed: seed,
+    );
+    final initialGeneration = repository.contentGeneration;
+
+    await repository.refresh(_FakeCatalogService());
+
+    expect(repository.contentGeneration, initialGeneration + 1);
+  });
+
+  test('failed refresh advances generation when protected content is removed',
+      () async {
+    const seed = DemoAppRepository();
+    final repository = CachedAppRepository(
+      learningSeed: seed,
+      communitySeed: seed,
+      subscriptionSeed: seed,
+    );
+    final initialGeneration = repository.contentGeneration;
+
+    await repository.refresh(_FailingCatalogService());
+
+    expect(repository.contentGeneration, initialGeneration + 1);
     expect(repository.courses, isEmpty);
     expect(repository.documents, isEmpty);
   });

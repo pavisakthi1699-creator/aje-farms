@@ -35,10 +35,12 @@ class CachedAppRepository extends ChangeNotifier
   bool _isRefreshing = false;
   bool _lastRefreshFailed = false;
   int _contentGeneration = 0;
+  int _refreshGeneration = 0;
 
   bool get isInitialLoadPending => !_initialLoadComplete;
   bool get isRefreshing => _isRefreshing;
   bool get lastRefreshFailed => _lastRefreshFailed;
+  int get contentGeneration => _contentGeneration;
 
   @override
   List<Course> get courses => _courses;
@@ -85,6 +87,7 @@ class CachedAppRepository extends ChangeNotifier
   /// account boundary.
   void clearProtectedContent() {
     _contentGeneration += 1;
+    _refreshGeneration += 1;
     final stateChanged = _courses.isNotEmpty ||
         _documents.isNotEmpty ||
         _lastRefreshFailed ||
@@ -100,12 +103,12 @@ class CachedAppRepository extends ChangeNotifier
 
   Future<void> refresh(CatalogService service) async {
     if (_isRefreshing) return;
-    final contentGeneration = _contentGeneration;
+    final refreshGeneration = _refreshGeneration;
     _isRefreshing = true;
     notifyListeners();
     try {
       final snapshot = await service.loadCatalog();
-      if (contentGeneration != _contentGeneration) return;
+      if (refreshGeneration != _refreshGeneration) return;
       if (snapshot.problemCategories.isEmpty || snapshot.plans.isEmpty) {
         throw const CatalogException('Catalog response is missing core data.');
       }
@@ -117,18 +120,15 @@ class CachedAppRepository extends ChangeNotifier
       _communityTopics = snapshot.communityTopics;
       _plans = snapshot.plans;
       _lastRefreshFailed = false;
-    } on CatalogException {
-      if (contentGeneration != _contentGeneration) return;
-      _courses = const [];
-      _documents = const [];
-      _lastRefreshFailed = true;
+      _contentGeneration += 1;
     } catch (_) {
-      if (contentGeneration != _contentGeneration) return;
+      if (refreshGeneration != _refreshGeneration) return;
       _courses = const [];
       _documents = const [];
       _lastRefreshFailed = true;
+      _contentGeneration += 1;
     } finally {
-      if (contentGeneration == _contentGeneration) {
+      if (refreshGeneration == _refreshGeneration) {
         _initialLoadComplete = true;
         _isRefreshing = false;
         notifyListeners();

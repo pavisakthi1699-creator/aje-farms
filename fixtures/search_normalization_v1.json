@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "cases": [
+    {"input": "  NYANYA—UGONJWA  ", "expected": "nyanya ugonjwa"},
+    {"input": "Maji\tna  Umwagiliaji", "expected": "maji na umwagiliaji"},
+    {"input": "Kuku's-maji", "expected": "kuku s maji"},
+    {"input": "pH 6.5", "expected": "ph 6 5"},
+    {"input": "MBOLEA!!!", "expected": "mbolea"},
+    {"input": "ＭＢＯＬＥＡ", "expected": "mbolea"},
+    {"input": "KÍLIMO", "expected": "kílimo"},
+    {"input": "KÍLIMO", "expected": "kílimo"},
+    {"input": "𐐀", "expected": "𐐨"},
+    {"input": "", "expected": ""}
+  ],
+  "boundaries": [
+    {"codePoints": 119, "valid": true},
+    {"codePoints": 120, "valid": true},
+    {"codePoints": 121, "valid": false}
+  ]
+}

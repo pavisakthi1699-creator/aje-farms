@@ -27,14 +27,14 @@ class SearchRequest {
     this.scope = SearchScope.all,
     this.limit = 20,
     this.savedDocumentIds = const {},
-    this.communityPosts,
+    this.localCommunityPosts,
   });
 
   final String query;
   final SearchScope scope;
   final int limit;
   final Set<String> savedDocumentIds;
-  final List<CommunityPost>? communityPosts;
+  final List<CommunityPost>? localCommunityPosts;
 }
 
 class SearchResult {

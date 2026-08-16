@@ -115,6 +115,43 @@ void main() {
     );
   });
 
+  test('rejects a successful response that exceeds the requested limit',
+      () async {
+    final service = BackendSearchService(
+      baseUrl: Uri.parse('https://example.test'),
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'query': 'mpunga',
+            'scope': 'learning',
+            'truncated': true,
+            'results': [
+              for (final id in ['one', 'two'])
+                {
+                  'kind': 'course',
+                  'id': id,
+                  'title': 'Kilimo cha Mpunga',
+                  'metadata': 'Kozi',
+                },
+            ],
+          }),
+          200,
+        ),
+      ),
+    );
+
+    await expectLater(
+      service.search(
+        const SearchRequest(
+          query: 'mpunga',
+          scope: SearchScope.learning,
+          limit: 1,
+        ),
+      ),
+      throwsA(isA<SearchException>()),
+    );
+  });
+
   test('distinguishes invalid requests from recoverable server failures', () {
     expect(
       const SearchException('invalid', statusCode: 400).isRecoverableFailure,

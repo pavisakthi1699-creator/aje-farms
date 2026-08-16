@@ -5,7 +5,11 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { lockedCatalogSnapshot } from '../api.js';
-import { parseSearchRequest, searchCatalogSnapshot } from '../search.js';
+import {
+  normalizeSearchText,
+  parseSearchRequest,
+  searchCatalogSnapshot,
+} from '../search.js';
 import { CommunityJsonStore } from '../store/community-json-store.js';
 
 const snapshot = {
@@ -75,6 +79,75 @@ test('saved-document preference only boosts documents that match the query', () 
   const response = searchCatalogSnapshot(snapshot, request);
 
   assert.deepEqual(response.results.map((result) => result.id), ['rice-guide']);
+});
+
+test('community result titles do not split non-BMP characters', () => {
+  const content = `${'a'.repeat(68)}😀${'b'.repeat(10)}`;
+  const response = searchCatalogSnapshot(
+    {
+      courses: [],
+      documents: [],
+      problemCategories: [],
+      communityPosts: [{ id: 'emoji-post', content, tags: [] }],
+    },
+    {
+      query: 'aaaaaaaa',
+      scope: 'community',
+      limit: 20,
+      savedDocumentIds: [],
+    },
+  );
+
+  assert.equal(response.results[0].title, `${'a'.repeat(68)}😀…`);
+});
+
+test('search returns at most three lessons from the same course', () => {
+  const response = searchCatalogSnapshot(
+    {
+      courses: [
+        {
+          id: 'course-a',
+          title: 'Kozi A',
+          description: 'Mafunzo ya shamba',
+          lessons: Array.from({ length: 5 }, (_, index) => ({
+            id: `a-${index}`,
+            title: `Nyanya afya somo ${index}`,
+            description: 'Nyanya afya',
+          })),
+        },
+        {
+          id: 'course-b',
+          title: 'Kozi B',
+          description: 'Mafunzo mengine',
+          lessons: [
+            {
+              id: 'b-0',
+              title: 'Nyanya afya somo la ziada',
+              description: 'Nyanya afya',
+            },
+          ],
+        },
+      ],
+      documents: [],
+      problemCategories: [],
+      communityPosts: [],
+    },
+    {
+      query: 'nyanya afya',
+      scope: 'learning',
+      limit: 10,
+      savedDocumentIds: [],
+    },
+  );
+
+  assert.equal(
+    response.results.filter((result) => result.parentId === 'course-a').length,
+    3,
+  );
+  assert.equal(
+    response.results.some((result) => result.parentId === 'course-b'),
+    true,
+  );
 });
 
 test('request parser rejects unknown fields and normalizes the query', () => {
@@ -155,5 +228,25 @@ test('community discovery fails closed for unknown moderation states', () => {
     assert.deepEqual(store.communityPosts(), []);
   } finally {
     fs.rmSync(filePath, { force: true });
+  }
+});
+
+test('normalization matches the shared cross-runtime fixture', () => {
+  const fixture = JSON.parse(
+    fs.readFileSync(
+      new URL('../../fixtures/search_normalization_v1.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  for (const searchCase of fixture.cases) {
+    assert.equal(
+      normalizeSearchText(searchCase.input),
+      searchCase.expected,
+      searchCase.input,
+    );
+  }
+  for (const boundary of fixture.boundaries) {
+    const parsed = parseSearchRequest({ query: 'a'.repeat(boundary.codePoints) });
+    assert.equal(!parsed.error, boundary.valid, `${boundary.codePoints} code points`);
   }
 });

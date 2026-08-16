@@ -90,18 +90,18 @@ class AppDependencies {
 
   factory AppDependencies.demo() {
     const repository = DemoAppRepository();
-    return const AppDependencies(
+    return AppDependencies(
       learningRepository: repository,
       communityRepository: repository,
       subscriptionRepository: repository,
-      mwalimuAiService: DemoMwalimuAiService(),
-      authService: LocalAuthService(),
-      catalogService: LocalCatalogService(),
-      adminService: LocalAdminService(),
-      communityService: LocalCommunityService(),
-      learningProgressService: LocalLearningProgressService(),
-      notificationService: LocalNotificationService(),
-      paymentService: LocalPaymentService(),
+      mwalimuAiService: const DemoMwalimuAiService(),
+      authService: const LocalAuthService(),
+      catalogService: const LocalCatalogService(),
+      adminService: const LocalAdminService(),
+      communityService: const LocalCommunityService(),
+      learningProgressService: const LocalLearningProgressService(),
+      notificationService: const LocalNotificationService(),
+      paymentService: const LocalPaymentService(),
       searchService: LocalSearchService(
         learningRepository: repository,
         communityRepository: repository,
@@ -163,6 +163,7 @@ class AppDependencies {
       offlineSearchService: LocalSearchService(
         learningRepository: learningRepository,
         communityRepository: communityRepository,
+        cachedRepository: cachedRepository,
       ),
       refreshListenable: refreshListenable,
       refreshCatalog: () => cachedRepository.refresh(catalogService),

@@ -127,8 +127,7 @@ Content-Type: application/json
 {
   "query": "nyanya ugonjwa",
   "scope": "all",
-  "limit": 20,
-  "savedDocumentIds": []
+  "limit": 20
 }
 ```
 
@@ -159,7 +158,7 @@ Contract rules:
 - Empty or one-character queries return suggestions locally and do not call the API.
 - Accept 2–120 Unicode characters after trimming.
 - `limit` defaults to 20 and is capped at 50.
-- `savedDocumentIds` is accepted only for `documents` scope, is capped at 100 unique string IDs, and is never trusted for eligibility. The authenticated store intersects it with currently published, viewer-visible documents before applying the saved boost.
+- `savedDocumentIds` is accepted only for `documents` scope, is deduplicated, requires non-empty string IDs of at most 200 characters, and remains bounded by the API's 64 KB JSON-body limit. It is never trusted for eligibility: only IDs that also appear in the authenticated, viewer-visible catalog can receive the saved boost.
 - Unknown scopes return HTTP 400. Missing/invalid sessions retain existing authentication behavior.
 - Apply the existing API request throttling pattern, with a search-specific ceiling that permits normal debounced typing but limits scraping.
 - A recoverable timeout or 5xx response may fall back to cached results. Authentication and authorization errors must not silently fall back to potentially stale protected data.
@@ -174,7 +173,7 @@ Scope semantics are fixed:
 | `community` | community | Community default; configured topic chips remain available |
 | `documents` | document | Saved Documents default; the authenticated endpoint intersects submitted saved IDs with current eligibility and applies the documents-scope saved boost before truncation |
 
-Saved Documents search is not saved-only. The existing screen already contains both saved and all-document sections. For online `documents` scope, Flutter sends at most 100 current-account `savedDocumentIds`; the server intersects them with eligible document rows, applies a +2000 saved-status boost, ranks, deduplicates, and then truncates the final response to 50. `truncated` describes that final ordered set. No cached record is merged into a successful online response. For offline `documents` scope, the current-account scorer applies the same +2000 partition locally. Global and `learning` scopes do not apply this boost.
+Saved Documents search is not saved-only. The existing screen already contains both saved and all-document sections. For online `documents` scope, Flutter sends the current account's `savedDocumentIds` within the API body limit; the server intersects them with eligible document rows, applies a +2000 saved-status boost, ranks, deduplicates, and then truncates the final response to 50. `truncated` describes that final ordered set. No cached record is merged into a successful online response. For offline `documents` scope, the current-account scorer applies the same +2000 partition locally. Global and `learning` scopes do not apply this boost.
 
 ### Store contract
 
@@ -428,3 +427,18 @@ Before production search is enabled, sit with three target farmers and give each
 - You asked for search “in all screens where this makes sense,” which sets a useful product boundary: broad availability without mechanically placing a field on every page.
 - When asked whether demand evidence existed, you chose “C” rather than inventing validation. That honesty is now reflected in the assignment and measurable rollout criteria.
 - You consistently chose the complete path: unified search, researched patterns, explicit premises, and the federated hybrid rather than a screen-by-screen shortcut.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | Not run | Existing approved product scope retained |
+| Codex Review | `/codex review` | Independent second opinion | 1 | Clear after folding | Four generation, overlay, Unicode, and top-K details added |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | Clear | Scope reduced to offline index; four decisions accepted and outside concerns folded |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | Not needed | No UI changes in this slice |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | Not run | Standalone benchmark and shared fixtures included |
+
+- **CODEX:** Independent challenge confirmed the reduced architecture after generation, overlay, Unicode, and cutoff semantics were made explicit.
+- **VERDICT:** ENG + CODEX CLEARED — ready to implement the offline-index slice; PostgreSQL native search remains outside this change.
+
+NO UNRESOLVED DECISIONS

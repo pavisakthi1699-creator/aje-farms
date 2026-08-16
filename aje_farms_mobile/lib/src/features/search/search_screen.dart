@@ -28,13 +28,14 @@ class _SearchScreenState extends State<SearchScreen> {
   int _requestId = 0;
   DateTime? _lastRemoteStartedAt;
   DateTime? _retryRemoteAfter;
+  Future<SearchResponse>? _remoteSearchInFlight;
   bool _rateLimited = false;
   String? _activeRequestKey;
 
   @override
   void initState() {
     super.initState();
-    if ((widget.initialQuery ?? '').trim().length >= 2) {
+    if (_normalizedQueryLength(widget.initialQuery ?? '') >= 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _searchNow());
     }
   }
@@ -60,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final requestKey = '${normalizeSearchText(query)}|${_scope.apiValue}';
     if (_loading && _activeRequestKey == requestKey) return;
     final requestId = ++_requestId;
-    if (query.length < 2) {
+    if (_normalizedQueryLength(query) < 2) {
       if (mounted) {
         setState(() {
           _loading = false;
@@ -79,28 +80,28 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     final request = SearchRequest(
       query: query,
-      scope: _scope,
+      scope: !_communityTermsAccepted && _scope == SearchScope.all
+          ? SearchScope.learning
+          : _scope,
       savedDocumentIds: context.session.state.savedDocumentIds,
-      communityPosts: context.session.state.communityPostsMergedWith(
-        context.dependencies.communityRepository.posts,
-      ),
+      localCommunityPosts: context.session.state.localPosts,
     );
     try {
       final response = context.isDeviceOnline
           ? await _searchOnlineWithFallback(request, requestId)
           : await context.dependencies.offlineSearchService.search(request);
       if (!mounted || requestId != _requestId) return;
-      final visibleResponse = _communityTermsAccepted
-          ? response
-          : SearchResponse(
-              query: response.query,
-              scope: response.scope,
-              results: response.results
-                  .where((result) => result.kind != SearchResultKind.community)
-                  .toList(),
-              truncated: response.truncated,
-              isOffline: response.isOffline,
-            );
+      final visibleResponse = SearchResponse(
+        query: response.query,
+        scope: _scope,
+        results: _communityTermsAccepted
+            ? response.results
+            : response.results
+                .where((result) => result.kind != SearchResultKind.community)
+                .toList(),
+        truncated: response.truncated,
+        isOffline: response.isOffline,
+      );
       setState(() {
         _response = visibleResponse;
         _loading = false;
@@ -151,6 +152,17 @@ class _SearchScreenState extends State<SearchScreen> {
       _rateLimited = true;
       return context.dependencies.offlineSearchService.search(request);
     }
+    final inFlight = _remoteSearchInFlight;
+    if (inFlight != null) {
+      try {
+        await inFlight;
+      } catch (_) {
+        // The waiting latest request still gets its own remote attempt below.
+      }
+      if (!mounted || requestId != _requestId) {
+        throw const _SupersededSearch();
+      }
+    }
     final previousStart = _lastRemoteStartedAt;
     if (previousStart != null) {
       final remaining = const Duration(milliseconds: 500) -
@@ -161,8 +173,10 @@ class _SearchScreenState extends State<SearchScreen> {
       throw const _SupersededSearch();
     }
     _lastRemoteStartedAt = DateTime.now();
+    final remoteSearch = context.dependencies.searchService.search(request);
+    _remoteSearchInFlight = remoteSearch;
     try {
-      return await context.dependencies.searchService.search(request);
+      return await remoteSearch;
     } on SearchException catch (error) {
       if (!error.isRecoverableFailure) rethrow;
       if (error.statusCode == 429) {
@@ -174,6 +188,10 @@ class _SearchScreenState extends State<SearchScreen> {
       return context.dependencies.offlineSearchService.search(request);
     } on TimeoutException {
       return context.dependencies.offlineSearchService.search(request);
+    } finally {
+      if (identical(_remoteSearchInFlight, remoteSearch)) {
+        _remoteSearchInFlight = null;
+      }
     }
   }
 
@@ -226,7 +244,10 @@ class _SearchScreenState extends State<SearchScreen> {
     ];
   }
 
-  Future<void> _openResult(SearchResult result) async {
+  Future<void> _openResult(
+    SearchResult result, {
+    bool allowCatalogRefresh = true,
+  }) async {
     final dependencies = context.dependencies;
     if (result.isPremium && !context.session.hasActiveAccess) {
       await AppNavigator.pushPaywall(context);
@@ -240,6 +261,10 @@ class _SearchScreenState extends State<SearchScreen> {
         if (course != null) {
           AppNavigator.pushCourse(context, course);
         } else {
+          if (allowCatalogRefresh && await _refreshCatalogForResult()) {
+            return _openResult(result, allowCatalogRefresh: false);
+          }
+          if (!mounted) return;
           showErrorSnack(context, 'Kozi hii haiwezi kufunguka kwa sasa.');
         }
       case SearchResultKind.lesson || SearchResultKind.document:
@@ -272,12 +297,22 @@ class _SearchScreenState extends State<SearchScreen> {
                 result.kind == SearchResultKind.lesson ? result.id : null,
           );
         } else {
+          if (allowCatalogRefresh && await _refreshCatalogForResult()) {
+            return _openResult(result, allowCatalogRefresh: false);
+          }
+          if (!mounted) return;
           showErrorSnack(context, 'Maudhui hayawezi kufunguka kwa sasa.');
         }
       case SearchResultKind.problem:
         final problem = dependencies.learningRepository.problemCategories
             .where((item) => item.title == result.title)
             .firstOrNull;
+        if (problem == null &&
+            allowCatalogRefresh &&
+            await _refreshCatalogForResult()) {
+          return _openResult(result, allowCatalogRefresh: false);
+        }
+        if (!mounted) return;
         await AppNavigator.pushProblem(
           context,
           initialTopic: problem?.topic,
@@ -290,8 +325,21 @@ class _SearchScreenState extends State<SearchScreen> {
         if (post != null) {
           AppNavigator.pushCommunityPost(context, post);
         } else {
+          if (allowCatalogRefresh && await _refreshCatalogForResult()) {
+            return _openResult(result, allowCatalogRefresh: false);
+          }
+          if (!mounted) return;
           showErrorSnack(context, 'Mjadala huu hauwezi kufunguka kwa sasa.');
         }
+    }
+  }
+
+  Future<bool> _refreshCatalogForResult() async {
+    try {
+      await context.dependencies.refreshCatalog();
+      return mounted;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -315,6 +363,7 @@ class _SearchScreenState extends State<SearchScreen> {
             AppTextField(
               controller: _controller,
               autofocus: true,
+              labelText: 'Utafutaji',
               hintText: 'Tafuta mada, kozi, somo au jamii',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: query.isEmpty
@@ -379,7 +428,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   onAction: _searchNow,
                 ),
               )
-            else if (query.length < 2)
+            else if (_normalizedQueryLength(query) < 2)
               _SearchSuggestions(
                 topics: context.dependencies.learningRepository.homeTopics,
                 onSelected: (topic) {
@@ -406,7 +455,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 liveRegion: true,
                 child: Text(
                   '${_response!.results.length} matokeo yamepatikana.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: accessibleCaption(context),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -418,7 +467,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 liveRegion: true,
                 child: Text(
                   'Matokeo zaidi yapo. Ongeza maelezo kwenye utafutaji wako.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: accessibleCaption(context),
                 ),
               ),
             ],
@@ -428,6 +477,9 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 }
+
+int _normalizedQueryLength(String value) =>
+    normalizeSearchText(value).runes.length;
 
 class _SupersededSearch implements Exception {
   const _SupersededSearch();

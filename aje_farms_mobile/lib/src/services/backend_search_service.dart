@@ -76,15 +76,19 @@ class BackendSearchService implements SearchService {
         );
       }
       final responsePayload = payload;
+      final rawResults = responsePayload['results'];
       if (responsePayload['query'] is! String ||
           responsePayload['scope'] is! String ||
           !SearchScope.values.any(
             (scope) => scope.apiValue == responsePayload['scope'],
           ) ||
           responsePayload['truncated'] is! bool ||
-          responsePayload['results'] is! List ||
-          (responsePayload['results'] as List<dynamic>)
-              .any((result) => result is! Map<String, dynamic>)) {
+          rawResults is! List ||
+          rawResults.length > request.limit ||
+          rawResults.any(
+            (result) =>
+                result is! Map<String, dynamic> || !_isValidResult(result),
+          )) {
         throw const SearchException(
           'Huduma ya utafutaji imerudisha majibu yasiyo sahihi.',
         );
@@ -120,6 +124,21 @@ class BackendSearchService implements SearchService {
       );
     }
   }
+}
+
+bool _isValidResult(Map<String, dynamic> result) {
+  bool validString(Object? value, int maxLength, {bool optional = false}) {
+    if (optional && value == null) return true;
+    return value is String && value.isNotEmpty && value.length <= maxLength;
+  }
+
+  return validString(result['kind'], 20) &&
+      validString(result['id'], 200) &&
+      validString(result['parentId'], 200, optional: true) &&
+      validString(result['title'], 500) &&
+      validString(result['snippet'], 4000, optional: true) &&
+      (result['metadata'] == null || validString(result['metadata'], 500)) &&
+      (result['isPremium'] == null || result['isPremium'] is bool);
 }
 
 Duration? _retryAfter(String? value) {

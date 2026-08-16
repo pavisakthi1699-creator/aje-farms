@@ -6,6 +6,7 @@ const SEARCH_MINUTE_WINDOW_MS = 60_000;
 const SEARCH_USER_BURST_LIMIT = 30;
 const SEARCH_USER_MINUTE_LIMIT = 120;
 const SEARCH_IP_MINUTE_LIMIT = 600;
+const MAX_LESSONS_PER_COURSE = 3;
 
 const KIND_BOOST = {
   course: 30,
@@ -125,12 +126,23 @@ export function searchCatalogSnapshot(snapshot, request) {
     })
     .filter((record) => record.score > 0)
     .sort(compareMatches);
+  const diverseMatches = [];
+  const lessonCounts = new Map();
+  for (const match of matches) {
+    if (match.kind === 'lesson') {
+      const parentKey = match.parentId ?? match.id;
+      const count = lessonCounts.get(parentKey) ?? 0;
+      if (count >= MAX_LESSONS_PER_COURSE) continue;
+      lessonCounts.set(parentKey, count + 1);
+    }
+    diverseMatches.push(match);
+  }
 
   return {
     query: request.query,
     scope: request.scope,
-    results: matches.slice(0, request.limit).map(publicResult),
-    truncated: matches.length > request.limit,
+    results: diverseMatches.slice(0, request.limit).map(publicResult),
+    truncated: diverseMatches.length > request.limit,
   };
 }
 
@@ -281,8 +293,9 @@ function publicResult({ body: _body, tags: _tags, score: _score, ...result }) {
 
 function concisePostTitle(content) {
   const normalized = String(content ?? '').trim();
-  if (normalized.length <= 72) return normalized;
-  return `${normalized.slice(0, 69).trimEnd()}…`;
+  const codePoints = [...normalized];
+  if (codePoints.length <= 72) return normalized;
+  return `${codePoints.slice(0, 69).join('').trimEnd()}…`;
 }
 
 function activeRequests(timestamps = [], now) {
