@@ -54,20 +54,30 @@ try {
   await waitForHealthyBackend(`http://127.0.0.1:${port}/api/health/live`);
   await verifyAdminBoundary(adminEmail, password);
 
-  const exitCode = await run(flutterBin, [
-    'test',
-    'integration_test/admin_and_standard_login_e2e_test.dart',
-    '-d',
-    device,
-    `--dart-define=AJE_API_BASE_URL=${apiBaseUrl}`,
-    `--dart-define=SUPABASE_URL=${supabaseUrl}`,
-    `--dart-define=SUPABASE_PUBLISHABLE_KEY=${publishableKey}`,
-    `--dart-define=AJE_E2E_STANDARD_EMAIL=${learnerEmail}`,
-    `--dart-define=AJE_E2E_STANDARD_PASSWORD=${password}`,
-    `--dart-define=AJE_E2E_ADMIN_EMAIL=${adminEmail}`,
-    `--dart-define=AJE_E2E_ADMIN_PASSWORD=${password}`,
-  ]);
-  if (exitCode !== 0) process.exitCode = exitCode;
+  if (process.env.AJE_E2E_SEARCH_ONLY === 'true') {
+    const searchExitCode = await runSearchE2e(adminEmail, password);
+    if (searchExitCode !== 0) process.exitCode = searchExitCode;
+  } else {
+    const approvalExitCode = await run(flutterBin, [
+      'test',
+      'integration_test/admin_and_standard_login_e2e_test.dart',
+      '-d',
+      device,
+      `--dart-define=AJE_API_BASE_URL=${apiBaseUrl}`,
+      `--dart-define=SUPABASE_URL=${supabaseUrl}`,
+      `--dart-define=SUPABASE_PUBLISHABLE_KEY=${publishableKey}`,
+      `--dart-define=AJE_E2E_STANDARD_EMAIL=${learnerEmail}`,
+      `--dart-define=AJE_E2E_STANDARD_PASSWORD=${password}`,
+      `--dart-define=AJE_E2E_ADMIN_EMAIL=${adminEmail}`,
+      `--dart-define=AJE_E2E_ADMIN_PASSWORD=${password}`,
+    ]);
+    if (approvalExitCode !== 0) {
+      process.exitCode = approvalExitCode;
+    } else {
+      const searchExitCode = await runSearchE2e(learnerEmail, password);
+      if (searchExitCode !== 0) process.exitCode = searchExitCode;
+    }
+  }
 } finally {
   backend?.kill('SIGTERM');
   await cleanupApplicationUsers(createdAuthUserIds).catch((error) => {
@@ -146,6 +156,20 @@ function run(command, args) {
   });
 }
 
+function runSearchE2e(email, userPassword) {
+  return run(flutterBin, [
+    'test',
+    'integration_test/connected_search_e2e_test.dart',
+    '-d',
+    device,
+    `--dart-define=AJE_API_BASE_URL=${apiBaseUrl}`,
+    `--dart-define=SUPABASE_URL=${supabaseUrl}`,
+    `--dart-define=SUPABASE_PUBLISHABLE_KEY=${publishableKey}`,
+    `--dart-define=AJE_E2E_STANDARD_EMAIL=${email}`,
+    `--dart-define=AJE_E2E_STANDARD_PASSWORD=${userPassword}`,
+  ]);
+}
+
 async function cleanupApplicationUsers(authUserIds) {
   if (authUserIds.length === 0) return;
   const client = await pool.connect();
@@ -160,20 +184,31 @@ async function cleanupApplicationUsers(authUserIds) {
       await client.query('COMMIT');
       return;
     }
+    const externalActions = await client.query(
+      `SELECT id FROM payment_records
+       WHERE user_id <> ALL($1::text[])
+         AND (
+           recorded_by = ANY($1::text[])
+           OR approved_by = ANY($1::text[])
+           OR reversed_by = ANY($1::text[])
+         )`,
+      [userIds],
+    );
+    if (externalActions.rows.length > 0) {
+      throw new Error(
+        'E2E actor touched a payment outside its temporary learner boundary.',
+      );
+    }
     const payments = await client.query(
       `SELECT id FROM payment_records
-       WHERE user_id = ANY($1::text[])
-          OR recorded_by = ANY($1::text[])
-          OR approved_by = ANY($1::text[])
-          OR reversed_by = ANY($1::text[])`,
+       WHERE user_id = ANY($1::text[])`,
       [userIds],
     );
     const paymentIds = payments.rows.map((row) => row.id);
     await client.query(
       `DELETE FROM audit_events
-       WHERE actor_user_id = ANY($1::text[])
-          OR target_id = ANY($2::text[])`,
-      [userIds, paymentIds],
+       WHERE target_id = ANY($1::text[])`,
+      [paymentIds],
     );
     await client.query(
       'DELETE FROM entitlements WHERE user_id = ANY($1::text[])',

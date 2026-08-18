@@ -127,7 +127,26 @@ void main() {
         findsOneWidget,
       );
       await _dragListUntilText(tester, 'Idhinisha');
-      await tester.tap(find.text('Idhinisha').last);
+      final pendingLearnerCard = find.ancestor(
+        of: find.text(_standardEmail).last,
+        matching: find.byType(Card),
+      );
+      expect(pendingLearnerCard, findsOneWidget);
+      final approveLabel = find.descendant(
+        of: pendingLearnerCard,
+        matching: find.text('Idhinisha'),
+      );
+      expect(approveLabel, findsOneWidget);
+      for (var attempt = 0;
+          attempt < 6 &&
+              approveLabel.hitTestable().evaluate().isEmpty;
+          attempt += 1) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, -260));
+        await tester.pumpAndSettle();
+      }
+      final approveAction = approveLabel.hitTestable();
+      expect(approveAction, findsOneWidget);
+      await tester.tap(approveAction);
       await tester.pumpAndSettle();
       final approvalConfirmation = find.descendant(
         of: find.byType(AlertDialog),
@@ -137,15 +156,16 @@ void main() {
       await tester.tap(approvalConfirmation);
       for (var attempt = 0;
           attempt < 20 &&
-              find.text('Hakuna malipo yanayosubiri').evaluate().isEmpty;
+              find.text(_standardEmail).evaluate().length > 1;
           attempt += 1) {
         await tester.pump(const Duration(seconds: 1));
       }
       await tester.pumpAndSettle();
       expect(
-        find.text('Hakuna malipo yanayosubiri'),
+        find.text(_standardEmail),
         findsOneWidget,
-        reason: 'Approval result: ${_screenTexts().join(' | ')}',
+        reason: 'The temporary learner payment is still pending: '
+            '${_screenTexts().join(' | ')}',
       );
 
       Navigator.of(tester.element(find.byType(AdminDashboardScreen))).pop();
