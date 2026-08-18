@@ -2,15 +2,17 @@
 
 Native Flutter Android app for the AJE Farms learner app.
 
-This app currently runs as a connected Flutter product foundation:
+This app currently runs as a connected Flutter product:
 
-- Onboarding, guest mode, and phone-entry session state
+- Onboarding, guest mode, Supabase email/password identity, and staff approval
 - Learner dashboard with persisted lesson progress
 - Course catalog, course detail, saved documents, and completion tracking
+- Unified search across courses, lessons, problem categories, documents, and
+  eligible community posts, with account-safe cached fallback
 - Assessment quiz and field assignment with saved scores
 - Mwalimu AI knowledge assistant flow
 - Community posts, replies, reporting, and filters backed by the API
-- Payment/paywall flow backed by the API
+- Staff-approved access and paywall status backed by the API
 - Notifications driven by current app state
 - Profile, settings, saved documents, and sign-out
 
@@ -58,6 +60,19 @@ cd /Users/frankmchaina/Downloads/aje-farms/aje_farms_mobile
 flutter test integration_test/connected_app_smoke_test.dart \
   -d emulator-5554 \
   --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000
+```
+
+Connected Android search journey (requires a disposable, active Supabase
+learner account):
+
+```sh
+flutter test integration_test/connected_search_e2e_test.dart \
+  -d emulator-5554 \
+  --dart-define=AJE_API_BASE_URL=http://10.0.2.2:3000 \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_CLIENT_SAFE_KEY \
+  --dart-define=AJE_E2E_STANDARD_EMAIL=test-learner@example.com \
+  --dart-define=AJE_E2E_STANDARD_PASSWORD=YOUR_TEST_LEARNER_PASSWORD
 ```
 
 The app has one connected runtime path. Local/demo services are only used when
@@ -189,16 +204,20 @@ debug OTP, Android signing config, and the WhatsApp support number:
 NODE_ENV=production \
 APP_URL=https://api.your-domain.example \
 AJE_STORE=supabase \
-SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.<project-ref>.supabase.co:5432/postgres \
-AJE_OTP_PEPPER=replace-with-secret \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres \
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=replace-with-server-only-key \
+SUPABASE_PUBLISHABLE_KEY=replace-with-client-safe-key \
 AJE_ENABLE_DEBUG_OTP=false \
-AJE_SMS_PROVIDER=africas_talking \
-AFRICASTALKING_USERNAME=replace-with-production-username \
-AFRICASTALKING_API_KEY=replace-with-server-only-api-key \
-AFRICASTALKING_ENVIRONMENT=production \
+AJE_ENABLE_LEGACY_DEV_PAYMENTS=false \
 AJE_ANDROID_API_BASE_URL=https://api.your-domain.example \
 AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
-AJE_ADMIN_PHONE_NUMBERS=255700000000 \
+AJE_ADMIN_EMAILS=admin@your-domain.example \
+AJE_PRIVACY_POLICY_URL=https://api.your-domain.example/privacy \
+AJE_ACCOUNT_DELETION_URL=https://api.your-domain.example/delete-account \
+AJE_PRIVACY_CONTACT_EMAIL=privacy@your-domain.example \
+AJE_ANDROID_APP_SIGNING_SHA256=YOUR_PLAY_APP_SIGNING_SHA256 \
+AJE_PLAY_DISTRIBUTION_MODE=consumption_only \
 AJE_PUSH_PROVIDER=development \
 npm run preflight:release
 ```
@@ -206,20 +225,18 @@ npm run preflight:release
 Replace `api.your-domain.example` with the deployed API hostname; preflight
 rejects reserved example domains.
 
-Missing SMS, Gemini, and payment provider configuration is reported by the
-preflight. Africa's Talking is the supported production SMS provider; its API
-key remains server-side. `npm run release:android`
+Missing Gemini and production push configuration is reported by the preflight.
+`npm run release:android`
 runs the same preflight, builds and validates the signed native Flutter APK,
 and then builds the signed Android App Bundle.
 
-For the current go-live checklist, including signing, production secrets, SMS,
-Gemini, push, and content publishing, see
+For the current go-live checklist, including signing, production secrets,
+Gemini, push, search validation, and content publishing, see
 `../docs/go-live-readiness.md`.
 
 ## Next Integrations
 
 - Cloud storage for videos, PDFs, and images
-- Server-side Gemini proxy
-- Mobile money payment provider and webhook validation
-- Push notifications
+- Firebase Messaging delivery in the Android client
+- Production search relevance and latency monitoring
 - Analytics and crash reporting

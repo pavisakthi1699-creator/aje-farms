@@ -37,8 +37,8 @@ policy, identity, signing, or App Link configuration.
    - `SUPABASE_URL=<Supabase project URL>`
    - `SUPABASE_SERVICE_ROLE_KEY=<server-only service role key>`
    - `SUPABASE_PUBLISHABLE_KEY=<client-safe publishable key>`
-   - `AJE_OTP_PEPPER=<unique secret, 32+ chars>`
    - `AJE_ENABLE_DEBUG_OTP=false`
+   - `AJE_ENABLE_LEGACY_DEV_PAYMENTS=false`
    - `AJE_ANDROID_API_BASE_URL=https://<deployed-api-host>`
    - `AJE_WHATSAPP_EXPERT_PHONE=<digits only, country code included>`
    - `AJE_ADMIN_EMAILS=<comma-separated admin emails>`
@@ -71,23 +71,25 @@ policy, identity, signing, or App Link configuration.
 NODE_ENV=production \
 APP_URL=https://api.your-domain.example \
 AJE_STORE=supabase \
-SUPABASE_DATABASE_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres \
-AJE_OTP_PEPPER=<32-plus-character-secret> \
+SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres \
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVER_ONLY_SERVICE_ROLE_KEY \
+SUPABASE_PUBLISHABLE_KEY=YOUR_CLIENT_SAFE_PUBLISHABLE_KEY \
 AJE_ENABLE_DEBUG_OTP=false \
+AJE_ENABLE_LEGACY_DEV_PAYMENTS=false \
 AJE_ANDROID_API_BASE_URL=https://api.your-domain.example \
 AJE_WHATSAPP_EXPERT_PHONE=255700000000 \
 AJE_ADMIN_EMAILS=admin@your-domain.example \
 AJE_PRIVACY_POLICY_URL=https://aje-farms-api-production.up.railway.app/privacy \
 AJE_ACCOUNT_DELETION_URL=https://aje-farms-api-production.up.railway.app/delete-account \
 AJE_PRIVACY_CONTACT_EMAIL=privacy@your-domain.example \
-AJE_ANDROID_APP_SIGNING_SHA256=<play-app-signing-sha256> \
+AJE_ANDROID_APP_SIGNING_SHA256=YOUR_PLAY_APP_SIGNING_SHA256 \
 AJE_PLAY_DISTRIBUTION_MODE=consumption_only \
-AFRICASTALKING_SENDER_ID=<optional-approved-sender-id> \
-GEMINI_API=<gemini-key> \
+GEMINI_API=YOUR_GEMINI_KEY \
 AJE_PUSH_PROVIDER=fcm \
-FCM_PROJECT_ID=<firebase-project-id> \
-FCM_CLIENT_EMAIL=<firebase-service-account-email> \
-FCM_PRIVATE_KEY=<firebase-private-key> \
+FCM_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID \
+FCM_CLIENT_EMAIL=YOUR_FIREBASE_SERVICE_ACCOUNT_EMAIL \
+FCM_PRIVATE_KEY=YOUR_FIREBASE_PRIVATE_KEY \
 npm run preflight:release
 ```
 
@@ -111,13 +113,13 @@ Generated artifacts:
 - `aje_farms_mobile/build/app/outputs/flutter-apk/app-release.apk`
 - `aje_farms_mobile/build/app/outputs/bundle/release/app-release.aab`
 
-## Deferred Final Payment Slice
+## Staff-Approved Access Validation
 
-- Replace the development payment adapter with the selected mobile money
-  provider.
-- Validate webhook signatures with provider credentials.
-- Confirm paid, pending, failed, retry, and subscription restore flows against
-  provider sandbox.
+- Confirm staff can record, approve, and reverse payments from the admin panel.
+- Confirm only approval creates learner entitlement and every transition writes
+  an audit event.
+- Confirm the learner app shows access status without purchase instructions or
+  external-payment steering.
 
 ## Remaining Push Client Slice
 
