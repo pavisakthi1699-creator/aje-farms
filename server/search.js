@@ -7,6 +7,7 @@ const SEARCH_USER_BURST_LIMIT = 30;
 const SEARCH_USER_MINUTE_LIMIT = 120;
 const SEARCH_IP_MINUTE_LIMIT = 600;
 const MAX_LESSONS_PER_COURSE = 3;
+const MAX_SNIPPET_LENGTH = 4000;
 
 const KIND_BOOST = {
   course: 30,
@@ -108,8 +109,16 @@ export function createSearchRateLimiter({ now = Date.now } = {}) {
   };
 }
 
-export function searchCatalogSnapshot(snapshot, request) {
-  const records = searchableRecords(snapshot, request.scope);
+export function searchCatalogSnapshot(
+  snapshot,
+  request,
+  destinationSnapshot = snapshot,
+) {
+  const records = searchableRecords(
+    snapshot,
+    request.scope,
+    searchableDocumentIds(destinationSnapshot),
+  );
   const savedIds = new Set(request.savedDocumentIds);
   const matches = records
     .map((record) => {
@@ -156,7 +165,7 @@ export function normalizeSearchText(value) {
     .replace(/\s+/g, ' ');
 }
 
-function searchableRecords(snapshot, scope) {
+function searchableRecords(snapshot, scope, searchableDocumentIds) {
   const results = [];
   if (scope === 'all' || scope === 'learning') {
     for (const course of snapshot.courses ?? []) {
@@ -204,6 +213,7 @@ function searchableRecords(snapshot, scope) {
   }
   if (scope === 'all' || scope === 'learning' || scope === 'documents') {
     for (const document of snapshot.documents ?? []) {
+      if (!searchableDocumentIds.has(String(document.id ?? ''))) continue;
       results.push({
         kind: 'document',
         id: document.id,
@@ -288,7 +298,46 @@ function compareMatches(left, right) {
 }
 
 function publicResult({ body: _body, tags: _tags, score: _score, ...result }) {
-  return result;
+  return {
+    ...result,
+    snippet: boundedSnippet(result.snippet),
+  };
+}
+
+function hasDocumentDestination(document, courseIds) {
+  if (courseIds.has(String(document.courseId ?? ''))) return true;
+  try {
+    const url = new URL(String(document.url ?? ''));
+    return url.protocol === 'https:' && url.host.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function searchableDocumentIds(snapshot) {
+  const courseIds = new Set(
+    (snapshot.courses ?? [])
+      .map((course) => String(course.id ?? ''))
+      .filter(Boolean),
+  );
+  return new Set(
+    (snapshot.documents ?? [])
+      .filter((document) => hasDocumentDestination(document, courseIds))
+      .map((document) => String(document.id ?? ''))
+      .filter(Boolean),
+  );
+}
+
+function boundedSnippet(value) {
+  if (value == null) return null;
+  const text = String(value);
+  if (text.length <= MAX_SNIPPET_LENGTH) return text;
+  let bounded = text.slice(0, MAX_SNIPPET_LENGTH);
+  const finalCodeUnit = bounded.charCodeAt(bounded.length - 1);
+  if (finalCodeUnit >= 0xd800 && finalCodeUnit <= 0xdbff) {
+    bounded = bounded.slice(0, -1);
+  }
+  return bounded;
 }
 
 function concisePostTitle(content) {

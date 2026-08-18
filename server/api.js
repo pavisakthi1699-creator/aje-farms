@@ -140,7 +140,7 @@ export async function registerApiRoutes(app) {
       const authorizedSnapshot = (await hasPaidLearningAccess(store, req.userId))
         ? snapshot
         : lockedCatalogSnapshot(snapshot);
-      res.json(searchCatalogSnapshot(authorizedSnapshot, request));
+      res.json(searchCatalogSnapshot(authorizedSnapshot, request, snapshot));
     },
   );
 

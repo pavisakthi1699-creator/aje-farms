@@ -101,6 +101,95 @@ test('community result titles do not split non-BMP characters', () => {
   assert.equal(response.results[0].title, `${'a'.repeat(68)}😀…`);
 });
 
+test('search excludes documents without an openable destination', () => {
+  const response = searchCatalogSnapshot(
+    {
+      courses: [],
+      documents: [
+        {
+          id: 'dead-document',
+          courseId: '',
+          title: 'Mwongozo usiofunguka',
+          description: 'Nyanya shambani',
+          url: null,
+        },
+        {
+          id: 'web-document',
+          courseId: '',
+          title: 'Mwongozo wa wavuti',
+          description: 'Nyanya shambani',
+          url: 'https://example.com/guide.pdf',
+        },
+      ],
+      problemCategories: [],
+      communityPosts: [],
+    },
+    {
+      query: 'mwongozo',
+      scope: 'documents',
+      limit: 20,
+      savedDocumentIds: [],
+    },
+  );
+
+  assert.deepEqual(response.results.map((result) => result.id), ['web-document']);
+});
+
+test('locked premium documents keep safe discovery eligibility', () => {
+  const original = {
+    courses: [],
+    documents: [
+      {
+        id: 'premium-web',
+        courseId: '',
+        title: 'Mwongozo wa kulipia',
+        description: 'Nyanya shambani',
+        url: 'https://example.com/premium.pdf',
+        isPremium: true,
+      },
+    ],
+    problemCategories: [],
+    communityPosts: [],
+  };
+  const locked = lockedCatalogSnapshot(original);
+  const response = searchCatalogSnapshot(
+    locked,
+    {
+      query: 'mwongozo',
+      scope: 'documents',
+      limit: 20,
+      savedDocumentIds: [],
+    },
+    original,
+  );
+
+  assert.deepEqual(response.results.map((result) => result.id), ['premium-web']);
+  assert.equal(response.results[0].isPremium, true);
+  assert.equal(response.results[0].snippet, null);
+  assert.equal('url' in response.results[0], false);
+});
+
+test('search bounds snippets without splitting surrogate pairs', () => {
+  const content = `${'n'.repeat(3999)}😀${'y'.repeat(20)}`;
+  const response = searchCatalogSnapshot(
+    {
+      courses: [],
+      documents: [],
+      problemCategories: [],
+      communityPosts: [{ id: 'long-post', content, tags: [] }],
+    },
+    {
+      query: 'nnnn',
+      scope: 'community',
+      limit: 20,
+      savedDocumentIds: [],
+    },
+  );
+
+  assert.equal(response.results[0].snippet.length, 3999);
+  assert.equal(response.results[0].snippet.endsWith('\ud83d'), false);
+});
+
 test('search returns at most three lessons from the same course', () => {
   const response = searchCatalogSnapshot(
     {

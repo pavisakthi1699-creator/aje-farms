@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:unorm_dart/unorm_dart.dart' as unicode;
 
+import '../models/app_document.dart';
 import '../models/community_post.dart';
 import '../models/search_result.dart';
 import '../repositories/cached_app_repository.dart';
@@ -164,7 +165,12 @@ class LocalSearchService implements SearchService {
         ),
       );
     }
+    final courseIds = learningRepository.courses
+        .map((course) => course.id)
+        .where((id) => id.isNotEmpty)
+        .toSet();
     for (final document in learningRepository.documents) {
+      if (!_hasDocumentDestination(document, courseIds)) continue;
       records.add(
         _indexRecord(
           result: SearchResult(
@@ -191,6 +197,12 @@ class LocalSearchService implements SearchService {
     _indexedGeneration = generation;
     _indexBuildCount += 1;
     return _baseIndex!;
+  }
+
+  bool _hasDocumentDestination(AppDocument document, Set<String> courseIds) {
+    if (courseIds.contains(document.courseId)) return true;
+    final uri = Uri.tryParse(document.url ?? '');
+    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
   }
 
   Iterable<_IndexedRecord> _localCommunityOverlay(

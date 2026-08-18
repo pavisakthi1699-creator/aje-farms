@@ -246,6 +246,28 @@ void main() {
     expect(response.truncated, isTrue);
   });
 
+  test('excludes documents without a web or current-course destination',
+      () async {
+    final destinationRepository = _DocumentDestinationRepository();
+    final indexedService = LocalSearchService(
+      learningRepository: destinationRepository,
+      communityRepository: destinationRepository,
+    );
+    addTearDown(indexedService.dispose);
+
+    final response = await indexedService.search(
+      const SearchRequest(
+        query: 'mwongozo',
+        scope: SearchScope.documents,
+      ),
+    );
+
+    expect(
+      response.results.map((result) => result.id),
+      ['course-document', 'web-document'],
+    );
+  });
+
   test('limits lesson results to three per course before truncation', () async {
     final lessonRepository = _LessonSearchRepository();
     final indexedService = LocalSearchService(
@@ -353,6 +375,7 @@ class _DocumentSearchRepository
               description: 'Mwongozo wa nyanya kwa mkulima',
               type: 'PDF',
               sizeLabel: '1 MB',
+              url: 'https://example.com/doc.pdf',
             ),
         ];
 
@@ -379,4 +402,72 @@ class _DocumentSearchRepository
 
   @override
   Course? get suggestedCourse => null;
+}
+
+class _DocumentDestinationRepository
+    implements LearningRepository, CommunityRepository {
+  @override
+  List<Course> get courses => const [
+        Course(
+          id: 'course-a',
+          title: 'Kozi A',
+          description: '',
+          badge: 'Mafunzo',
+          icon: Icons.agriculture,
+          progress: 0,
+          imageUrl: '',
+          outcomes: [],
+          lessons: [],
+        ),
+      ];
+
+  @override
+  List<AppDocument> get documents => const [
+        AppDocument(
+          id: 'course-document',
+          title: 'Mwongozo wa kozi',
+          courseId: 'course-a',
+          courseTitle: 'Kozi A',
+          description: 'Mwongozo',
+          type: 'PDF',
+          sizeLabel: '1 MB',
+        ),
+        AppDocument(
+          id: 'web-document',
+          title: 'Mwongozo wa wavuti',
+          courseId: '',
+          courseTitle: '',
+          description: 'Mwongozo',
+          type: 'PDF',
+          sizeLabel: '1 MB',
+          url: 'https://example.com/guide.pdf',
+        ),
+        AppDocument(
+          id: 'dead-document',
+          title: 'Mwongozo usiofunguka',
+          courseId: '',
+          courseTitle: '',
+          description: 'Mwongozo',
+          type: 'PDF',
+          sizeLabel: '1 MB',
+        ),
+      ];
+
+  @override
+  List<CommunityPost> get posts => const [];
+
+  @override
+  List<ProblemCategory> get problemCategories => const [];
+
+  @override
+  List<String> get homeTopics => const [];
+
+  @override
+  List<String> get communityTopics => const [];
+
+  @override
+  Course? get featuredCourse => courses.first;
+
+  @override
+  Course? get suggestedCourse => courses.first;
 }
