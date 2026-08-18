@@ -65,4 +65,6 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter test
+      # Pixel goldens are recorded and verified by the macOS release quality
+      # gate; Linux text/rendering differences make those baselines non-portable.
+      - run: flutter test --exclude-tags golden

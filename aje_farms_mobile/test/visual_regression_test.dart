@@ -31,7 +31,7 @@ void main() {
       find.byKey(_surfaceKey),
       matchesGoldenFile('goldens/onboarding_phone_light.png'),
     );
-  });
+  }, tags: const ['golden']);
 
   testWidgets('dashboard visual baseline', (tester) async {
     await _useViewport(tester, const Size(390, 844));
@@ -55,7 +55,7 @@ void main() {
       find.byKey(_surfaceKey),
       matchesGoldenFile('goldens/dashboard_phone_light.png'),
     );
-  });
+  }, tags: const ['golden']);
 
   testWidgets('dashboard dark visual baseline', (tester) async {
     await _useViewport(tester, const Size(390, 844));
@@ -79,7 +79,7 @@ void main() {
       find.byKey(_surfaceKey),
       matchesGoldenFile('goldens/dashboard_phone_dark.png'),
     );
-  });
+  }, tags: const ['golden']);
 
   testWidgets('compact large-text dashboard visual baseline', (tester) async {
     await _useViewport(tester, const Size(320, 640));
@@ -106,7 +106,7 @@ void main() {
       find.byKey(_surfaceKey),
       matchesGoldenFile('goldens/dashboard_compact_large_text.png'),
     );
-  });
+  }, tags: const ['golden']);
 }
 
 Future<AppSessionController> _guestSession() async {
