@@ -69,7 +69,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                     style: Theme.of(context).textTheme.headlineLarge),
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
-                    'Weka nenosiri jipya kwa akaunti yako ya AJE Farms.'),
+                    'Weka nenosiri jipya kwa akaunti yako ya Chuo Kikuu Cha Mtaani.'),
                 const SizedBox(height: AppSpacing.xl),
                 AppTextField(
                     controller: _passwordController,

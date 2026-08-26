@@ -79,7 +79,7 @@ void main() {
     await tester.pumpWidget(buildDemoApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('AJE Farms'), findsOneWidget);
+    expect(find.text('Chuo Kikuu Cha Mtaani'), findsOneWidget);
     expect(find.text('Karibu tena'), findsOneWidget);
     expect(find.text('Ingia'), findsOneWidget);
     expect(find.text('Jisajili'), findsOneWidget);
@@ -159,7 +159,7 @@ void main() {
     expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
     expect(
       find.text(
-        'Umesajiliwa. Timu ya AJE Farms itathibitisha akaunti yako '
+        'Umesajiliwa. Timu ya Chuo Kikuu Cha Mtaani itathibitisha akaunti yako '
         'ili kufungua mafunzo.',
       ),
       findsOneWidget,
@@ -392,10 +392,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Jamii ya AJE Farms'), findsOneWidget);
+    expect(find.text('Jamii ya Chuo Kikuu Cha Mtaani'), findsOneWidget);
     expect(
         find.text(
-            'Karibu kwenye jamii ya AJE Farms. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.'),
+            'Karibu kwenye jamii ya Chuo Kikuu Cha Mtaani. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.'),
         findsOneWidget);
 
     final postCard =

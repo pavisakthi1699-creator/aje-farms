@@ -1572,10 +1572,10 @@ export async function registerApiRoutes(app) {
               : 'Ripoti imepitiwa',
           body:
             action === 'hide'
-              ? 'Post yako imefichwa baada ya ukaguzi wa timu ya AJE.'
+              ? 'Post yako imefichwa baada ya ukaguzi wa timu ya Chuo Kikuu Cha Mtaani.'
               : action === 'restore'
-                ? 'Post yako imerejeshwa baada ya ukaguzi wa timu ya AJE.'
-              : 'Ripoti kuhusu post yako imepitiwa na timu ya AJE.',
+                ? 'Post yako imerejeshwa baada ya ukaguzi wa timu ya Chuo Kikuu Cha Mtaani.'
+              : 'Ripoti kuhusu post yako imepitiwa na timu ya Chuo Kikuu Cha Mtaani.',
           data: { postId: post.id, action },
         });
       }

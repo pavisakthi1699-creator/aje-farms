@@ -25,7 +25,8 @@ enum AccountAccessStatus {
   pending(
     icon: Icons.hourglass_empty,
     shortLabel: 'Inasubiri uthibitisho',
-    body: 'Umesajiliwa. Timu ya AJE Farms itathibitisha akaunti yako '
+    body:
+        'Umesajiliwa. Timu ya Chuo Kikuu Cha Mtaani itathibitisha akaunti yako '
         'ili kufungua mafunzo.',
   ),
 
@@ -33,7 +34,7 @@ enum AccountAccessStatus {
   suspended(
     icon: Icons.error_outline,
     shortLabel: 'Imesitishwa',
-    body: 'Wasiliana na timu ya AJE Farms kwa msaada.',
+    body: 'Wasiliana na timu ya Chuo Kikuu Cha Mtaani kwa msaada.',
   ),
 
   /// Verified by an admin; content is unlocked.

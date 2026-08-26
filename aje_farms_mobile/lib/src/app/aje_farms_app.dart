@@ -75,7 +75,7 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
                 });
               }
               return MaterialApp(
-                title: 'AJE Farms',
+                title: 'Chuo Kikuu Cha Mtaani',
                 debugShowCheckedModeBanner: false,
                 navigatorKey: AppNavigator.rootKey,
                 restorationScopeId: 'aje_farms_app',

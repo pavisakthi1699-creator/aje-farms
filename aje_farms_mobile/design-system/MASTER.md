@@ -1,4 +1,4 @@
-# AJE Farms Mobile — Design System (Master)
+# Chuo Kikuu Cha Mtaani Mobile — Design System (Master)
 
 Source of truth for UI work. Overrides generic ui-ux-pro-max script output (Baloo/Comic Neue is **not** used).
 

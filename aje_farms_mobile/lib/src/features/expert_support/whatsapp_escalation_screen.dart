@@ -11,7 +11,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
     defaultValue: '255743812853',
   );
   static const _message =
-      'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya AJE Farms.';
+      'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya Chuo Kikuu Cha Mtaani.';
 
   @override
   Widget build(BuildContext context) {

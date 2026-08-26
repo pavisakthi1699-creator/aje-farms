@@ -1155,7 +1155,7 @@ export class JsonStore {
     });
     transaction.status = 'paid';
     transaction.message = `Malipo yamethibitishwa kupitia ${transaction.method}.`;
-    transaction.receiptNumber = `AJE-${transaction.id.slice(-6).toUpperCase()}`;
+    transaction.receiptNumber = `CKM-${transaction.id.slice(-6).toUpperCase()}`;
     transaction.subscriptionPlan = user.subscriptionPlan;
     transaction.subscriptionStartedAt = user.subscriptionStartedAt;
     this.#saveAll();

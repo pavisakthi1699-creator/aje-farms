@@ -210,7 +210,10 @@ test('public privacy and account-deletion pages accept a support request', async
     const privacy = await fetch(`${baseUrl}/privacy`);
     assert.equal(privacy.status, 200);
     assert.match(privacy.headers.get('content-type'), /text\/html/);
-    assert.match(await privacy.text(), /Sera ya Faragha ya AJE Farms/);
+    assert.match(
+      await privacy.text(),
+      /Sera ya Faragha ya Chuo Kikuu Cha Mtaani/,
+    );
 
     const deletionPage = await fetch(`${baseUrl}/delete-account`);
     assert.equal(deletionPage.status, 200);

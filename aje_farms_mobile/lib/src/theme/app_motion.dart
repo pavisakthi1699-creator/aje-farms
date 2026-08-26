@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Motion constants aligned with the AJE Farms design system.
+/// Motion constants aligned with the Chuo Kikuu Cha Mtaani design system.
 class AppMotion {
   static const Duration quick = Duration(milliseconds: 140);
   static const Duration standard = Duration(milliseconds: 220);

@@ -202,7 +202,7 @@ void main() {
     expect(find.text('Akaunti yako inasubiri uthibitisho'), findsOneWidget);
     expect(
       find.text(
-        'Umesajiliwa. Timu ya AJE Farms itathibitisha akaunti yako '
+        'Umesajiliwa. Timu ya Chuo Kikuu Cha Mtaani itathibitisha akaunti yako '
         'ili kufungua mafunzo.',
       ),
       findsOneWidget,

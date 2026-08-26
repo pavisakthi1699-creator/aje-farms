@@ -403,7 +403,7 @@ class _DeepLinkMissingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AJE Farms')),
+      appBar: AppBar(title: const Text('Chuo Kikuu Cha Mtaani')),
       body: AppLayout(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),

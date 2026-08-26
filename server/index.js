@@ -12,5 +12,5 @@ app.use(express.json({ limit: '64kb' }));
 await registerApiRoutes(app);
 
 app.listen(port, () => {
-  console.log(`AJE Farms server listening on port ${port}`);
+  console.log(`Chuo Kikuu Cha Mtaani server listening on port ${port}`);
 });

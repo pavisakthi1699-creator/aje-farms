@@ -1,7 +1,7 @@
 name: aje_farms_mobile
-description: Native Flutter mobile app for AJE Farms learning, AI support, and farmer services.
+description: Native Flutter mobile app for Chuo Kikuu Cha Mtaani learning, AI support, and farmer services.
 publish_to: "none"
-version: 0.1.19+20
+version: 0.1.20+21
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -47,7 +47,7 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  image_path: "assets/branding/aje-farms-logo.png"
+  image_path: "assets/branding/chuo-kikuu-cha-mtaani-logo.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/branding/aje-farms-logo-adaptive-fg.png"
+  adaptive_icon_foreground: "assets/branding/chuo-kikuu-cha-mtaani-logo-adaptive-fg.png"
   min_sdk_android: 21

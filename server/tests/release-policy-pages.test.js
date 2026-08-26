@@ -33,7 +33,7 @@ test('release policy pages must be reachable public HTML', async () => {
 test('release policy pages pass when substantive HTML is available', async () => {
   const blockers = await verifyReleasePolicyPages(env, {
     fetchImpl: async (url) =>
-      new Response(`<html><body><h1>AJE Farms</h1>${
+      new Response(`<html><body><h1>Chuo Kikuu Cha Mtaani</h1>${
         url.includes('privacy')
           ? 'Sera ya Faragha'
           : 'Omba kufuta akaunti'
@@ -56,7 +56,7 @@ test('release policy verification rejects a generic HTML page', async () => {
   });
 
   assert.deepEqual(blockers, [
-    'AJE_PRIVACY_POLICY_URL does not contain the expected AJE Farms privacy policy page.',
-    'AJE_ACCOUNT_DELETION_URL does not contain the expected AJE Farms account deletion page.',
+    'AJE_PRIVACY_POLICY_URL does not contain the expected Chuo Kikuu Cha Mtaani privacy policy page.',
+    'AJE_ACCOUNT_DELETION_URL does not contain the expected Chuo Kikuu Cha Mtaani account deletion page.',
   ]);
 });

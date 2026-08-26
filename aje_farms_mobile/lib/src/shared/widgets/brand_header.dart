@@ -12,7 +12,7 @@ class BrandHeader extends StatelessWidget {
     final size = compact ? 40.0 : 48.0;
     return Semantics(
       header: !compact,
-      label: 'AJE Farms',
+      label: 'Chuo Kikuu Cha Mtaani',
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -29,7 +29,7 @@ class BrandHeader extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
           Flexible(
             child: Text(
-              'AJE Farms',
+              'Chuo Kikuu Cha Mtaani',
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(

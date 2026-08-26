@@ -1,6 +1,6 @@
-# AJE Farms Mobile
+# Chuo Kikuu Cha Mtaani Mobile
 
-Native Flutter Android app for the AJE Farms learner app.
+Native Flutter Android app for the Chuo Kikuu Cha Mtaani learner app.
 
 This app currently runs as a connected Flutter product:
 

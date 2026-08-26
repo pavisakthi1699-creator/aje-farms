@@ -24,7 +24,7 @@ void main() {
   test('seed community content is evergreen and not fabricated engagement', () {
     expect(repository.posts, hasLength(1));
     final post = repository.posts.single;
-    expect(post.author, 'Timu ya AJE Farms');
+    expect(post.author, 'Timu ya Chuo Kikuu Cha Mtaani');
     expect(post.likes, 0);
     expect(post.comments, 0);
     expect(post.replies, isEmpty);

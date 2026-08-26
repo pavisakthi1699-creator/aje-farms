@@ -130,7 +130,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
               Text(
                 isSuspended
                     ? 'Ukishasaidiwa na timu, ufikiaji wako utarudi hapa hapa.'
-                    : 'Mafunzo yatafunguka mara tu timu ya AJE Farms '
+                    : 'Mafunzo yatafunguka mara tu timu ya Chuo Kikuu Cha Mtaani '
                         'itakapothibitisha akaunti yako.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(

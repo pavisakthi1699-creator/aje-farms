@@ -314,7 +314,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             Center(
               child: Text(
-                'AJE Farms',
+                'Chuo Kikuu Cha Mtaani',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: context.colors.muted,
                     ),
@@ -541,7 +541,7 @@ String _profileInitials({
   if (address != null && address.isNotEmpty) {
     return address.substring(0, address.length >= 2 ? 2 : 1).toUpperCase();
   }
-  return signedIn ? 'MF' : 'AJE';
+  return signedIn ? 'MF' : 'CK';
 }
 
 class SavedDocumentsScreen extends StatelessWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// The official AJE Farms mark used in every in-app brand placement.
+/// The official Chuo Kikuu Cha Mtaani mark used in every brand placement.
 class BrandMark extends StatelessWidget {
   const BrandMark({
     super.key,
@@ -13,13 +13,13 @@ class BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       image: true,
-      label: 'Nembo ya AJE Farms',
+      label: 'Nembo ya Chuo Kikuu Cha Mtaani',
       child: SizedBox.square(
         dimension: size,
         child: ClipOval(
           child: Image.asset(
-            'assets/branding/aje-farms-logo.png',
-            fit: BoxFit.cover,
+            'assets/branding/chuo-kikuu-cha-mtaani-logo.png',
+            fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
           ),
         ),

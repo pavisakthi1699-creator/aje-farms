@@ -278,7 +278,7 @@ class CommunitySummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Jamii ya AJE Farms',
+                    'Jamii ya Chuo Kikuu Cha Mtaani',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),

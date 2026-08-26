@@ -194,11 +194,11 @@ export const catalog = {
   communityPosts: [
     {
       id: 'seed-community-guidelines',
-      author: 'Timu ya AJE Farms',
+      author: 'Timu ya Chuo Kikuu Cha Mtaani',
       location: 'Tanzania',
       time: 'Mwongozo wa jamii',
       content:
-        'Karibu kwenye jamii ya AJE Farms. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.',
+        'Karibu kwenye jamii ya Chuo Kikuu Cha Mtaani. Eleza hali uliyoiona, eneo na zao au mnyama. Usishiriki taarifa binafsi, na thibitisha ushauri wa dawa au chanjo na mtaalamu wa eneo lako.',
       likes: 0,
       comments: 0,
       tags: ['Jamii', 'Mwongozo'],

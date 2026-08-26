@@ -22,7 +22,7 @@ class DevelopmentNotificationProvider {
     if (devices.length === 0) return;
     if (process.env.NODE_ENV !== 'production') {
       console.log(
-        `[AJE notification] ${notification.userId}: ${notification.title}`,
+        `[CKM notification] ${notification.userId}: ${notification.title}`,
       );
     }
   }

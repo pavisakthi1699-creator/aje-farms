@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="AJE Farms"
+        android:label="Chuo Kikuu Cha Mtaani"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
@@ -48,7 +48,7 @@
                 <data android:scheme="ajefarms" android:host="login-callback"/>
             </intent-filter>
             <!-- Verified HTTPS callbacks prevent another Android app from
-                 claiming AJE Farms authentication and password-reset links. -->
+                 claiming Chuo Kikuu Cha Mtaani authentication and password-reset links. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

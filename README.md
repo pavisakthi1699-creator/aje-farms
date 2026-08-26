@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
 </div>
 
-# AJE Farms API and Native Android App
+# Chuo Kikuu Cha Mtaani API and Native Android App
 
 The customer product is the native Flutter Android app in `aje_farms_mobile/`.
 This repository's Node service is its API; it does not host a web client.

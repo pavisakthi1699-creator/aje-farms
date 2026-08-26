@@ -64,8 +64,8 @@ class PaywallScreenState extends State<PaywallScreen> {
           children: [
             Text(
               isSuspended
-                  ? 'Uanachama wako umesitishwa. Wasiliana na timu ya AJE Farms kwa msaada.'
-                  : 'Timu ya AJE Farms bado inakagua na kuandaa ufikiaji wa akaunti yako.',
+                  ? 'Uanachama wako umesitishwa. Wasiliana na timu ya Chuo Kikuu Cha Mtaani kwa msaada.'
+                  : 'Timu ya Chuo Kikuu Cha Mtaani bado inakagua na kuandaa ufikiaji wa akaunti yako.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),

@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const ANDROID_APPLICATION_ID = 'com.ajefarms.mobile';
+export const ANDROID_APPLICATION_LABEL = 'Chuo Kikuu Cha Mtaani';
 export const ANDROID_LAUNCH_ACTIVITY =
   'com.ajefarms.mobile.MainActivity';
 export const PRODUCTION_API_BASE_URL =
@@ -41,7 +42,16 @@ export function validateAndroidArtifactMetadata({ entries, badging }) {
     !badging.includes(`package: name='${ANDROID_APPLICATION_ID}'`)
   ) {
     errors.push(
-      `Expected package ${ANDROID_APPLICATION_ID}; this is not the AJE Farms Flutter application.`,
+      `Expected package ${ANDROID_APPLICATION_ID}; this is not the Chuo Kikuu Cha Mtaani Flutter application.`,
+    );
+  }
+  if (
+    !badging.includes(
+      `application-label:'${ANDROID_APPLICATION_LABEL}'`,
+    )
+  ) {
+    errors.push(
+      `Expected application label ${ANDROID_APPLICATION_LABEL}.`,
     );
   }
   if (
@@ -63,6 +73,14 @@ export function validateAndroidArtifactMetadata({ entries, badging }) {
   }
   if (!entrySet.has('assets/flutter_assets/AssetManifest.bin')) {
     errors.push('Flutter asset manifest is missing.');
+  }
+
+  const launcherIcon = extractBadgingValue(
+    badging,
+    /application:\s+label='[^']*'\s+icon='([^']+)'/,
+  );
+  if (!launcherIcon || !entrySet.has(launcherIcon)) {
+    errors.push('Packaged Android launcher icon is missing.');
   }
 
   const wrapperAsset = entries.find(
@@ -118,6 +136,14 @@ export function validateAndroidApk(
     ...result,
     apkPath,
     packageName: extractBadgingValue(badging, /package: name='([^']+)'/),
+    applicationLabel: extractBadgingValue(
+      badging,
+      /application-label:'([^']+)'/,
+    ),
+    launcherIcon: extractBadgingValue(
+      badging,
+      /application:\s+label='[^']*'\s+icon='([^']+)'/,
+    ),
     launchActivity: extractBadgingValue(
       badging,
       /launchable-activity: name='([^']+)'/,

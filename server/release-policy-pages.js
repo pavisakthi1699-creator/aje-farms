@@ -25,9 +25,9 @@ export async function verifyReleasePolicyPages(
         blockers.push(`${envName} must serve a public HTML ${label} page.`);
       } else if (body.trim().length < 100) {
         blockers.push(`${envName} returned an empty or incomplete ${label} page.`);
-      } else if (!body.includes('AJE Farms') || !body.includes(marker)) {
+      } else if (!body.includes('Chuo Kikuu Cha Mtaani') || !body.includes(marker)) {
         blockers.push(
-          `${envName} does not contain the expected AJE Farms ${label} page.`,
+          `${envName} does not contain the expected Chuo Kikuu Cha Mtaani ${label} page.`,
         );
       }
     } catch {

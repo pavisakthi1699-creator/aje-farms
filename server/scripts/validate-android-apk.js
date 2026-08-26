@@ -20,6 +20,8 @@ try {
     console.log('Android APK validation passed.');
     console.log(`- APK: ${result.apkPath}`);
     console.log(`- Package: ${result.packageName}`);
+    console.log(`- Label: ${result.applicationLabel}`);
+    console.log(`- Launcher icon: ${result.launcherIcon}`);
     console.log(`- Activity: ${result.launchActivity}`);
     console.log('- Runtime: Flutter native');
   }

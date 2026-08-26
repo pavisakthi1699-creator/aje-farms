@@ -1,11 +1,11 @@
 {
-    "name": "AJE Farms",
-    "short_name": "AJE Farms",
+    "name": "Chuo Kikuu Cha Mtaani",
+    "short_name": "Chuo Mtaani",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F4F7F6",
     "theme_color": "#1C4D32",
-    "description": "AJE Farms learning, AI support, and farmer services.",
+    "description": "Chuo Kikuu Cha Mtaani learning, AI support, and farmer services.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

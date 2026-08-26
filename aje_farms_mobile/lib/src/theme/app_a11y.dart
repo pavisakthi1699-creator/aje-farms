@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_color_scheme.dart';
 
-/// Accessibility constants aligned with the AJE Farms design system.
+/// Accessibility constants aligned with the Chuo Kikuu Cha Mtaani design system.
 class AppA11y {
   static const double minTouchTarget = 48;
   static const double minReadableLabel = 12;

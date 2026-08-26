@@ -81,7 +81,7 @@ class AiChatScreenState extends State<AiChatScreen> {
       'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au '
       'wasiliana na mtaalamu.';
   static const _pendingVerificationReply =
-      'Mwalimu AI itapatikana baada ya timu ya AJE Farms kuthibitisha akaunti '
+      'Mwalimu AI itapatikana baada ya timu ya Chuo Kikuu Cha Mtaani kuthibitisha akaunti '
       'yako. Tunakujulisha mara akaunti yako itakapowashwa.';
 
   Future<void> _send([String? value]) async {

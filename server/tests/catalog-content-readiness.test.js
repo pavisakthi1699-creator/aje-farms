@@ -66,7 +66,7 @@ test('high-risk, unreviewed, and incomplete imported courses stay hidden', () =>
 test('built-in community contains only evergreen official guidance', () => {
   assert.equal(catalog.communityPosts.length, 1);
   const post = catalog.communityPosts[0];
-  assert.equal(post.author, 'Timu ya AJE Farms');
+  assert.equal(post.author, 'Timu ya Chuo Kikuu Cha Mtaani');
   assert.equal(post.likes, 0);
   assert.equal(post.comments, 0);
   assert.deepEqual(post.replies, []);

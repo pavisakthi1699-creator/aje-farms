@@ -3281,7 +3281,7 @@ export class PostgresStore {
         userId: transaction.userId,
         planTitle: transaction.planTitle,
       });
-      const receiptNumber = `AJE-${transaction.id.slice(-6).toUpperCase()}`;
+      const receiptNumber = `CKM-${transaction.id.slice(-6).toUpperCase()}`;
       const message = `Malipo yamethibitishwa kupitia ${transaction.method}.`;
       const updated = await client.query(
         `UPDATE payment_transactions
@@ -3758,6 +3758,13 @@ export class PostgresStore {
           replies: post.replies ?? [],
         },
         new Date(Date.now() - (index + 1) * 60 * 1000),
+      );
+      await this.pool.query(
+        `UPDATE community_posts
+         SET author = $2, content = $3
+         WHERE id = $1
+           AND author IN ('Timu ya AJE Farms', $2)`,
+        [post.id, post.author, post.content],
       );
       for (const [replyIndex, reply] of (post.replies ?? []).entries()) {
         await this.pool.query(

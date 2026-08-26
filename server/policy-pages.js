@@ -23,8 +23,8 @@ function contactEmail() {
 function layout(title, body) {
   return `<!doctype html>
 <html lang="sw"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title} | AJE Farms</title><style>${pageStyle}</style></head>
-<body><main><p><a href="/">AJE Farms</a></p>${body}</main></body></html>`;
+<title>${title} | Chuo Kikuu Cha Mtaani</title><style>${pageStyle}</style></head>
+<body><main><p><a href="/">Chuo Kikuu Cha Mtaani</a></p>${body}</main></body></html>`;
 }
 
 export function installPolicyRoutes(app, store) {
@@ -56,8 +56,8 @@ export function installPolicyRoutes(app, store) {
   const authLinkFallback = (_req, res) => {
     res.type('html').send(
       layout(
-        'Fungua AJE Farms',
-        '<h1>Fungua AJE Farms</h1><div class="card"><p>Kiungo hiki kinakamilishwa ndani ya programu ya AJE Farms. Sakinisha au fungua programu kisha ujaribu tena.</p></div>',
+        'Fungua Chuo Kikuu Cha Mtaani',
+        '<h1>Fungua Chuo Kikuu Cha Mtaani</h1><div class="card"><p>Kiungo hiki kinakamilishwa ndani ya programu ya Chuo Kikuu Cha Mtaani. Sakinisha au fungua programu kisha ujaribu tena.</p></div>',
       ),
     );
   };
@@ -66,7 +66,7 @@ export function installPolicyRoutes(app, store) {
 
   app.get('/privacy', (_req, res) => {
     res.type('html').send(layout('Sera ya Faragha', `
-      <h1>Sera ya Faragha ya AJE Farms</h1>
+      <h1>Sera ya Faragha ya Chuo Kikuu Cha Mtaani</h1>
       <p class="muted">Ilisasishwa tarehe 11 Agosti 2026</p>
       <div class="card">
         <h2>Taarifa tunazokusanya</h2>
@@ -84,7 +84,7 @@ export function installPolicyRoutes(app, store) {
 
   app.get('/delete-account', (_req, res) => {
     res.type('html').send(layout('Futa Akaunti', `
-      <h1>Omba kufuta akaunti ya AJE Farms</h1>
+      <h1>Omba kufuta akaunti ya Chuo Kikuu Cha Mtaani</h1>
       <p>Ukiweza kuingia kwenye programu, nenda <strong>Akaunti → Futa akaunti na data</strong> kwa ufutaji wa moja kwa moja.</p>
       <div class="card">
         <p>Kama huwezi kuingia, tuma ombi hapa. Timu itathibitisha umiliki wa akaunti kabla ya kukamilisha ufutaji. Usitume nenosiri lako.</p>
@@ -102,10 +102,10 @@ export function installPolicyRoutes(app, store) {
 
   app.get('/terms', (_req, res) => {
     res.type('html').send(layout('Masharti ya Matumizi', `
-      <h1>Masharti ya Matumizi ya AJE Farms</h1>
+      <h1>Masharti ya Matumizi ya Chuo Kikuu Cha Mtaani</h1>
       <p class="muted">Toleo la 11 Agosti 2026</p>
       <div class="card">
-        <p>Kwa kutumia AJE Farms unakubali kutumia huduma kwa njia halali, kuheshimu watumiaji wengine, na kutoweka maudhui yanayodhuru, kudanganya, kutishia au kukiuka faragha.</p>
+        <p>Kwa kutumia Chuo Kikuu Cha Mtaani unakubali kutumia huduma kwa njia halali, kuheshimu watumiaji wengine, na kutoweka maudhui yanayodhuru, kudanganya, kutishia au kukiuka faragha.</p>
         <h2>Elimu, si ushauri wa dharura</h2>
         <p>Masomo na majibu ya Mwalimu AI ni taarifa za elimu. Thibitisha maamuzi ya afya, dawa, kemikali, fedha au usalama na mtaalamu anayefaa.</p>
         <h2>Akaunti na maudhui</h2>
@@ -118,7 +118,7 @@ export function installPolicyRoutes(app, store) {
 
   app.get('/community-guidelines', (_req, res) => {
     res.type('html').send(layout('Mwongozo wa Jamii', `
-      <h1>Mwongozo wa Jamii ya AJE Farms</h1>
+      <h1>Mwongozo wa Jamii ya Chuo Kikuu Cha Mtaani</h1>
       <div class="card">
         <h2>Shiriki kwa heshima na usalama</h2>
         <ul><li>Usitishie, kunyanyasa au kushambulia watu au makundi.</li><li>Usiweke ponografia, vurugu kali, chuki au unyonyaji wa watoto.</li><li>Usiweke taarifa binafsi za mtu bila ruhusa.</li><li>Usisambaze ulaghai, spam, dawa au maagizo hatari yasiyothibitishwa.</li><li>Eleza uzoefu wako kwa uaminifu na taja chanzo inapowezekana.</li></ul>
@@ -146,5 +146,5 @@ export function installPolicyRoutes(app, store) {
 function successPage() {
   return layout('Ombi limepokelewa', `
     <h1>Ombi limepokelewa</h1>
-    <div class="card"><p>Kama barua pepe hiyo ina akaunti ya AJE Farms, timu itawasiliana nawe kuthibitisha umiliki na kukamilisha ufutaji.</p><p><a href="/privacy">Soma Sera ya Faragha</a></p></div>`);
+    <div class="card"><p>Kama barua pepe hiyo ina akaunti ya Chuo Kikuu Cha Mtaani, timu itawasiliana nawe kuthibitisha umiliki na kukamilisha ufutaji.</p><p><a href="/privacy">Soma Sera ya Faragha</a></p></div>`);
 }
