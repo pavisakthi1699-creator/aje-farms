@@ -24,6 +24,11 @@ class AppTextField extends StatelessWidget {
     this.autofillHints,
     this.textCapitalization = TextCapitalization.none,
     this.suffixIcon,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.smartDashesType,
+    this.smartQuotesType,
+    this.enableIMEPersonalizedLearning = true,
   });
 
   final TextEditingController controller;
@@ -53,6 +58,11 @@ class AppTextField extends StatelessWidget {
   final Iterable<String>? autofillHints;
   final TextCapitalization textCapitalization;
   final Widget? suffixIcon;
+  final bool autocorrect;
+  final bool enableSuggestions;
+  final SmartDashesType? smartDashesType;
+  final SmartQuotesType? smartQuotesType;
+  final bool enableIMEPersonalizedLearning;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +77,11 @@ class AppTextField extends StatelessWidget {
       onSubmitted: onSubmitted,
       onChanged: onChanged,
       obscureText: obscureText,
+      autocorrect: autocorrect,
+      enableSuggestions: enableSuggestions,
+      smartDashesType: smartDashesType,
+      smartQuotesType: smartQuotesType,
+      enableIMEPersonalizedLearning: enableIMEPersonalizedLearning,
       minLines: minLines,
       maxLines: maxLines,
       enabled: enabled,

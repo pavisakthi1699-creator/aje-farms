@@ -23,6 +23,7 @@ class AuthScreenState extends State<AuthScreen> {
   final _passwordFocus = FocusNode();
   _AuthMode _mode = _AuthMode.signIn;
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _emailError;
   String? _passwordError;
   String? _termsError;
@@ -238,7 +239,7 @@ class AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
       showSuccessSnack(
         context,
-        'Tumeuma barua pepe yenye maelekezo ya kubadilisha nenosiri.',
+        'Tumetuma barua pepe yenye maelekezo ya kubadilisha nenosiri.',
       );
     } on AuthException catch (error) {
       if (!mounted) return;
@@ -294,6 +295,7 @@ class AuthScreenState extends State<AuthScreen> {
                           _emailError = null;
                           _passwordError = null;
                           _termsError = null;
+                          _obscurePassword = true;
                         });
                       },
               ),
@@ -317,7 +319,24 @@ class AuthScreenState extends State<AuthScreen> {
                 controller: _passwordController,
                 focusNode: _passwordFocus,
                 labelText: 'Nenosiri',
-                obscureText: true,
+                obscureText: _obscurePassword,
+                autocorrect: false,
+                enableSuggestions: false,
+                smartDashesType: SmartDashesType.disabled,
+                smartQuotesType: SmartQuotesType.disabled,
+                enableIMEPersonalizedLearning: false,
+                suffixIcon: IconButton(
+                  tooltip:
+                      _obscurePassword ? 'Onyesha nenosiri' : 'Ficha nenosiri',
+                  onPressed: () => setState(
+                    () => _obscurePassword = !_obscurePassword,
+                  ),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                ),
                 textInputAction: TextInputAction.done,
                 autofillHints: [
                   isSignUp ? AutofillHints.newPassword : AutofillHints.password,

@@ -625,7 +625,12 @@ void main() {
     await tester.pumpWidget(buildDemoApp());
     await startDemoShell(tester);
 
-    await tester.ensureVisible(find.text('Matunda na Mbogamboga'));
+    await tester.scrollUntilVisible(
+      find.text('Matunda na Mbogamboga'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Matunda na Mbogamboga'));
     await tester.pumpAndSettle();
 

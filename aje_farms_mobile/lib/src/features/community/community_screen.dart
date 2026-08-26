@@ -77,9 +77,8 @@ class CommunityScreenState extends State<CommunityScreen> {
                 title: 'Kubali usalama wa jamii',
                 body:
                     'Kabla ya kuchapisha au kujibu, soma Masharti ya Matumizi na Mwongozo wa Jamii. Usichapishe vitisho, chuki, spam, taarifa binafsi au ushauri hatari.',
-                actionLabel: _isAcceptingTerms
-                    ? 'Inahifadhi...'
-                    : 'Nakubali na Kuendelea',
+                actionLabel:
+                    _isAcceptingTerms ? 'Inahifadhi…' : 'Nakubali na Kuendelea',
                 onAction: _isAcceptingTerms ? null : _acceptTerms,
               ),
               if (privacyPolicyUrl.isNotEmpty) ...[
@@ -203,7 +202,9 @@ class CommunityScreenState extends State<CommunityScreen> {
                           AppSpacing.xl,
                         ),
                         listItemSpacing: AppSpacing.lg,
-                        gridMainAxisExtent: 300,
+                        gridMainAxisExtent: 304,
+                        forceList:
+                            MediaQuery.textScalerOf(context).scale(1) > 1.3,
                         itemCount: posts.length,
                         itemBuilder: (context, index) {
                           final post = posts[index];
@@ -464,7 +465,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       bottomNavigationBar: ChatComposerBar(
         controller: _replyController,
         isLoading: _isSendingReply,
-        hintText: 'Andika jibu la kusaidia...',
+        hintText: 'Andika jibu la kusaidia…',
         sendButtonKey: const ValueKey('community-send-reply'),
         onSend: _sendReply,
       ),
@@ -675,7 +676,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               controller: _contentController,
               focusNode: _contentFocus,
               labelText: 'Swali au changamoto',
-              hintText: 'Mfano: Majani ya nyanya yana madoa ya njano...',
+              hintText: 'Mfano: Majani ya nyanya yana madoa ya njano…',
               minLines: 4,
               maxLines: 7,
               enabled: !_isSubmitting,
@@ -784,7 +785,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send),
-              label: Text(_isSubmitting ? 'Inatuma...' : 'Tuma kwenye Jamii'),
+              label: Text(_isSubmitting ? 'Inatuma…' : 'Tuma kwenye Jamii'),
             ),
           ],
         ),

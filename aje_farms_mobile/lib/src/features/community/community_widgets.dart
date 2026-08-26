@@ -150,13 +150,14 @@ class CommunityPostCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                Row(
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.xs,
                   children: [
                     Text(
                       '${post.likes} wamependa',
                       style: accessibleCaption(context),
                     ),
-                    const SizedBox(width: AppSpacing.md),
                     Text(
                       '${post.comments} majibu',
                       style: accessibleCaption(context),

@@ -12,6 +12,7 @@ class AdaptiveCatalogSliver extends StatelessWidget {
     this.listItemSpacing = AppSpacing.xl,
     this.gridMaxCrossAxisExtent = 360,
     this.gridMainAxisExtent = 480,
+    this.forceList = false,
     super.key,
   });
 
@@ -21,10 +22,11 @@ class AdaptiveCatalogSliver extends StatelessWidget {
   final double listItemSpacing;
   final double gridMaxCrossAxisExtent;
   final double gridMainAxisExtent;
+  final bool forceList;
 
   @override
   Widget build(BuildContext context) {
-    final useGrid = AppBreakpoints.isExpanded(context);
+    final useGrid = AppBreakpoints.isExpanded(context) && !forceList;
 
     return SliverPadding(
       padding: padding,

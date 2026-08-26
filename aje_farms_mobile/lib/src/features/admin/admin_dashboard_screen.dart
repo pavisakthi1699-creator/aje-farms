@@ -1373,7 +1373,7 @@ class _LessonVideoField extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
-                'Inapakia video... usifunge ukurasa huu.',
+                'Inapakia video… usifunge ukurasa huu.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1843,7 +1843,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                     icon: const Icon(Icons.edit_outlined),
                     label: Text(
                       _savingHomeTopics
-                          ? 'Inahifadhi...'
+                          ? 'Inahifadhi…'
                           : 'Hariri mada za utafutaji',
                     ),
                   ),
@@ -2059,7 +2059,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                     icon: const Icon(Icons.forum_outlined),
                     label: Text(
                       _savingCommunityTopics
-                          ? 'Inahifadhi...'
+                          ? 'Inahifadhi…'
                           : 'Hariri mada za jamii',
                     ),
                   ),

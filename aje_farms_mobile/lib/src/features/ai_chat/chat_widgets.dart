@@ -350,7 +350,7 @@ class TypingBubble extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.md),
             Text(
-              'Mwalimu AI anaandika...',
+              'Mwalimu AI anaandika…',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.colors.muted,
                     fontWeight: FontWeight.w600,

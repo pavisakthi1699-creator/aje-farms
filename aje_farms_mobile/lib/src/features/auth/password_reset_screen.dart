@@ -13,6 +13,8 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _saving = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmation = true;
   String? _error;
 
   @override
@@ -74,14 +76,50 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                 AppTextField(
                     controller: _passwordController,
                     labelText: 'Nenosiri jipya',
-                    obscureText: true,
+                    obscureText: _obscurePassword,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    smartDashesType: SmartDashesType.disabled,
+                    smartQuotesType: SmartQuotesType.disabled,
+                    enableIMEPersonalizedLearning: false,
+                    suffixIcon: IconButton(
+                      tooltip: _obscurePassword
+                          ? 'Onyesha nenosiri jipya'
+                          : 'Ficha nenosiri jipya',
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
+                      ),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
                     autofillHints: const [AutofillHints.newPassword],
                     errorText: _error),
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                     controller: _confirmController,
                     labelText: 'Rudia nenosiri',
-                    obscureText: true,
+                    obscureText: _obscureConfirmation,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    smartDashesType: SmartDashesType.disabled,
+                    smartQuotesType: SmartQuotesType.disabled,
+                    enableIMEPersonalizedLearning: false,
+                    suffixIcon: IconButton(
+                      tooltip: _obscureConfirmation
+                          ? 'Onyesha nenosiri lililorudiwa'
+                          : 'Ficha nenosiri lililorudiwa',
+                      onPressed: () => setState(
+                        () => _obscureConfirmation = !_obscureConfirmation,
+                      ),
+                      icon: Icon(
+                        _obscureConfirmation
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.newPassword],
                     onSubmitted: (_) => _save()),

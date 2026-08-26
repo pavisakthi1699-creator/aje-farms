@@ -112,13 +112,13 @@ class AppTheme {
       ),
       bodyLarge: TextStyle(
         color: colors.textSecondary,
-        fontSize: 15,
+        fontSize: 16,
         height: 1.45,
         fontWeight: FontWeight.w500,
       ),
       bodyMedium: TextStyle(
         color: colors.textPrimary,
-        fontSize: 15,
+        fontSize: 16,
         height: 1.45,
         fontWeight: FontWeight.w500,
       ),

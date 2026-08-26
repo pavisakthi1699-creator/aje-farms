@@ -603,9 +603,7 @@ class _SourceBookLinkState extends State<_SourceBookLink> {
                     ),
                     if (isReading)
                       Text(
-                        _isOpening
-                            ? 'Inaandaa kitabu...'
-                            : 'Soma kitabu kizima',
+                        _isOpening ? 'Inaandaa kitabu…' : 'Soma kitabu kizima',
                         style:
                             Theme.of(context).textTheme.labelMedium?.copyWith(
                                   color: context.colors.primary,

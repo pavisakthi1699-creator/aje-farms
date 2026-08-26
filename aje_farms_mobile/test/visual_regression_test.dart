@@ -20,6 +20,7 @@ void main() {
         child: AppSessionScope(
           controller: AppSessionController(),
           child: MaterialApp(
+            debugShowCheckedModeBanner: false,
             theme: AppTheme.light(useBrandFont: false),
             home: const OnboardingScreen(),
           ),
@@ -44,6 +45,7 @@ void main() {
         child: AppSessionScope(
           controller: session,
           child: MaterialApp(
+            debugShowCheckedModeBanner: false,
             theme: AppTheme.light(useBrandFont: false),
             home: const MainShell(),
           ),
@@ -68,6 +70,7 @@ void main() {
         child: AppSessionScope(
           controller: session,
           child: MaterialApp(
+            debugShowCheckedModeBanner: false,
             theme: AppTheme.dark(useBrandFont: false),
             home: const MainShell(),
           ),
@@ -94,6 +97,7 @@ void main() {
           child: AppSessionScope(
             controller: session,
             child: MaterialApp(
+              debugShowCheckedModeBanner: false,
               theme: AppTheme.light(useBrandFont: false),
               home: const MainShell(),
             ),

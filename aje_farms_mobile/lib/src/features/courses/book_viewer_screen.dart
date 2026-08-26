@@ -117,7 +117,7 @@ class _BookViewerScreenState extends State<BookViewerScreen> {
                 children: [
                   CircularProgressIndicator(value: progress),
                   const SizedBox(height: AppSpacing.md),
-                  const Text('Inapakia kurasa za kitabu...'),
+                  const Text('Inapakia kurasa za kitabu…'),
                 ],
               ),
             ),
@@ -209,7 +209,7 @@ class _BookLoadError extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(isRetrying ? 'Inajaribu tena...' : 'Jaribu tena'),
+                label: Text(isRetrying ? 'Inajaribu tena…' : 'Jaribu tena'),
               ),
             ],
             if (onOpenExternally != null) ...[

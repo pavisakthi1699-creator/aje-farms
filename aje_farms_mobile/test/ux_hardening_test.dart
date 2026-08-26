@@ -384,6 +384,11 @@ void main() {
 
       expect(find.text('Maelezo ya kozi'), findsOneWidget);
       expect(find.text('Sehemu na masomo'), findsOneWidget);
+      await tester.drag(
+        find.byType(Scrollable).first,
+        const Offset(0, -250),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Kuandaa kitalu'), findsAtLeastNWidgets(1));
 
       expect(find.text('Jina la sehemu'), findsOneWidget);

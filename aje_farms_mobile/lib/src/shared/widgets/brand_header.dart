@@ -13,6 +13,7 @@ class BrandHeader extends StatelessWidget {
     return Semantics(
       header: !compact,
       label: 'Chuo Kikuu Cha Mtaani',
+      excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

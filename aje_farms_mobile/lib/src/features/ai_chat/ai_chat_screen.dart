@@ -241,7 +241,7 @@ class AiChatScreenState extends State<AiChatScreen> {
             child: ChatComposerBar(
               controller: _controller,
               isLoading: _isLoading,
-              hintText: 'Uliza ushauri kuhusu kilimo...',
+              hintText: 'Uliza ushauri kuhusu kilimo…',
               onSend: _send,
             ),
           ),

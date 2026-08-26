@@ -446,6 +446,11 @@ void main() {
 
       // The upload is surfaced, and the paste-a-link field steps aside so the
       // two sources cannot disagree.
+      await tester.drag(
+        find.byType(Scrollable).first,
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Video imepakiwa'), findsOneWidget);
       expect(find.text('vid-existing.mp4'), findsOneWidget);
 

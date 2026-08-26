@@ -12,7 +12,7 @@ class ChatComposerBar extends StatelessWidget {
   const ChatComposerBar({
     required this.controller,
     required this.onSend,
-    this.hintText = 'Andika ujumbe...',
+    this.hintText = 'Andika ujumbe…',
     this.isLoading = false,
     this.sendButtonKey,
     super.key,
