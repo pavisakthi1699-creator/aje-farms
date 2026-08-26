@@ -75,6 +75,18 @@ async function putJson(baseUrl, path, body, headers = {}) {
   return { response, payload };
 }
 
+async function deleteJson(baseUrl, path, headers = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+  });
+  const payload = await response.json();
+  return { response, payload };
+}
+
 async function getJson(baseUrl, path, headers = {}) {
   const response = await fetch(`${baseUrl}${path}`, { headers });
   const payload = await response.json();
@@ -1100,6 +1112,20 @@ test('admin content courses can be drafted and published into catalog', async ()
       catalogAfterPublish.payload.courses.find((course) => course.id === 'pasheni')
         .title,
       'Kilimo cha Pasheni Kilichochapishwa',
+    );
+
+    const deleted = await deleteJson(
+      baseUrl,
+      '/api/admin/content/courses/pasheni',
+      adminHeaders,
+    );
+    assert.equal(deleted.response.status, 200);
+    assert.equal(deleted.payload.deleted, true);
+
+    const catalogAfterDelete = await getJson(baseUrl, '/api/catalog', adminHeaders);
+    assert.equal(
+      catalogAfterDelete.payload.courses.some((course) => course.id === 'pasheni'),
+      false,
     );
   });
 });

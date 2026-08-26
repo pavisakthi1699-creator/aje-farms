@@ -1,5 +1,7 @@
 // ignore_for_file: use_key_in_widget_constructors
 
+import 'dart:async';
+
 import 'package:image_picker/image_picker.dart';
 
 import "../../ui.dart";
@@ -377,18 +379,24 @@ Future<String?> _pickContentMedia(BuildContext context,
     return null;
   }
   try {
-    final bytes = await file.readAsBytes();
+    final length = await file.length();
     if (!context.mounted) return null;
-    if (bytes.lengthInBytes > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
+    if (length > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
       throw const AdminException('Faili ni kubwa mno.');
     }
     return await adminService.uploadContentMedia(
-      bytes: bytes,
+      stream: file.openRead(),
+      contentLength: length,
       contentType: contentType,
       kind: video ? 'video' : 'image',
     );
   } on AdminException catch (error) {
     if (context.mounted) showErrorSnack(context, error.message);
+    return null;
+  } catch (_) {
+    if (context.mounted) {
+      showErrorSnack(context, 'Imeshindikana kupakia media. Jaribu tena.');
+    }
     return null;
   }
 }
@@ -429,8 +437,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   late String _introVideoUrl;
   late DateTime _baseUpdatedAt;
   late List<_LessonDraft> _lessons;
+  late AdminService _adminService;
   final Set<Key> _uploadingVideoKeys = {};
+  final Set<String> _pendingVideoPaths = {};
+  final Set<String> _pendingPreviewUrls = {};
   bool _uploadingPreviewMedia = false;
+  bool _submitted = false;
   bool _showValidation = false;
 
   @override
@@ -447,6 +459,29 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       for (final lesson in record.course.lessons)
         _LessonDraft.fromLesson(lesson),
     ];
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _adminService = context.dependencies.adminService;
+  }
+
+  @override
+  void dispose() {
+    if (!_submitted) {
+      for (final path in _pendingVideoPaths) {
+        unawaited(_adminService
+            .deleteUploadedMedia(videoPath: path)
+            .catchError((_) {}));
+      }
+      for (final url in _pendingPreviewUrls) {
+        unawaited(_adminService
+            .deleteUploadedMedia(publicUrl: url)
+            .catchError((_) {}));
+      }
+    }
+    super.dispose();
   }
 
   void _addLesson({bool newSection = false}) {
@@ -498,6 +533,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     );
     if (confirmed != true || !mounted) return;
     AppFeedback.tap();
+    final path = lesson.videoPath;
+    if (path != null && _pendingVideoPaths.remove(path)) {
+      unawaited(_adminService
+          .deleteUploadedMedia(videoPath: path)
+          .catchError((_) {}));
+    }
     setState(() => _lessons.removeAt(index));
   }
 
@@ -522,9 +563,9 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
 
     setState(() => _uploadingVideoKeys.add(lesson.key));
     try {
-      final bytes = await picked.readAsBytes();
+      final length = await picked.length();
       if (!mounted) return;
-      if (bytes.lengthInBytes > _maxVideoBytes) {
+      if (length > _maxVideoBytes) {
         if (!mounted) return;
         showErrorSnack(
           context,
@@ -533,12 +574,25 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         return;
       }
       final videoPath = await adminService.uploadLessonVideo(
-        bytes: bytes,
+        stream: picked.openRead(),
+        contentLength: length,
         contentType: contentType,
       );
-      if (!mounted) return;
+      if (!mounted) {
+        unawaited(adminService
+            .deleteUploadedMedia(videoPath: videoPath)
+            .catchError((_) {}));
+        return;
+      }
       setState(() {
+        final replacedPath = lesson.videoPath;
+        if (replacedPath != null && _pendingVideoPaths.remove(replacedPath)) {
+          unawaited(adminService
+              .deleteUploadedMedia(videoPath: replacedPath)
+              .catchError((_) {}));
+        }
         lesson.videoPath = videoPath;
+        _pendingVideoPaths.add(videoPath);
         // An upload supersedes any pasted link so the two can never disagree.
         lesson.videoUrl = '';
         lesson.type = LessonType.video;
@@ -581,22 +635,41 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     }
     setState(() => _uploadingPreviewMedia = true);
     try {
-      final bytes = await picked.readAsBytes();
-      if (bytes.lengthInBytes > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
+      final length = await picked.length();
+      if (length > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
         throw const AdminException('Faili ni kubwa mno kwa preview hii.');
       }
       final url = await adminService.uploadContentMedia(
-        bytes: bytes,
+        stream: picked.openRead(),
+        contentLength: length,
         contentType: contentType,
         kind: video ? 'video' : 'image',
       );
-      if (!mounted) return;
+      if (!mounted) {
+        unawaited(adminService
+            .deleteUploadedMedia(publicUrl: url)
+            .catchError((_) {}));
+        return;
+      }
       setState(() {
         if (video) {
+          final replacedUrl = _introVideoUrl;
+          if (_pendingPreviewUrls.remove(replacedUrl)) {
+            unawaited(adminService
+                .deleteUploadedMedia(publicUrl: replacedUrl)
+                .catchError((_) {}));
+          }
           _introVideoUrl = url;
         } else {
+          final replacedUrl = _imageUrl;
+          if (_pendingPreviewUrls.remove(replacedUrl)) {
+            unawaited(adminService
+                .deleteUploadedMedia(publicUrl: replacedUrl)
+                .catchError((_) {}));
+          }
           _imageUrl = url;
         }
+        _pendingPreviewUrls.add(url);
       });
       showSuccessSnack(
           context,
@@ -605,6 +678,10 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
               : 'Picha ya jalada imepakiwa.');
     } on AdminException catch (error) {
       if (mounted) showErrorSnack(context, error.message);
+    } catch (_) {
+      if (mounted) {
+        showErrorSnack(context, 'Imeshindikana kupakia media. Jaribu tena.');
+      }
     } finally {
       if (mounted) setState(() => _uploadingPreviewMedia = false);
     }
@@ -612,14 +689,38 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
 
   void _removeLessonVideo(int index) {
     AppFeedback.tap();
+    final path = _lessons[index].videoPath;
+    if (path != null && _pendingVideoPaths.remove(path)) {
+      unawaited(_adminService
+          .deleteUploadedMedia(videoPath: path)
+          .catchError((_) {}));
+    }
     setState(() => _lessons[index].videoPath = null);
   }
 
+  void _removeIntroVideo() {
+    final url = _introVideoUrl;
+    if (_pendingPreviewUrls.remove(url)) {
+      unawaited(
+          _adminService.deleteUploadedMedia(publicUrl: url).catchError((_) {}));
+    }
+    setState(() => _introVideoUrl = '');
+  }
+
+  void _resetCoverImage() {
+    final url = _imageUrl;
+    if (_pendingPreviewUrls.remove(url)) {
+      unawaited(
+          _adminService.deleteUploadedMedia(publicUrl: url).catchError((_) {}));
+    }
+    setState(() => _imageUrl = 'assets/images/hero/farm-field.jpg');
+  }
+
   void _save({required String status}) {
-    if (_uploadingVideoKeys.isNotEmpty) {
+    if (_uploadingVideoKeys.isNotEmpty || _uploadingPreviewMedia) {
       AppFeedback.error();
       showErrorSnack(
-          context, 'Subiri video imalize kupakiwa kabla ya kuhifadhi.');
+          context, 'Subiri media imalize kupakiwa kabla ya kuhifadhi.');
       return;
     }
     setState(() => _showValidation = true);
@@ -695,11 +796,14 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       ],
     );
     AppFeedback.tap();
+    _submitted = true;
     Navigator.of(context).pop(
       _CourseEditResult(
         course: course,
         status: status,
         baseUpdatedAt: widget.isNew ? null : _baseUpdatedAt,
+        pendingVideoPaths: _pendingVideoPaths.toList(growable: false),
+        pendingPreviewUrls: _pendingPreviewUrls.toList(growable: false),
       ),
     );
   }
@@ -854,6 +958,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                                 ? 'Badilisha picha'
                                 : 'Ongeza picha'),
                           ),
+                          if (_imageUrl != 'assets/images/hero/farm-field.jpg')
+                            TextButton.icon(
+                              onPressed: _resetCoverImage,
+                              icon: const Icon(Icons.hide_image_outlined),
+                              label: const Text('Ondoa picha'),
+                            ),
                           OutlinedButton.icon(
                             onPressed: _uploadingPreviewMedia
                                 ? null
@@ -865,8 +975,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                           ),
                           if (_introVideoUrl.isNotEmpty)
                             TextButton.icon(
-                              onPressed: () =>
-                                  setState(() => _introVideoUrl = ''),
+                              onPressed: _removeIntroVideo,
                               icon: const Icon(Icons.delete_outline),
                               label: const Text('Ondoa video'),
                             ),
@@ -1487,37 +1596,80 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   }
 
   Future<void> _editCourse(AdminContentCourseRecord record) async {
-    final dependencies = context.dependencies;
-    final adminService = dependencies.adminService;
     final result = await _showCourseEditor(
       context: context,
       record: record,
     );
     if (result == null) return;
+    await _persistCourseResult(result, isNew: false);
+  }
+
+  Future<void> _persistCourseResult(
+    _CourseEditResult result, {
+    required bool isNew,
+  }) async {
+    final dependencies = context.dependencies;
     try {
-      await adminService.upsertContentCourse(
+      await dependencies.adminService.upsertContentCourse(
         course: result.course,
         status: result.status,
         baseUpdatedAt: result.baseUpdatedAt,
+        createOnly: isNew,
       );
       await dependencies.refreshCatalog();
       if (!mounted) return;
-      showSuccessSnack(context, 'Kozi imehifadhiwa.');
+      showSuccessSnack(
+        context,
+        result.status == 'approved'
+            ? 'Kozi imechapishwa na sasa inaonekana kwa wanafunzi.'
+            : 'Kozi imehifadhiwa kama rasimu.',
+      );
       _load();
     } on AdminException catch (error) {
-      if (!mounted) return;
-      showErrorSnack(
+      if (!mounted) {
+        await _cleanupEditResultMedia(dependencies.adminService, result);
+        return;
+      }
+      var retrySelected = false;
+      final controller = showErrorSnack(
         context,
         error.message,
         actionLabel: 'Jaribu tena',
-        onAction: () => _editCourse(record),
+        onAction: () {
+          retrySelected = true;
+          unawaited(_persistCourseResult(result, isNew: isNew));
+        },
       );
+      unawaited(controller.closed.then((_) async {
+        if (!retrySelected) {
+          await _cleanupEditResultMedia(dependencies.adminService, result);
+        }
+      }));
+    }
+  }
+
+  Future<void> _cleanupEditResultMedia(
+    AdminService adminService,
+    _CourseEditResult result,
+  ) async {
+    for (final path in result.pendingVideoPaths) {
+      try {
+        await adminService.deleteUploadedMedia(videoPath: path);
+      } on AdminException {
+        // A failed save can race a successful server commit. The server refuses
+        // to delete referenced media, so cleanup is intentionally best effort.
+      }
+    }
+    for (final url in result.pendingPreviewUrls) {
+      try {
+        await adminService.deleteUploadedMedia(publicUrl: url);
+      } on AdminException {
+        // See the active-reference guard noted above.
+      }
     }
   }
 
   Future<void> _createCourse() async {
-    final dependencies = context.dependencies;
-    final adminService = dependencies.adminService;
     final now = DateTime.now();
     final record = AdminContentCourseRecord(
       id: 'CRS-',
@@ -1530,7 +1682,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         badge: 'Kozi ya maandishi',
         icon: Icons.menu_book_outlined,
         progress: 0,
-        imageUrl: 'assets/images/courses/nyanya.jpg',
+        imageUrl: 'assets/images/hero/farm-field.jpg',
         outcomes: const ['Sehemu mpya'],
         lessons: [
           Lesson(
@@ -1553,29 +1705,49 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       isNew: true,
     );
     if (result == null) return;
+    await _persistCourseResult(result, isNew: true);
+  }
+
+  Future<void> _deleteCourse(AdminContentCourseRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Futa kozi?'),
+        content: Text(
+          '“${record.course.title}” na masomo yake yatafutwa kabisa. '
+          'Kitendo hiki hakiwezi kutenduliwa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Ghairi'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Futa kozi'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final dependencies = context.dependencies;
     try {
-      await adminService.upsertContentCourse(
-        course: result.course,
-        status: result.status,
-        createOnly: true,
-      );
+      final mediaCleanupSucceeded =
+          await dependencies.adminService.deleteContentCourse(record.id);
       await dependencies.refreshCatalog();
       if (!mounted) return;
-      showSuccessSnack(
-        context,
-        result.status == 'approved'
-            ? 'Kozi imechapishwa na sasa inaonekana kwa wanafunzi.'
-            : 'Kozi imehifadhiwa kama rasimu.',
-      );
+      if (mediaCleanupSucceeded) {
+        showSuccessSnack(context, 'Kozi imefutwa.');
+      } else {
+        showErrorSnack(
+          context,
+          'Kozi imefutwa, lakini baadhi ya media zinahitaji kusafishwa tena.',
+        );
+      }
       _load();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(
-        context,
-        error.message,
-        actionLabel: 'Jaribu tena',
-        onAction: _createCourse,
-      );
+      showErrorSnack(context, error.message);
     }
   }
 
@@ -1764,10 +1936,20 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                                 ],
                               ),
                             ),
-                            trailing: IconButton(
-                              tooltip: 'Hariri kozi',
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: openEditor,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Hariri kozi',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: openEditor,
+                                ),
+                                IconButton(
+                                  tooltip: 'Futa kozi',
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => _deleteCourse(record),
+                                ),
+                              ],
                             ),
                           ),
                           Padding(
@@ -3670,11 +3852,15 @@ class _CourseEditResult {
     required this.course,
     required this.status,
     required this.baseUpdatedAt,
+    required this.pendingVideoPaths,
+    required this.pendingPreviewUrls,
   });
 
   final Course course;
   final String status;
   final DateTime? baseUpdatedAt;
+  final List<String> pendingVideoPaths;
+  final List<String> pendingPreviewUrls;
 }
 
 class _LessonDraft {

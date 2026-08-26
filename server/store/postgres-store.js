@@ -60,6 +60,29 @@ const groundingStopWords = new Set([
   'yako',
 ]);
 
+function contentMediaStoragePath(value) {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) return null;
+    const marker = `/storage/v1/object/public/${contentMediaBucket}/`;
+    const parsedUrl = new URL(value);
+    if (parsedUrl.origin !== new URL(supabaseUrl).origin) return null;
+    const pathname = parsedUrl.pathname;
+    const markerIndex = pathname.indexOf(marker);
+    if (markerIndex < 0) return null;
+    const storagePath = decodeURIComponent(
+      pathname.slice(markerIndex + marker.length),
+    );
+    return storagePath.startsWith(`${contentMediaPrefix}/`) &&
+      !storagePath.includes('..')
+      ? storagePath
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function requestsHighRiskDecision(message) {
   const normalized = String(message ?? '').toLowerCase();
   const asksForTreatment =
@@ -1139,6 +1162,8 @@ export class PostgresStore {
               status,
               title: normalizedCourse.title,
               description: normalizedCourse.description,
+              imageUrl: normalizedCourse.imageUrl,
+              introVideoUrl: normalizedCourse.introVideoUrl ?? null,
               deliveryType: normalizedCourse.lessons.some(
                 (lesson) => lesson.type === 'video',
               )
@@ -1156,6 +1181,7 @@ export class PostgresStore {
                 durationMinutes:
                   lesson.durationMinutes ?? durationFromMeta(lesson.meta),
                 videoUrl: lesson.resourceUrl ?? null,
+                videoPath: lesson.videoPath ?? null,
               })),
             },
           );
@@ -1228,6 +1254,241 @@ export class PostgresStore {
       throw conflict;
     }
     return contentCourseFromRow(result.rows[0]);
+  }
+
+  async contentCourseMediaReferences(courseCode) {
+    if (process.env.AJE_STORE !== 'supabase') return null;
+    const result = await this.pool.query(
+      `SELECT c.cover_image_url, c.intro_video_url,
+              COALESCE(array_agg(lr.storage_path)
+                FILTER (WHERE lr.storage_path IS NOT NULL), '{}') AS video_paths
+       FROM courses c
+       LEFT JOIN course_modules m ON m.course_id = c.id
+       LEFT JOIN lessons l ON l.module_id = m.id
+       LEFT JOIN lesson_resources lr
+         ON lr.lesson_id = l.id AND lr.resource_type = 'video'
+       WHERE c.code = $1
+       GROUP BY c.id`,
+      [courseCode],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      previewPaths: [
+        contentMediaStoragePath(row.cover_image_url),
+        contentMediaStoragePath(row.intro_video_url),
+      ].filter(Boolean),
+      videoPaths: (row.video_paths ?? []).filter(Boolean),
+    };
+  }
+
+  async cleanupReplacedCourseMedia(previous, course) {
+    if (!previous || process.env.AJE_STORE !== 'supabase') return;
+    const currentPreviewPaths = new Set(
+      [course.imageUrl, course.introVideoUrl]
+        .map(contentMediaStoragePath)
+        .filter(Boolean),
+    );
+    const currentVideoPaths = new Set(
+      course.lessons.map((lesson) => lesson.videoPath).filter(Boolean),
+    );
+    const previewCleanupSucceeded = await this.#deleteStorageObjects(
+      contentMediaBucket,
+      previous.previewPaths.filter((item) => !currentPreviewPaths.has(item)),
+    );
+    const videoCleanupSucceeded = await this.#deleteStorageObjects(
+      lessonVideosBucket,
+      previous.videoPaths.filter((item) => !currentVideoPaths.has(item)),
+    );
+    if (!previewCleanupSucceeded || !videoCleanupSucceeded) {
+      console.error('Course media cleanup failed after curriculum save', {
+        courseId: course.id,
+        previewCleanupSucceeded,
+        videoCleanupSucceeded,
+      });
+    }
+  }
+
+  async deleteUploadedContentMedia({ videoPath = null, publicUrl = null }) {
+    if (videoPath) {
+      if (!videoPath.startsWith(`${lessonVideosPrefix}/`) || videoPath.includes('..')) {
+        return false;
+      }
+      const referenced = await this.pool.query(
+        `SELECT 1 FROM lesson_resources
+         WHERE storage_path = $1 LIMIT 1`,
+        [videoPath],
+      );
+      if (referenced.rows.length > 0) return false;
+      return this.#deleteStorageObjects(lessonVideosBucket, [videoPath]);
+    }
+    const previewPath = contentMediaStoragePath(publicUrl);
+    if (!previewPath) return false;
+    const referenced = await this.pool.query(
+      `SELECT cover_image_url, intro_video_url FROM courses
+       WHERE cover_image_url IS NOT NULL OR intro_video_url IS NOT NULL`,
+    );
+    const isReferenced = referenced.rows.some((row) =>
+      [row.cover_image_url, row.intro_video_url]
+        .map(contentMediaStoragePath)
+        .includes(previewPath),
+    );
+    if (isReferenced) return false;
+    return this.#deleteStorageObjects(contentMediaBucket, [previewPath]);
+  }
+
+  async deleteContentCourse(courseCode) {
+    if (process.env.AJE_STORE !== 'supabase') {
+      const result = await this.pool.query(
+        `DELETE FROM content_courses WHERE id = $1 RETURNING id`,
+        [courseCode],
+      );
+      return result.rows.length > 0;
+    }
+
+    const media = await this.contentCourseMediaReferences(courseCode);
+    const client = await this.pool.connect();
+    let deleted = false;
+    try {
+      await client.query('BEGIN');
+      const course = await client.query(
+        `SELECT id FROM courses WHERE code = $1 FOR UPDATE`,
+        [courseCode],
+      );
+      const courseId = course.rows[0]?.id;
+      if (!courseId) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      await client.query(
+        `DELETE FROM content_source_links
+         WHERE (content_type = 'course' AND content_id = $1)
+            OR (content_type = 'module' AND content_id IN (
+              SELECT id FROM course_modules WHERE course_id = $1
+            ))
+            OR (content_type = 'lesson' AND content_id IN (
+              SELECT l.id FROM lessons l
+              JOIN course_modules m ON m.id = l.module_id
+              WHERE m.course_id = $1
+            ))
+            OR (content_type = 'checklist' AND content_id IN (
+              SELECT ch.id FROM checklists ch
+              LEFT JOIN lessons l ON l.id = ch.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE ch.course_id = $1 OR m.course_id = $1
+            ))
+            OR (content_type = 'quiz_question' AND content_id IN (
+              SELECT q.id FROM quiz_questions q
+              LEFT JOIN lessons l ON l.id = q.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE q.course_id = $1 OR m.course_id = $1
+            ))
+            OR (content_type = 'faq_entry' AND content_id IN (
+              SELECT f.id FROM faq_entries f
+              LEFT JOIN lessons l ON l.id = f.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE f.course_id = $1 OR m.course_id = $1
+            ))`,
+        [courseId],
+      );
+      await client.query(
+        `DELETE FROM content_source_assets
+         WHERE (content_type = 'course' AND content_id = $1)
+            OR (content_type = 'module' AND content_id IN (
+              SELECT id FROM course_modules WHERE course_id = $1
+            ))
+            OR (content_type = 'lesson' AND content_id IN (
+              SELECT l.id FROM lessons l
+              JOIN course_modules m ON m.id = l.module_id
+              WHERE m.course_id = $1
+            ))
+            OR (content_type = 'checklist' AND content_id IN (
+              SELECT ch.id FROM checklists ch
+              LEFT JOIN lessons l ON l.id = ch.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE ch.course_id = $1 OR m.course_id = $1
+            ))
+            OR (content_type = 'quiz_question' AND content_id IN (
+              SELECT q.id FROM quiz_questions q
+              LEFT JOIN lessons l ON l.id = q.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE q.course_id = $1 OR m.course_id = $1
+            ))
+            OR (content_type = 'faq_entry' AND content_id IN (
+              SELECT f.id FROM faq_entries f
+              LEFT JOIN lessons l ON l.id = f.lesson_id
+              LEFT JOIN course_modules m ON m.id = l.module_id
+              WHERE f.course_id = $1 OR m.course_id = $1
+            ))`,
+        [courseId],
+      );
+      await client.query(
+        `UPDATE courses SET prerequisite_course_id = NULL
+         WHERE prerequisite_course_id = $1`,
+        [courseId],
+      );
+      await client.query(
+        `UPDATE learning_path_courses SET prerequisite_course_id = NULL
+         WHERE prerequisite_course_id = $1`,
+        [courseId],
+      );
+      await client.query(`DELETE FROM courses WHERE id = $1`, [courseId]);
+      await client.query(`DELETE FROM learning_progress WHERE course_id = $1`, [
+        courseCode,
+      ]);
+      await client.query('COMMIT');
+      deleted = true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    let mediaCleanupSucceeded = true;
+    if (deleted && media) {
+      const previewCleanupSucceeded = await this.#deleteStorageObjects(
+        contentMediaBucket,
+        media.previewPaths,
+      );
+      const videoCleanupSucceeded = await this.#deleteStorageObjects(
+        lessonVideosBucket,
+        media.videoPaths,
+      );
+      mediaCleanupSucceeded = previewCleanupSucceeded && videoCleanupSucceeded;
+      if (!mediaCleanupSucceeded) {
+        console.error('Course deleted but media cleanup failed', {
+          courseId: courseCode,
+          previewCleanupSucceeded,
+          videoCleanupSucceeded,
+        });
+      }
+    }
+    return { deleted, mediaCleanupSucceeded };
+  }
+
+  async #deleteStorageObjects(bucket, paths) {
+    const uniquePaths = [...new Set(paths)].filter(Boolean);
+    if (uniquePaths.length === 0) return true;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return false;
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/storage/v1/object/${bucket}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prefixes: uniquePaths }),
+        },
+      );
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 
   /**

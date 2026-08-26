@@ -10,8 +10,6 @@
 //     duplicate course, because the editor upper-cased the id on every save
 //     rather than only when minting a new one.
 
-import 'dart:typed_data';
-
 import 'package:aje_farms_mobile/src/app/app_dependencies.dart';
 import 'package:aje_farms_mobile/src/features/admin/admin_dashboard_screen.dart';
 import 'package:aje_farms_mobile/src/models/admin_models.dart';
@@ -181,6 +179,60 @@ void main() {
       expect(adminService.lastUpsertedDocument, isNull);
     },
   );
+
+  testWidgets('failed course save retries the submitted edits', (tester) async {
+    final record = _courseRecord(id: 'crs-retry', title: 'Jina la awali');
+    final adminService = _RecordingAdminService(
+      courses: [record],
+      failCourseSaves: 1,
+    );
+    await _pumpAdminContent(
+      tester,
+      adminService,
+      refreshCatalog: () async {},
+    );
+
+    await tester.tap(find.text('Hariri maudhui na mtaala'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Jina la kozi'),
+      'Jina lililohifadhiwa kwa retry',
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Hifadhi rasimu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Jaribu tena'), findsOneWidget);
+    await tester.tap(find.text('Jaribu tena'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.courseSaveAttempts, hasLength(2));
+    expect(
+      adminService.courseSaveAttempts.every(
+        (course) => course.title == 'Jina lililohifadhiwa kwa retry',
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('admin can confirm permanent course deletion', (tester) async {
+    final adminService = _RecordingAdminService(
+      courses: [_courseRecord(id: 'CRS-DELETE', title: 'Kozi ya kufutwa')],
+    );
+    await _pumpAdminContent(
+      tester,
+      adminService,
+      refreshCatalog: () async {},
+    );
+
+    await tester.tap(find.byTooltip('Futa kozi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Futa kozi?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Futa kozi'));
+    await tester.pumpAndSettle();
+
+    expect(adminService.deletedCourseIds, ['CRS-DELETE']);
+    expect(adminService.courses, isEmpty);
+  });
 
   testWidgets('topic backend failures are shown instead of hardcoded settings',
       (tester) async {
@@ -506,16 +558,20 @@ class _RecordingAdminService implements AdminService {
     required this.courses,
     this.documents = const [],
     this.failHomeTopics = false,
+    this.failCourseSaves = 0,
   });
 
   final List<AdminContentCourseRecord> courses;
   final List<AdminContentDocumentRecord> documents;
   final bool failHomeTopics;
+  int failCourseSaves;
   Course? lastUpsertedCourse;
   AppDocument? lastUpsertedDocument;
   String? lastUpsertedStatus;
   bool? lastCreateOnly;
   String? uploadedVideoContentType;
+  final List<Course> courseSaveAttempts = [];
+  final List<String> deletedCourseIds = [];
   List<String> homeTopics = defaultHomeTopics;
   List<String> communityTopics = defaultCommunityTopics;
 
@@ -550,6 +606,11 @@ class _RecordingAdminService implements AdminService {
     DateTime? baseUpdatedAt,
     bool createOnly = false,
   }) async {
+    courseSaveAttempts.add(course);
+    if (failCourseSaves > 0) {
+      failCourseSaves -= 1;
+      throw const AdminException('save failed');
+    }
     lastUpsertedCourse = course;
     lastUpsertedStatus = status;
     lastCreateOnly = createOnly;
@@ -559,6 +620,13 @@ class _RecordingAdminService implements AdminService {
       updatedAt: DateTime.now().toUtc(),
       course: course,
     );
+  }
+
+  @override
+  Future<bool> deleteContentCourse(String courseId) async {
+    deletedCourseIds.add(courseId);
+    courses.removeWhere((record) => record.id == courseId);
+    return true;
   }
 
   @override
@@ -589,7 +657,8 @@ class _RecordingAdminService implements AdminService {
 
   @override
   Future<String> uploadLessonVideo({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
   }) async {
     uploadedVideoContentType = contentType;
@@ -598,11 +667,16 @@ class _RecordingAdminService implements AdminService {
 
   @override
   Future<String> uploadContentMedia({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
     required String kind,
   }) async =>
       'https://example.test/content-media/$kind-test';
+
+  @override
+  Future<void> deleteUploadedMedia(
+      {String? videoPath, String? publicUrl}) async {}
 
   @override
   Future<List<AdminContentDocumentRecord>> listContentDocuments() async =>

@@ -9,7 +9,7 @@ enum SnackTone { neutral, success, error }
 ///
 /// Prefer [showErrorSnack] / [showSuccessSnack] so that failures are not
 /// visually indistinguishable from confirmations.
-void showSnack(
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnack(
   BuildContext context,
   String message, {
   SnackTone tone = SnackTone.neutral,
@@ -41,7 +41,7 @@ void showSnack(
   // Replace any queued snack so a burst of failures does not make the user wait
   // out a stale message before seeing the current one.
   messenger.hideCurrentSnackBar();
-  messenger.showSnackBar(
+  return messenger.showSnackBar(
     SnackBar(
       behavior: SnackBarBehavior.floating,
       // Errors need longer than the 4s default to be read and acted on.
@@ -67,13 +67,13 @@ void showSnack(
 }
 
 /// Reports a failure, optionally offering a recovery path.
-void showErrorSnack(
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showErrorSnack(
   BuildContext context,
   String message, {
   String? actionLabel,
   VoidCallback? onAction,
 }) {
-  showSnack(
+  return showSnack(
     context,
     message,
     tone: SnackTone.error,

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
@@ -49,6 +47,13 @@ class LocalAdminService implements AdminService {
   }
 
   @override
+  Future<bool> deleteContentCourse(String courseId) async {
+    throw const AdminException(
+      'Course deletion requires a connected backend.',
+    );
+  }
+
+  @override
   Future<List<AdminSourceSegment>> searchSourceSegments({
     String search = '',
   }) async {
@@ -81,7 +86,8 @@ class LocalAdminService implements AdminService {
 
   @override
   Future<String> uploadLessonVideo({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
   }) async {
     throw const AdminException(
@@ -91,12 +97,21 @@ class LocalAdminService implements AdminService {
 
   @override
   Future<String> uploadContentMedia({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
     required String kind,
   }) async {
     throw const AdminException(
         'Upload ya media inahitaji backend iliyounganishwa.');
+  }
+
+  @override
+  Future<void> deleteUploadedMedia(
+      {String? videoPath, String? publicUrl}) async {
+    throw const AdminException(
+      'Media cleanup requires a connected backend.',
+    );
   }
 
   @override

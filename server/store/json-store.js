@@ -481,6 +481,22 @@ export class JsonStore {
     return record;
   }
 
+  deleteContentCourse(courseId) {
+    const previous = this.state.contentCourses;
+    const previousLength = this.state.contentCourses.length;
+    this.state.contentCourses = this.state.contentCourses.filter(
+      (item) => item.id !== courseId,
+    );
+    if (this.state.contentCourses.length === previousLength) return false;
+    try {
+      this.#saveAll();
+    } catch (error) {
+      this.state.contentCourses = previous;
+      throw error;
+    }
+    return true;
+  }
+
   approvedContentDocuments() {
     return this.state.contentDocuments
       .filter((item) => item.status === 'approved')

@@ -232,6 +232,78 @@ void main() {
     expect(sentLesson['resourceUrl'], 'https://video.example/rice.mp4');
   });
 
+  test('deletes a course through the protected admin endpoint', () async {
+    await BackendSessionStorage.writeToken('token-admin');
+    late http.Request captured;
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response('{"deleted":true,"courseId":"CRS-001"}', 200);
+      }),
+    );
+
+    await service.deleteContentCourse('CRS-001');
+
+    expect(captured.method, 'DELETE');
+    expect(captured.url.path, '/api/admin/content/courses/CRS-001');
+    expect(captured.headers['Authorization'], 'Bearer token-admin');
+  });
+
+  test('streams preview media to the signed Storage URL', () async {
+    final methods = <String>[];
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        methods.add(request.method);
+        if (request.url.path == '/api/admin/content/media/upload-url') {
+          return http.Response(
+            '{"uploadUrl":"https://storage.test/upload",'
+            '"publicUrl":"https://storage.test/public/cover.jpg"}',
+            200,
+          );
+        }
+        return http.Response('', 200);
+      }),
+    );
+
+    final result = await service.uploadContentMedia(
+      stream: Stream.value(utf8.encode('image-bytes')),
+      contentLength: utf8.encode('image-bytes').length,
+      contentType: 'image/jpeg',
+      kind: 'image',
+    );
+
+    expect(result, 'https://storage.test/public/cover.jpg');
+    expect(methods, ['POST', 'PUT']);
+  });
+
+  test('turns preview upload network failures into AdminException', () async {
+    final service = BackendAdminService(
+      baseUrl: Uri.parse('http://localhost:3000'),
+      client: MockClient((request) async {
+        if (request.url.path == '/api/admin/content/media/upload-url') {
+          return http.Response(
+            '{"uploadUrl":"https://storage.test/upload",'
+            '"publicUrl":"https://storage.test/public/cover.jpg"}',
+            200,
+          );
+        }
+        throw http.ClientException('offline');
+      }),
+    );
+
+    await expectLater(
+      service.uploadContentMedia(
+        stream: Stream.value(utf8.encode('image-bytes')),
+        contentLength: utf8.encode('image-bytes').length,
+        contentType: 'image/jpeg',
+        kind: 'image',
+      ),
+      throwsA(isA<AdminException>()),
+    );
+  });
+
   test('searches approved source segments with bearer token', () async {
     await BackendSessionStorage.writeToken('token-admin');
     late http.Request captured;

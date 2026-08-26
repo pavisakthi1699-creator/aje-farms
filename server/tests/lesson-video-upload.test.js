@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 
 import { PostgresStore } from '../store/postgres-store.js';
@@ -42,6 +43,164 @@ test('video content types map to the extensions the bucket accepts', () => {
   assert.equal(extensionForVideoContentType('application/pdf'), null);
   assert.equal(extensionForVideoContentType(undefined), null);
 });
+
+test('source-documents migration accepts every advertised video type and 200 MB', () => {
+  const migration = fs.readFileSync(
+    new URL(
+      '../../supabase/migrations/20260826000100_align_course_media_upload_limits.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(migration, /209715200/);
+  assert.match(migration, /'video\/mp4'/);
+  assert.match(migration, /'video\/quicktime'/);
+  assert.match(migration, /'video\/webm'/);
+});
+
+test(
+  'uploaded lesson media can be removed from Storage',
+  withSupabaseEnv(async () => {
+    let request;
+    globalThis.fetch = async (url, init) => {
+      request = { url: String(url), init };
+      return { ok: true };
+    };
+    const store = new PostgresStore({
+      pool: { query: async () => ({ rows: [] }) },
+      catalog: {},
+      schema: 'public',
+    });
+
+    assert.equal(
+      await store.deleteUploadedContentMedia({
+        videoPath: 'lesson-videos/vid-old.mp4',
+      }),
+      true,
+    );
+    assert.equal(request.init.method, 'DELETE');
+    assert.match(request.url, /\/storage\/v1\/object\/source-documents$/);
+    assert.deepEqual(JSON.parse(request.init.body), {
+      prefixes: ['lesson-videos/vid-old.mp4'],
+    });
+  }),
+);
+
+test(
+  'replaced course preview and lesson media are removed from Storage',
+  withSupabaseEnv(async () => {
+    const deletes = [];
+    globalThis.fetch = async (url, init) => {
+      deletes.push({ url: String(url), body: JSON.parse(init.body) });
+      return { ok: true };
+    };
+    const store = new PostgresStore({ pool: {}, catalog: {}, schema: 'public' });
+
+    await store.cleanupReplacedCourseMedia(
+      {
+        previewPaths: ['previews/image-old.jpg'],
+        videoPaths: ['lesson-videos/vid-old.mp4'],
+      },
+      {
+        imageUrl:
+          'https://example.supabase.co/storage/v1/object/public/content-media/previews/image-new.jpg',
+        introVideoUrl: null,
+        lessons: [{ videoPath: 'lesson-videos/vid-new.mp4' }],
+      },
+    );
+
+    assert.equal(deletes.length, 2);
+    assert.deepEqual(deletes.map((item) => item.body.prefixes), [
+      ['previews/image-old.jpg'],
+      ['lesson-videos/vid-old.mp4'],
+    ]);
+  }),
+);
+
+test(
+  'cleanup refuses to delete media referenced by a live lesson',
+  withSupabaseEnv(async () => {
+    globalThis.fetch = async () => {
+      throw new Error('Storage deletion must not be reached');
+    };
+    const store = new PostgresStore({
+      pool: { query: async () => ({ rows: [{ '?column?': 1 }] }) },
+      catalog: {},
+      schema: 'public',
+    });
+
+    assert.equal(
+      await store.deleteUploadedContentMedia({
+        videoPath: 'lesson-videos/vid-live.mp4',
+      }),
+      false,
+    );
+  }),
+);
+
+test(
+  'preview cleanup compares canonical Storage paths before deletion',
+  withSupabaseEnv(async () => {
+    globalThis.fetch = async () => {
+      throw new Error('Storage deletion must not be reached');
+    };
+    const store = new PostgresStore({
+      pool: {
+        query: async () => ({
+          rows: [
+            {
+              cover_image_url:
+                'https://example.supabase.co/storage/v1/object/public/content-media/previews/image-live.jpg',
+              intro_video_url: null,
+            },
+          ],
+        }),
+      },
+      catalog: {},
+      schema: 'public',
+    });
+
+    assert.equal(
+      await store.deleteUploadedContentMedia({
+        publicUrl:
+          'https://example.supabase.co/storage/v1/object/public/content-media/previews%2Fimage-live.jpg',
+      }),
+      false,
+    );
+  }),
+);
+
+test(
+  'structured course deletion removes relational metadata transactionally',
+  withSupabaseEnv(async () => {
+    const statements = [];
+    const client = {
+      query: async (sql) => {
+        statements.push(sql);
+        if (/SELECT id FROM courses/.test(sql)) {
+          return { rows: [{ id: '00000000-0000-0000-0000-000000000001' }] };
+        }
+        return { rows: [] };
+      },
+      release() {},
+    };
+    const store = new PostgresStore({
+      pool: {
+        query: async () => ({ rows: [] }),
+        connect: async () => client,
+      },
+      catalog: {},
+      schema: 'public',
+    });
+
+    const result = await store.deleteContentCourse('CRS-DELETE');
+
+    assert.deepEqual(result, { deleted: true, mediaCleanupSucceeded: true });
+    assert.ok(statements.some((sql) => /DELETE FROM content_source_assets/.test(sql)));
+    assert.ok(statements.some((sql) => /DELETE FROM courses/.test(sql)));
+    assert.equal(statements.at(-1), 'COMMIT');
+  }),
+);
 
 test('lesson video paths are confined to the lesson-videos prefix', () => {
   assert.equal(isValidLessonVideoPath('lesson-videos/vid-123-abc.mp4'), true);

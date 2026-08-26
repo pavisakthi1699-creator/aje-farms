@@ -254,15 +254,21 @@ export async function registerApiRoutes(app) {
           req.params.courseId,
           req.body.course ?? req.body,
         );
-        res.json({
-          course: await store.upsertContentCourse({
+        const previousMedia =
+          typeof store.contentCourseMediaReferences === 'function'
+            ? await store.contentCourseMediaReferences(req.params.courseId)
+            : null;
+        const savedCourse = await store.upsertContentCourse({
             course,
             status,
             replaceCurriculum: curriculumSchemaVersion === 2,
             baseUpdatedAt,
             createOnly,
-          }),
-        });
+          });
+        if (typeof store.cleanupReplacedCourseMedia === 'function') {
+          await store.cleanupReplacedCourseMedia(previousMedia, savedCourse.course);
+        }
+        res.json({ course: savedCourse });
       } catch (error) {
         const conflict =
           error?.code === 'CURRICULUM_CONFLICT' ||
@@ -274,6 +280,33 @@ export async function registerApiRoutes(app) {
               : 'Course content is invalid.',
         });
       }
+    },
+  );
+
+  app.delete(
+    '/api/admin/content/courses/:courseId',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      if (typeof store.deleteContentCourse !== 'function') {
+        res.status(501).json({ error: 'Course deletion is unavailable.' });
+        return;
+      }
+      const deletion = await store.deleteContentCourse(req.params.courseId);
+      const deleted =
+        typeof deletion === 'boolean' ? deletion : deletion?.deleted === true;
+      if (!deleted) {
+        res.status(404).json({ error: 'Course not found.' });
+        return;
+      }
+      res.json({
+        deleted: true,
+        courseId: req.params.courseId,
+        mediaCleanupSucceeded:
+          typeof deletion === 'boolean'
+            ? true
+            : deletion.mediaCleanupSucceeded !== false,
+      });
     },
   );
 
@@ -335,6 +368,37 @@ export async function registerApiRoutes(app) {
         return;
       }
       res.json(upload);
+    },
+  );
+
+  app.post(
+    '/api/admin/content/media/delete',
+    requireAuthSession(store),
+    requireAdminSession(store),
+    async (req, res) => {
+      const videoPath = req.body?.videoPath ?? null;
+      const publicUrl = req.body?.publicUrl ?? null;
+      if (
+        (videoPath != null && !isValidLessonVideoPath(videoPath)) ||
+        (videoPath == null && typeof publicUrl !== 'string') ||
+        (videoPath != null && publicUrl != null)
+      ) {
+        res.status(400).json({ error: 'Media reference is invalid.' });
+        return;
+      }
+      if (typeof store.deleteUploadedContentMedia !== 'function') {
+        res.status(501).json({ error: 'Media cleanup is unavailable.' });
+        return;
+      }
+      const deleted = await store.deleteUploadedContentMedia({
+        videoPath,
+        publicUrl,
+      });
+      if (!deleted) {
+        res.status(400).json({ error: 'Media could not be deleted.' });
+        return;
+      }
+      res.json({ deleted: true });
     },
   );
 

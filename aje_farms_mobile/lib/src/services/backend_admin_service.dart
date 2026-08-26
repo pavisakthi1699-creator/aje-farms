@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
@@ -132,6 +131,14 @@ class BackendAdminService implements AdminService {
   }
 
   @override
+  Future<bool> deleteContentCourse(String courseId) async {
+    final payload = await _delete(
+      '/api/admin/content/courses/${Uri.encodeComponent(courseId)}',
+    );
+    return payload['mediaCleanupSucceeded'] != false;
+  }
+
+  @override
   Future<List<AdminSourceSegment>> searchSourceSegments({
     String search = '',
   }) async {
@@ -211,7 +218,8 @@ class BackendAdminService implements AdminService {
 
   @override
   Future<String> uploadLessonVideo({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
   }) async {
     final payload = await _post(
@@ -229,15 +237,14 @@ class BackendAdminService implements AdminService {
     // The signed URL carries its own token, so this request deliberately
     // carries no session header — and it must not, since it goes to storage
     // rather than to our API.
-    final http.Response response;
+    final http.StreamedResponse response;
     try {
-      response = await _client
-          .put(
-            Uri.parse(uploadUrl),
-            headers: {'Content-Type': contentType},
-            body: bytes,
-          )
-          .timeout(videoUploadTimeout);
+      response = await _uploadStream(
+        uploadUrl: uploadUrl,
+        stream: stream,
+        contentLength: contentLength,
+        contentType: contentType,
+      );
     } on TimeoutException {
       throw const AdminException(
         'Kupakia video kumechukua muda mrefu. Jaribu tena kwa mtandao bora.',
@@ -257,7 +264,8 @@ class BackendAdminService implements AdminService {
 
   @override
   Future<String> uploadContentMedia({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
     required String kind,
   }) async {
@@ -271,17 +279,55 @@ class BackendAdminService implements AdminService {
       throw const AdminException(
           'Admin service returned an invalid media upload target.');
     }
-    final response = await _client
-        .put(
-          Uri.parse(uploadUrl),
-          headers: {'Content-Type': contentType},
-          body: bytes,
-        )
-        .timeout(videoUploadTimeout);
+    final http.StreamedResponse response;
+    try {
+      response = await _uploadStream(
+        uploadUrl: uploadUrl,
+        stream: stream,
+        contentLength: contentLength,
+        contentType: contentType,
+      );
+    } on TimeoutException {
+      throw const AdminException(
+        'Kupakia media kumechukua muda mrefu. Jaribu tena kwa mtandao bora.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Imeshindikana kupakia media. Angalia mtandao wako.',
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw const AdminException('Imeshindikana kupakia media. Jaribu tena.');
     }
     return publicUrl;
+  }
+
+  Future<http.StreamedResponse> _uploadStream({
+    required String uploadUrl,
+    required Stream<List<int>> stream,
+    required int contentLength,
+    required String contentType,
+  }) async {
+    final request = http.StreamedRequest('PUT', Uri.parse(uploadUrl))
+      ..headers['Content-Type'] = contentType
+      ..contentLength = contentLength;
+    final responseFuture = _client.send(request);
+    await Future.wait<Object?>([
+      responseFuture,
+      stream.pipe(request.sink),
+    ]).timeout(videoUploadTimeout);
+    final response = await responseFuture;
+    await response.stream.drain<void>();
+    return response;
+  }
+
+  @override
+  Future<void> deleteUploadedMedia(
+      {String? videoPath, String? publicUrl}) async {
+    await _post('/api/admin/content/media/delete', {
+      if (videoPath != null) 'videoPath': videoPath,
+      if (publicUrl != null) 'publicUrl': publicUrl,
+    });
   }
 
   @override
@@ -537,6 +583,10 @@ class BackendAdminService implements AdminService {
     );
   }
 
+  Future<Map<String, dynamic>> _delete(String path) async {
+    return _request(_baseUrl.resolve(path), method: _HttpMethod.delete);
+  }
+
   Future<Map<String, dynamic>> _request(
     Uri uri, {
     required _HttpMethod method,
@@ -552,6 +602,9 @@ class BackendAdminService implements AdminService {
             .timeout(timeout),
         _HttpMethod.put => await _client
             .put(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+        _HttpMethod.delete => await _client
+            .delete(uri, headers: headers, body: jsonEncode(body ?? const {}))
             .timeout(timeout),
       };
       final payload =
@@ -596,7 +649,7 @@ class BackendAdminService implements AdminService {
   }
 }
 
-enum _HttpMethod { get, post, put }
+enum _HttpMethod { get, post, put, delete }
 
 AdminContentCourseRecord _contentCourseFromJson(Map<String, dynamic> json) {
   return AdminContentCourseRecord(

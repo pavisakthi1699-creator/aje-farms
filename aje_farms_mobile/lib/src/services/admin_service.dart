@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import '../models/admin_models.dart';
 import '../models/app_document.dart';
 import '../models/community_post.dart';
@@ -17,6 +15,7 @@ abstract interface class AdminService {
     DateTime? baseUpdatedAt,
     bool createOnly = false,
   });
+  Future<bool> deleteContentCourse(String courseId);
   Future<List<AdminSourceSegment>> searchSourceSegments({
     String search = '',
   });
@@ -34,19 +33,22 @@ abstract interface class AdminService {
   });
 
   /// Uploads a lesson video and returns its storage key, which a lesson can
-  /// then reference. The bytes go straight to storage through a short-lived
+  /// then reference. The stream goes straight to storage through a short-lived
   /// signed URL rather than through the API.
   Future<String> uploadLessonVideo({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
   });
 
   /// Uploads public preview media for a course or source book.
   Future<String> uploadContentMedia({
-    required Uint8List bytes,
+    required Stream<List<int>> stream,
+    required int contentLength,
     required String contentType,
     required String kind,
   });
+  Future<void> deleteUploadedMedia({String? videoPath, String? publicUrl});
   Future<List<AdminContentDocumentRecord>> listContentDocuments();
   Future<AdminContentDocumentRecord> upsertContentDocument({
     required AppDocument document,
