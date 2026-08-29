@@ -11,6 +11,19 @@ export const PRODUCTION_API_BASE_URL =
   'https://aje-farms-api-production.up.railway.app';
 
 export function releaseDartDefines(env) {
+  const requiredValues = [
+    'AJE_ANDROID_API_BASE_URL',
+    'AJE_WHATSAPP_EXPERT_PHONE',
+    'SUPABASE_URL',
+    'SUPABASE_PUBLISHABLE_KEY',
+    'AJE_PRIVACY_POLICY_URL',
+    'AJE_ACCOUNT_DELETION_URL',
+    'AJE_PLAY_DISTRIBUTION_MODE',
+  ];
+  for (const name of requiredValues) {
+    requireReleaseValue(name, env[name]);
+  }
+
   return [
     `--dart-define=AJE_API_BASE_URL=${env.AJE_ANDROID_API_BASE_URL}`,
     `--dart-define=AJE_WHATSAPP_EXPERT_PHONE=${env.AJE_WHATSAPP_EXPERT_PHONE}`,
@@ -20,6 +33,13 @@ export function releaseDartDefines(env) {
     `--dart-define=AJE_ACCOUNT_DELETION_URL=${env.AJE_ACCOUNT_DELETION_URL}`,
     `--dart-define=AJE_PLAY_CONSUMPTION_ONLY=${env.AJE_PLAY_DISTRIBUTION_MODE === 'consumption_only'}`,
   ];
+}
+
+function requireReleaseValue(name, value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized || normalized === 'undefined' || normalized === 'null') {
+    throw new Error(`${name} is required for Android release builds.`);
+  }
 }
 
 export function internalTestingDartDefines(env) {

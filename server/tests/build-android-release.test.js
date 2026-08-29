@@ -62,3 +62,18 @@ test('internal APK build rejects a staging API URL', () => {
     /must use the production API/,
   );
 });
+
+test('internal APK build rejects missing Supabase client configuration', () => {
+  assert.throws(
+    () =>
+      internalTestingDartDefines({
+        AJE_ANDROID_API_BASE_URL: PRODUCTION_API_BASE_URL,
+        AJE_WHATSAPP_EXPERT_PHONE: '255743812853',
+        SUPABASE_URL: 'https://project.supabase.co',
+        AJE_PRIVACY_POLICY_URL: 'https://ajefarms.co.tz/privacy',
+        AJE_ACCOUNT_DELETION_URL: 'https://ajefarms.co.tz/delete-account',
+        AJE_PLAY_DISTRIBUTION_MODE: 'consumption_only',
+      }),
+    /SUPABASE_PUBLISHABLE_KEY is required/,
+  );
+});
