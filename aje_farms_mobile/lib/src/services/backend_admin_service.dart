@@ -1,0 +1,969 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../models/admin_models.dart';
+import '../models/app_document.dart';
+import '../models/community_post.dart';
+import '../models/community_topics.dart';
+import '../models/course.dart';
+import '../models/home_topics.dart';
+import 'admin_service.dart';
+import 'backend_session_storage.dart';
+
+class BackendAdminService implements AdminService {
+  BackendAdminService({
+    required Uri baseUrl,
+    http.Client? client,
+    this.timeout = const Duration(seconds: 20),
+    this.videoUploadTimeout = const Duration(minutes: 20),
+  })  : _baseUrl = baseUrl,
+        _client = client ?? http.Client();
+
+  final Uri _baseUrl;
+  final http.Client _client;
+  final Duration timeout;
+
+  /// Videos are large and admins are often on mobile data, so the upload gets
+  /// far longer than an ordinary API call.
+  final Duration videoUploadTimeout;
+
+  @override
+  Future<List<String>> getHomeTopics() async {
+    final payload = await _get('/api/admin/settings/home-topics');
+    return _homeTopicsFromJson(payload);
+  }
+
+  @override
+  Future<List<String>> updateHomeTopics(List<String> topics) async {
+    final normalized = parseHomeTopics(topics);
+    if (normalized == null) {
+      throw const AdminException('Learning topics are invalid.');
+    }
+    final payload = await _put(
+      '/api/admin/settings/home-topics-v2',
+      {'topics': normalized},
+    );
+    final saved = _homeTopicsFromJson(payload);
+    if (!listEquals(saved, normalized)) {
+      throw const AdminException(
+        'Admin service must be updated before saving this topic list.',
+      );
+    }
+    return saved;
+  }
+
+  @override
+  Future<List<String>> getCommunityTopics() async {
+    final payload = await _get('/api/admin/settings/community-topics');
+    return _communityTopicsFromJson(payload);
+  }
+
+  @override
+  Future<List<String>> updateCommunityTopics(List<String> topics) async {
+    final normalized = parseCommunityTopics(topics);
+    if (normalized == null) {
+      throw const AdminException('Community topics are invalid.');
+    }
+    final payload = await _put(
+      '/api/admin/settings/community-topics',
+      {'topics': normalized},
+    );
+    return _communityTopicsFromJson(payload);
+  }
+
+  List<String> _homeTopicsFromJson(Map<String, dynamic> payload) {
+    final parsed = parseHomeTopics(payload['topicsV2']) ??
+        parseHomeTopics(payload['topics']);
+    if (parsed == null) {
+      throw const AdminException(
+        'Admin service returned invalid learning topics.',
+      );
+    }
+    return parsed;
+  }
+
+  List<String> _communityTopicsFromJson(Map<String, dynamic> payload) {
+    final parsed = parseCommunityTopics(payload['topics']);
+    if (parsed == null) {
+      throw const AdminException(
+        'Admin service returned invalid community topics.',
+      );
+    }
+    return parsed;
+  }
+
+  @override
+  Future<List<AdminContentCourseRecord>> listContentCourses() async {
+    final payload = await _get('/api/admin/content/courses');
+    final rows = (payload['courses'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_contentCourseFromJson).toList();
+  }
+
+  @override
+  Future<AdminContentCourseRecord> upsertContentCourse({
+    required Course course,
+    required String status,
+    DateTime? baseUpdatedAt,
+    bool createOnly = false,
+  }) async {
+    final payload = await _put(
+      '/api/admin/content/courses/${Uri.encodeComponent(course.id)}',
+      {
+        'status': status,
+        'course': _courseToJson(course),
+        if (createOnly) 'createOnly': true,
+        if (baseUpdatedAt != null) ...{
+          'curriculumSchemaVersion': 2,
+          'baseUpdatedAt': baseUpdatedAt.toUtc().toIso8601String(),
+        },
+      },
+    );
+    final row = payload['course'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException('Invalid course response from admin service.');
+    }
+    return _contentCourseFromJson(row);
+  }
+
+  @override
+  Future<bool> deleteContentCourse(String courseId) async {
+    final payload = await _delete(
+      '/api/admin/content/courses/${Uri.encodeComponent(courseId)}',
+    );
+    return payload['mediaCleanupSucceeded'] != false;
+  }
+
+  @override
+  Future<List<AdminSourceSegment>> searchSourceSegments({
+    String search = '',
+  }) async {
+    try {
+      final uri =
+          _baseUrl.resolve('/api/admin/content/source-segments').replace(
+        queryParameters: {
+          if (search.trim().isNotEmpty) 'search': search.trim(),
+          'limit': '50',
+        },
+      );
+      final payload = await _request(uri, method: _HttpMethod.get);
+      final rows = (payload['segments'] as List<dynamic>? ?? const <dynamic>[])
+          .cast<Map<String, dynamic>>();
+      return rows.map(_sourceSegmentFromJson).toList();
+    } on AdminException {
+      rethrow;
+    } catch (_) {
+      throw const AdminException(
+        'Admin service returned invalid source information.',
+      );
+    }
+  }
+
+  @override
+  Future<AdminLessonSourceReviewResult> approveLessonSource({
+    required String lessonId,
+    required String sourceSegmentId,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lessons/${Uri.encodeComponent(lessonId)}/source-review',
+      {
+        'sourceSegmentId': sourceSegmentId,
+        'evidenceNote': evidenceNote,
+        'groundingFact': groundingFact,
+      },
+    );
+    final updatedAt = payload['courseUpdatedAt'];
+    final parsedUpdatedAt =
+        updatedAt is String ? DateTime.tryParse(updatedAt) : null;
+    if (parsedUpdatedAt == null) {
+      throw const AdminException(
+        'Invalid source review response from admin service.',
+      );
+    }
+    return AdminLessonSourceReviewResult(
+      courseUpdatedAt: parsedUpdatedAt,
+      contentReady: payload['contentReady'] == true,
+    );
+  }
+
+  @override
+  Future<AdminLessonSourceReviewResult> registerUploadedVideoEvidence({
+    required String lessonId,
+    required String transcript,
+    required String evidenceNote,
+    required String groundingFact,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lessons/${Uri.encodeComponent(lessonId)}/video-evidence',
+      {
+        'transcript': transcript,
+        'evidenceNote': evidenceNote,
+        'groundingFact': groundingFact
+      },
+    );
+    final updatedAt = payload['courseUpdatedAt'];
+    final parsed = updatedAt is String ? DateTime.tryParse(updatedAt) : null;
+    if (parsed == null) {
+      throw const AdminException('Invalid video evidence response.');
+    }
+    return AdminLessonSourceReviewResult(
+        courseUpdatedAt: parsed, contentReady: payload['contentReady'] == true);
+  }
+
+  @override
+  Future<String> uploadLessonVideo({
+    required Stream<List<int>> stream,
+    required int contentLength,
+    required String contentType,
+  }) async {
+    final payload = await _post(
+      '/api/admin/content/lesson-videos/upload-url',
+      {'contentType': contentType},
+    );
+    final uploadUrl = payload['uploadUrl'];
+    final videoPath = payload['videoPath'];
+    if (uploadUrl is! String || videoPath is! String) {
+      throw const AdminException(
+        'Admin service returned an invalid video upload target.',
+      );
+    }
+
+    // The signed URL carries its own token, so this request deliberately
+    // carries no session header — and it must not, since it goes to storage
+    // rather than to our API.
+    final http.StreamedResponse response;
+    try {
+      response = await _uploadStream(
+        uploadUrl: uploadUrl,
+        stream: stream,
+        contentLength: contentLength,
+        contentType: contentType,
+      );
+    } on TimeoutException {
+      throw const AdminException(
+        'Kupakia video kumechukua muda mrefu. Jaribu tena kwa mtandao bora.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Imeshindikana kupakia video. Angalia mtandao wako.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const AdminException(
+        'Imeshindikana kupakia video. Jaribu tena.',
+      );
+    }
+    return videoPath;
+  }
+
+  @override
+  Future<String> uploadContentMedia({
+    required Stream<List<int>> stream,
+    required int contentLength,
+    required String contentType,
+    required String kind,
+  }) async {
+    final payload = await _post('/api/admin/content/media/upload-url', {
+      'contentType': contentType,
+      'kind': kind,
+    });
+    final uploadUrl = payload['uploadUrl'];
+    final publicUrl = payload['publicUrl'];
+    if (uploadUrl is! String || publicUrl is! String) {
+      throw const AdminException(
+          'Admin service returned an invalid media upload target.');
+    }
+    final http.StreamedResponse response;
+    try {
+      response = await _uploadStream(
+        uploadUrl: uploadUrl,
+        stream: stream,
+        contentLength: contentLength,
+        contentType: contentType,
+      );
+    } on TimeoutException {
+      throw const AdminException(
+        'Kupakia media kumechukua muda mrefu. Jaribu tena kwa mtandao bora.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Imeshindikana kupakia media. Angalia mtandao wako.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw const AdminException('Imeshindikana kupakia media. Jaribu tena.');
+    }
+    return publicUrl;
+  }
+
+  Future<http.StreamedResponse> _uploadStream({
+    required String uploadUrl,
+    required Stream<List<int>> stream,
+    required int contentLength,
+    required String contentType,
+  }) async {
+    final request = http.StreamedRequest('PUT', Uri.parse(uploadUrl))
+      ..headers['Content-Type'] = contentType
+      ..contentLength = contentLength;
+    final responseFuture = _client.send(request);
+    await Future.wait<Object?>([
+      responseFuture,
+      stream.pipe(request.sink),
+    ]).timeout(videoUploadTimeout);
+    final response = await responseFuture;
+    await response.stream.drain<void>();
+    return response;
+  }
+
+  @override
+  Future<void> deleteUploadedMedia(
+      {String? videoPath, String? publicUrl}) async {
+    await _post('/api/admin/content/media/delete', {
+      if (videoPath != null) 'videoPath': videoPath,
+      if (publicUrl != null) 'publicUrl': publicUrl,
+    });
+  }
+
+  @override
+  Future<List<AdminContentDocumentRecord>> listContentDocuments() async {
+    final payload = await _get('/api/admin/content/documents');
+    final rows = (payload['documents'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_contentDocumentFromJson).toList();
+  }
+
+  @override
+  Future<AdminContentDocumentRecord> upsertContentDocument({
+    required AppDocument document,
+    required String status,
+  }) async {
+    final payload = await _put(
+      '/api/admin/content/documents/${Uri.encodeComponent(document.id)}',
+      {'status': status, 'document': _documentToJson(document)},
+    );
+    final row = payload['document'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException(
+          'Invalid document response from admin service.');
+    }
+    return _contentDocumentFromJson(row);
+  }
+
+  @override
+  Future<List<AdminModerationReport>> listModerationReports() async {
+    final payload = await _get('/api/admin/moderation/reports');
+    final rows = (payload['reports'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_moderationReportFromJson).toList();
+  }
+
+  @override
+  Future<CommunityPost> resolveModerationReport({
+    required String postId,
+    required String action,
+  }) async {
+    final payload = await _post(
+      '/api/admin/moderation/posts/${Uri.encodeComponent(postId)}/resolve',
+      {'action': action},
+    );
+    final row = payload['post'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException(
+          'Invalid moderation response from admin service.');
+    }
+    return _communityPostFromJson(row);
+  }
+
+  @override
+  Future<List<AdminAiReport>> listAiReports() async {
+    final payload = await _get('/api/admin/moderation/ai-reports');
+    final rows = (payload['reports'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_aiReportFromJson).toList();
+  }
+
+  @override
+  Future<void> resolveAiReport(String reportId, {String? note}) async {
+    await _put(
+      '/api/admin/moderation/ai-reports/${Uri.encodeComponent(reportId)}',
+      {'note': note},
+    );
+  }
+
+  @override
+  Future<List<AdminAccountDeletionRequest>>
+      listAccountDeletionRequests() async {
+    final payload = await _get('/api/admin/account-deletion-requests');
+    final rows = (payload['requests'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_accountDeletionRequestFromJson).toList();
+  }
+
+  @override
+  Future<void> resolveAccountDeletionRequest({
+    required String requestId,
+    required String status,
+    String? note,
+  }) async {
+    await _put(
+      '/api/admin/account-deletion-requests/${Uri.encodeComponent(requestId)}',
+      {'status': status, 'note': note},
+    );
+  }
+
+  @override
+  Future<AdminUsersPage> listUsers({
+    String search = '',
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final query = <String, String>{
+      if (search.trim().isNotEmpty) 'search': search.trim(),
+      'limit': '$limit',
+      'offset': '$offset',
+    };
+    final uri =
+        _baseUrl.resolve('/api/admin/users').replace(queryParameters: query);
+    final payload = await _request(uri, method: _HttpMethod.get);
+    final rows = (payload['users'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return AdminUsersPage(
+      total: (payload['total'] as num?)?.toInt() ?? 0,
+      users: rows.map(_adminUserFromJson).toList(),
+    );
+  }
+
+  @override
+  Future<void> updateUserAccess({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {
+    await _put(
+      '/api/admin/users/${Uri.encodeComponent(userId)}/access',
+      {
+        'action': action,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+  }
+
+  @override
+  Future<List<AdminPlan>> listPlans() async {
+    final payload = await _get('/api/admin/plans');
+    final rows = (payload['plans'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_adminPlanFromJson).toList();
+  }
+
+  @override
+  Future<AdminPaymentsPage> listPayments({
+    String? status,
+    String? userId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final query = <String, String>{
+      if (status != null) 'status': status,
+      if (userId != null) 'userId': userId,
+      'limit': '$limit',
+      'offset': '$offset',
+    };
+    final uri =
+        _baseUrl.resolve('/api/admin/payments').replace(queryParameters: query);
+    final payload = await _request(uri, method: _HttpMethod.get);
+    final rows = (payload['records'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return AdminPaymentsPage(
+      total: (payload['total'] as num?)?.toInt() ?? 0,
+      records: rows.map(_adminPaymentRecordFromJson).toList(),
+    );
+  }
+
+  @override
+  Future<AdminPaymentRecord> recordPayment({
+    required String userId,
+    required String planId,
+    required String method,
+    required int amountTzs,
+    String? reference,
+    String? note,
+  }) async {
+    final payload = await _post('/api/admin/payments', {
+      'userId': userId,
+      'planId': planId,
+      'method': method,
+      'amountTzs': amountTzs,
+      if (reference != null) 'reference': reference,
+      if (note != null) 'note': note,
+    });
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException(
+          'Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<AdminPaymentRecord> approvePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    final payload = await _post(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/approve',
+      {if (reason != null) 'reason': reason},
+    );
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException(
+          'Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<AdminPaymentRecord> reversePayment(
+    String paymentRecordId, {
+    String? reason,
+  }) async {
+    final payload = await _post(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/reverse',
+      {if (reason != null) 'reason': reason},
+    );
+    final row = payload['paymentRecord'];
+    if (row is! Map<String, dynamic>) {
+      throw const AdminException(
+          'Invalid payment response from admin service.');
+    }
+    return _adminPaymentRecordFromJson(row);
+  }
+
+  @override
+  Future<List<AdminAuditEvent>> paymentAuditEvents(
+    String paymentRecordId,
+  ) async {
+    final payload = await _get(
+      '/api/admin/payments/${Uri.encodeComponent(paymentRecordId)}/audit',
+    );
+    final rows = (payload['events'] as List<dynamic>? ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    return rows.map(_adminAuditEventFromJson).toList();
+  }
+
+  Future<Map<String, dynamic>> _get(String path) async {
+    return _request(_baseUrl.resolve(path), method: _HttpMethod.get);
+  }
+
+  Future<Map<String, dynamic>> _post(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    return _request(
+      _baseUrl.resolve(path),
+      method: _HttpMethod.post,
+      body: body,
+    );
+  }
+
+  Future<Map<String, dynamic>> _put(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    return _request(
+      _baseUrl.resolve(path),
+      method: _HttpMethod.put,
+      body: body,
+    );
+  }
+
+  Future<Map<String, dynamic>> _delete(String path) async {
+    return _request(_baseUrl.resolve(path), method: _HttpMethod.delete);
+  }
+
+  Future<Map<String, dynamic>> _request(
+    Uri uri, {
+    required _HttpMethod method,
+    Map<String, dynamic>? body,
+  }) async {
+    try {
+      final headers = await _headers();
+      final response = switch (method) {
+        _HttpMethod.get =>
+          await _client.get(uri, headers: headers).timeout(timeout),
+        _HttpMethod.post => await _client
+            .post(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+        _HttpMethod.put => await _client
+            .put(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+        _HttpMethod.delete => await _client
+            .delete(uri, headers: headers, body: jsonEncode(body ?? const {}))
+            .timeout(timeout),
+      };
+      final payload =
+          response.body.isEmpty ? const {} : jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw AdminException(
+          payload is Map<String, dynamic> && payload['error'] is String
+              ? payload['error'] as String
+              : 'Admin request failed.',
+        );
+      }
+      if (payload is! Map<String, dynamic>) {
+        throw const AdminException(
+          'Admin service returned an invalid response.',
+        );
+      }
+      return payload;
+    } on AdminException {
+      rethrow;
+    } on TimeoutException {
+      throw const AdminException(
+        'Admin service took too long to respond. Try again.',
+      );
+    } on http.ClientException {
+      throw const AdminException(
+        'Admin service could not be reached. Check your connection.',
+      );
+    } on FormatException {
+      throw const AdminException(
+        'Admin service returned an invalid response.',
+      );
+    }
+  }
+
+  Future<Map<String, String>> _headers() async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = await BackendSessionStorage.readToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+}
+
+enum _HttpMethod { get, post, put, delete }
+
+AdminContentCourseRecord _contentCourseFromJson(Map<String, dynamic> json) {
+  return AdminContentCourseRecord(
+    id: json['id'] as String,
+    status: json['status'] as String,
+    course: _courseFromJson(json['course'] as Map<String, dynamic>),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+  );
+}
+
+AdminContentDocumentRecord _contentDocumentFromJson(Map<String, dynamic> json) {
+  return AdminContentDocumentRecord(
+    id: json['id'] as String,
+    status: json['status'] as String,
+    document: _documentFromJson(json['document'] as Map<String, dynamic>),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+  );
+}
+
+AdminSourceSegment _sourceSegmentFromJson(Map<String, dynamic> json) {
+  return AdminSourceSegment(
+    id: json['id'] as String,
+    documentId: json['documentId'] as String,
+    documentTitle: json['documentTitle'] as String,
+    sectionTitle: json['sectionTitle'] as String?,
+    locationLabel: json['locationLabel'] as String? ?? '',
+    contentPreview: json['contentPreview'] as String? ?? '',
+  );
+}
+
+AdminModerationReport _moderationReportFromJson(Map<String, dynamic> json) {
+  final reportJson = json['report'] as Map<String, dynamic>;
+  return AdminModerationReport(
+    post: _communityPostFromJson(json['post'] as Map<String, dynamic>),
+    report: AdminModerationReportStatus(
+      postId: reportJson['postId'] as String,
+      reportedAt: DateTime.parse(reportJson['reportedAt'] as String),
+      status: reportJson['status'] as String,
+      count: (reportJson['count'] as num?)?.toInt() ?? 0,
+      reasons: (reportJson['reasons'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<String>()
+          .toList(),
+    ),
+  );
+}
+
+AdminAiReport _aiReportFromJson(Map<String, dynamic> json) {
+  final report = json['report'] as Map<String, dynamic>;
+  final answer = json['answer'] as Map<String, dynamic>;
+  return AdminAiReport(
+    id: report['id'] as String,
+    reason: report['reason'] as String,
+    details: report['details'] as String?,
+    reportedAt: DateTime.parse(report['reportedAt'] as String),
+    prompt: answer['prompt'] as String? ?? '',
+    answer: answer['answer'] as String? ?? '',
+  );
+}
+
+AdminAccountDeletionRequest _accountDeletionRequestFromJson(
+  Map<String, dynamic> json,
+) {
+  return AdminAccountDeletionRequest(
+    id: json['id'] as String,
+    email: json['email'] as String,
+    status: json['status'] as String,
+    requestedAt: DateTime.parse(json['requestedAt'] as String),
+  );
+}
+
+AdminUserSummary _adminUserFromJson(Map<String, dynamic> json) {
+  return AdminUserSummary(
+    id: json['id'] as String,
+    email: json['email'] as String?,
+    accountStatus: json['accountStatus'] as String? ?? 'pending_activation',
+    displayName: json['displayName'] as String?,
+    preferredLocation: json['preferredLocation'] as String?,
+    role: json['role'] as String? ?? 'learner',
+    subscriptionPlan: json['subscriptionPlan'] as String?,
+    subscriptionStartedAt: (json['subscriptionStartedAt'] as String?) == null
+        ? null
+        : DateTime.parse(json['subscriptionStartedAt'] as String),
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+    learningProgressCount:
+        (json['learningProgressCount'] as num?)?.toInt() ?? 0,
+    paymentTransactionsCount:
+        (json['paymentTransactionsCount'] as num?)?.toInt() ?? 0,
+    notificationCount: (json['notificationCount'] as num?)?.toInt() ?? 0,
+    communityPostsCount: (json['communityPostsCount'] as num?)?.toInt() ?? 0,
+  );
+}
+
+AdminPlan _adminPlanFromJson(Map<String, dynamic> json) {
+  return AdminPlan(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    subtitle: json['subtitle'] as String?,
+    price: json['price'] as String,
+    priceTzs: (json['priceTzs'] as num).toInt(),
+    durationDays: (json['durationDays'] as num).toInt(),
+    recommended: json['recommended'] as bool? ?? false,
+  );
+}
+
+AdminPaymentRecord _adminPaymentRecordFromJson(Map<String, dynamic> json) {
+  return AdminPaymentRecord(
+    id: json['id'] as String,
+    userId: json['userId'] as String,
+    userEmail: json['userEmail'] as String?,
+    planId: json['planId'] as String,
+    method: json['method'] as String,
+    amountTzs: (json['amountTzs'] as num).toInt(),
+    currency: json['currency'] as String? ?? 'TZS',
+    reference: json['reference'] as String?,
+    note: json['note'] as String?,
+    status: json['status'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
+}
+
+AdminAuditEvent _adminAuditEventFromJson(Map<String, dynamic> json) {
+  return AdminAuditEvent(
+    id: json['id'] as String,
+    actorUserId: json['actorUserId'] as String?,
+    action: json['action'] as String,
+    previousStatus: json['previousStatus'] as String?,
+    newStatus: json['newStatus'] as String?,
+    reason: json['reason'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
+}
+
+Course _courseFromJson(Map<String, dynamic> json) {
+  return Course(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    description: json['description'] as String,
+    badge: json['badge'] as String,
+    icon: _iconFromWire(json['icon'] as String),
+    progress: (json['progress'] as num).toDouble(),
+    imageUrl: json['imageUrl'] as String,
+    introVideoUrl: json['introVideoUrl'] as String?,
+    outcomes: (json['outcomes'] as List<dynamic>).cast<String>(),
+    lessons: (json['lessons'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(_lessonFromJson)
+        .toList(),
+  );
+}
+
+Lesson _lessonFromJson(Map<String, dynamic> json) {
+  final readiness = json['readiness'] as Map<String, dynamic>?;
+  return Lesson(
+    id: json['id'] as String?,
+    moduleId: json['moduleId'] as String?,
+    moduleKey: json['moduleKey'] as String?,
+    moduleTitle: json['moduleTitle'] as String?,
+    title: json['title'] as String,
+    type: _lessonTypeFromWire(json['type'] as String),
+    meta: json['meta'] as String,
+    description: json['description'] as String,
+    durationMinutes: (json['durationMinutes'] as num?)?.toInt(),
+    sourceTitle: json['sourceTitle'] as String?,
+    resourceUrl: json['resourceUrl'] as String?,
+    videoPath: json['videoPath'] as String?,
+    isLearnerVisible: readiness?['visible'] as bool? ?? true,
+    readinessReasons:
+        (readiness?['reasons'] as List<dynamic>? ?? const <dynamic>[])
+            .cast<String>(),
+    isPremium: json['isPremium'] as bool? ?? false,
+    isCompleted: json['isCompleted'] as bool? ?? false,
+  );
+}
+
+AppDocument _documentFromJson(Map<String, dynamic> json) {
+  return AppDocument(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    courseId: json['courseId'] as String,
+    courseTitle: json['courseTitle'] as String,
+    description: json['description'] as String,
+    type: json['type'] as String? ?? 'pdf',
+    sizeLabel: json['sizeLabel'] as String? ?? '',
+    url: json['url'] as String?,
+    imageUrl: json['imageUrl'] as String?,
+    introVideoUrl: json['introVideoUrl'] as String?,
+    isPremium: json['isPremium'] as bool? ?? false,
+  );
+}
+
+CommunityPost _communityPostFromJson(Map<String, dynamic> json) {
+  return CommunityPost(
+    id: json['id'] as String,
+    author: json['author'] as String,
+    location: json['location'] as String,
+    time: json['time'] as String,
+    content: json['content'] as String,
+    likes: json['likes'] as int,
+    comments: json['comments'] as int,
+    tags: (json['tags'] as List<dynamic>).cast<String>(),
+    replies: (json['replies'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(_communityReplyFromJson)
+        .toList(),
+    relatedTopic: json['relatedTopic'] as String?,
+    // Without this a reported post rendered the grey placeholder instead of
+    // the photo the moderator is being asked to judge.
+    imageUrl: json['imageUrl'] as String?,
+    hasImage: json['hasImage'] as bool? ?? false,
+    isExpert: json['isExpert'] as bool? ?? false,
+    isUrgent: json['isUrgent'] as bool? ?? false,
+  );
+}
+
+CommunityReply _communityReplyFromJson(Map<String, dynamic> json) {
+  return CommunityReply(
+    author: json['author'] as String,
+    body: json['body'] as String,
+    time: json['time'] as String,
+    isExpert: json['isExpert'] as bool? ?? false,
+  );
+}
+
+Map<String, dynamic> _courseToJson(Course course) {
+  return {
+    'id': course.id,
+    'title': course.title,
+    'description': course.description,
+    'badge': course.badge,
+    'icon': _iconToWire(course.icon),
+    'progress': course.progress,
+    'imageUrl': course.imageUrl,
+    if (course.introVideoUrl != null) 'introVideoUrl': course.introVideoUrl,
+    'outcomes': course.outcomes,
+    'lessons': course.lessons.map(_lessonToJson).toList(),
+  };
+}
+
+Map<String, dynamic> _lessonToJson(Lesson lesson) {
+  return {
+    if (lesson.id != null) 'id': lesson.id,
+    if (lesson.moduleId != null) 'moduleId': lesson.moduleId,
+    if (lesson.moduleKey != null) 'moduleKey': lesson.moduleKey,
+    if (lesson.moduleTitle != null) 'moduleTitle': lesson.moduleTitle,
+    'title': lesson.title,
+    'type': lesson.type.name,
+    'meta': lesson.meta,
+    'description': lesson.description,
+    if (lesson.durationMinutes != null)
+      'durationMinutes': lesson.durationMinutes,
+    if (lesson.sourceTitle != null) 'sourceTitle': lesson.sourceTitle,
+    if (lesson.resourceUrl != null) 'resourceUrl': lesson.resourceUrl,
+    if (lesson.videoPath != null) 'videoPath': lesson.videoPath,
+    'isPremium': lesson.isPremium,
+    'isCompleted': lesson.isCompleted,
+  };
+}
+
+Map<String, dynamic> _documentToJson(AppDocument document) {
+  return {
+    'id': document.id,
+    'title': document.title,
+    'courseId': document.courseId,
+    'courseTitle': document.courseTitle,
+    'description': document.description,
+    'type': document.type,
+    'sizeLabel': document.sizeLabel,
+    if (document.url != null) 'url': document.url,
+    if (document.imageUrl != null) 'imageUrl': document.imageUrl,
+    if (document.introVideoUrl != null) 'introVideoUrl': document.introVideoUrl,
+    'isPremium': document.isPremium,
+  };
+}
+
+LessonType _lessonTypeFromWire(String value) {
+  return LessonType.values.firstWhere(
+    (type) => type.name == value,
+    orElse: () => LessonType.reading,
+  );
+}
+
+IconData _iconFromWire(String value) {
+  return switch (value) {
+    'bug_report' => Icons.bug_report,
+    'calendar_month' => Icons.calendar_month,
+    'eco' => Icons.eco,
+    'egg_alt' => Icons.egg_alt,
+    'grass' => Icons.grass,
+    'handshake' => Icons.handshake,
+    'local_florist' => Icons.local_florist,
+    'menu_book' => Icons.menu_book,
+    'play_circle' => Icons.play_circle_outline,
+    'spa' => Icons.spa,
+    'star' => Icons.star,
+    'trending_up' => Icons.trending_up,
+    'water_drop' => Icons.water_drop,
+    _ => Icons.agriculture,
+  };
+}
+
+String _iconToWire(IconData icon) {
+  if (icon == Icons.bug_report) return 'bug_report';
+  if (icon == Icons.calendar_month) return 'calendar_month';
+  if (icon == Icons.eco) return 'eco';
+  if (icon == Icons.egg_alt) return 'egg_alt';
+  if (icon == Icons.grass) return 'grass';
+  if (icon == Icons.handshake) return 'handshake';
+  if (icon == Icons.local_florist) return 'local_florist';
+  if (icon == Icons.menu_book) return 'menu_book';
+  if (icon == Icons.play_circle_outline) return 'play_circle';
+  if (icon == Icons.spa) return 'spa';
+  if (icon == Icons.star) return 'star';
+  if (icon == Icons.trending_up) return 'trending_up';
+  if (icon == Icons.water_drop) return 'water_drop';
+  return 'agriculture';
+}

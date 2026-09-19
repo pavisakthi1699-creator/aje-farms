@@ -1,0 +1,10 @@
+external_id,item_type,course_code,module_code,lesson_code,learning_path_code,code,title_sw,summary_sw,body_sw,question_sw,answer_sw,options_sw,correct_answer,explanation_sw,items_sw,source_reference,source_segment_id,sort_order
+nb-course-001,course,,,,,kilimo-cha-mpunga-kibiashara,Kilimo cha Mpunga Kibiashara,Kozi ya awali ya mpunga kibiashara,,,,,,,,NotebookLM export: Rice notes overview,,10
+nb-module-001,module,kilimo-cha-mpunga-kibiashara,,,,maandalizi-ya-shamba,Maandalizi ya Shamba,Hatua za kuandaa shamba kabla ya kupanda,,,,,,,,NotebookLM export: Maandalizi,,10
+nb-lesson-001,lesson,kilimo-cha-mpunga-kibiashara,maandalizi-ya-shamba,,,uchaguzi-wa-eneo,Uchaguzi wa Eneo,,Chagua eneo lenye maji ya kutosha na udongo unaofaa kwa mpunga.,,,,,,,NotebookLM export: Location selection,,10
+nb-checklist-001,checklist,kilimo-cha-mpunga-kibiashara,maandalizi-ya-shamba,uchaguzi-wa-eneo,,ukaguzi-wa-eneo,Ukaguzi wa Eneo,,,,,,,"[""Maji yanapatikana"",""Udongo umechunguzwa"",""Njia ya kufika shambani ipo""]",NotebookLM export: Location checklist,,20
+nb-quiz-001,quiz,kilimo-cha-mpunga-kibiashara,maandalizi-ya-shamba,uchaguzi-wa-eneo,,swali-maji,,,,Kwa nini maji ni muhimu kwenye kilimo cha mpunga?,,"[""Husaidia ukuaji"",""Hupunguza kazi zote"",""Huzuia mavuno""]",Husaidia ukuaji,Jibu linahitaji kuunganishwa na ukurasa wa chanzo.,,NotebookLM export: Water question,,30
+nb-faq-001,faq,kilimo-cha-mpunga-kibiashara,,,,maji-ya-mpunga,,,Je, mpunga unahitaji maji mengi?,Mpunga huhitaji upatikanaji mzuri wa maji kulingana na hatua ya ukuaji.,,,,,,NotebookLM export: FAQ water,,40
+nb-gap-001,content_gap,kilimo-cha-mpunga-kibiashara,,,,ushahidi-wa-gharama,Gharama za uzalishaji zinahitaji chanzo,,,Ni gharama zipi muhimu?,,,,,,NotebookLM export: Costs mentioned without page source,,50
+nb-path-001,learning_path,,,,mkulima-wa-mpunga-mwanzo-hadi-soko,mkulima-wa-mpunga-mwanzo-hadi-soko,Mkulima wa Mpunga — Mwanzo hadi Soko,Njia ya kujifunza mpunga kutoka mwanzo hadi soko.,,,,,,,,NotebookLM export: Path,,10
+nb-path-course-001,learning_path_course,kilimo-cha-mpunga-kibiashara,,,mkulima-wa-mpunga-mwanzo-hadi-soko,,,,,,,,,,,NotebookLM export: Path membership,,10

@@ -1,0 +1,57 @@
+name: aje_farms_mobile
+description: Native Flutter mobile app for Chuo Kikuu Cha Mtaani learning, AI support, and farmer services.
+publish_to: "none"
+version: 0.1.20+21
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.19.0
+  connectivity_plus: ^6.0.5
+  flutter_secure_storage: ^9.2.2
+  supabase_flutter: ^2.8.0
+  http: ^1.2.2
+  shared_preferences: ^2.3.5
+  url_launcher: ^6.3.0
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  pdfrx: ^1.3.5
+  unorm_dart: ^0.3.2
+
+dev_dependencies:
+  integration_test:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/images/courses/
+    - assets/images/hero/
+    - assets/branding/
+  # Bundled rather than fetched at runtime: this is a legibility typeface for
+  # farmers on weak rural connections, so it must be present on first launch
+  # and offline. Braille Institute, SIL OFL 1.1 (assets/fonts/OFL.txt).
+  fonts:
+    - family: Atkinson Hyperlegible
+      fonts:
+        - asset: assets/fonts/AtkinsonHyperlegible-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/AtkinsonHyperlegible-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/branding/chuo-kikuu-cha-mtaani-logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/branding/chuo-kikuu-cha-mtaani-logo-adaptive-fg.png"
+  min_sdk_android: 21

@@ -1,0 +1,49 @@
+{
+  "name": "aje-farms-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development node server/index.js",
+    "dev:supabase": "cross-env NODE_ENV=development AJE_STORE=supabase node server/index.js",
+    "start": "node server/index.js",
+    "preview": "npm run start",
+    "test:frontend": "bash aje_farms_mobile/scripts/frontend_quality_gate.sh",
+    "test:server": "node --test server/tests/*.test.js",
+    "test:server:postgres": "node --test --test-concurrency=1 server/tests/entitlements-postgres.test.js server/tests/store-api-postgres.test.js",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "node server/scripts/migrate.js",
+    "db:import": "node server/scripts/import-json-store.js",
+    "db:backfill:community-authors": "node server/scripts/backfill-community-authors.js",
+    "import:notebooklm": "node server/scripts/import-notebooklm.js",
+    "ingest:remaining-curriculum": "node server/scripts/ingest-remaining-curriculum.js",
+    "validate:remaining-curriculum": "node server/scripts/validate-remaining-curriculum.js",
+    "publish:reviewed-curriculum": "node server/scripts/publish-reviewed-curriculum-pilots.js",
+    "validate:course": "node server/scripts/validate-course.js",
+    "smoke:postgres": "node server/scripts/smoke-postgres.js",
+    "smoke:supabase": "AJE_STORE=supabase node server/scripts/smoke-postgres.js",
+    "smoke:supabase:live": "AJE_STORE=supabase node server/scripts/smoke-supabase-live.js",
+    "test:mobile:connected": "cd aje_farms_mobile && flutter test integration_test/connected_app_smoke_test.dart",
+    "test:mobile:manual-approval:e2e": "node server/scripts/run-manual-approval-e2e.js",
+    "android:key:generate": "node server/scripts/generate-android-upload-key.js",
+    "preflight:release": "node server/scripts/preflight-release.js",
+    "validate:android-apk": "node server/scripts/validate-android-apk.js",
+    "build:android:internal": "node server/scripts/build-android-internal.js",
+    "release:android": "node server/scripts/build-android-release.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@supabase/supabase-js": "^2.111.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "cross-env": "^10.1.0"
+  }
+}

@@ -1,0 +1,489 @@
+{
+  "rows": [
+    {
+      "item_type": "course",
+      "external_id": "course:RICE-SEED-001",
+      "code": "RICE-SEED-001",
+      "title_sw": "Aina za Mbegu za Mpunga na Sifa Zake",
+      "summary_sw": "Jifunze utambuzi wa mbegu mbalimbali za mpunga kama Saro, Karamata, na changamoto zake shambani.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 10
+    },
+    {
+      "item_type": "learning_path",
+      "external_id": "learning-path:uchaguzi-wa-mbegu-za-mpunga",
+      "learning_path_code": "uchaguzi-wa-mbegu-za-mpunga",
+      "code": "uchaguzi-wa-mbegu-za-mpunga",
+      "title_sw": "Uchaguzi wa Mbegu za Mpunga",
+      "summary_sw": "Njia ya kujifunza kuchagua na kutambua aina za mbegu za mpunga shambani.",
+      "status": "draft",
+      "sort_order": 10
+    },
+    {
+      "item_type": "learning_path_course",
+      "external_id": "learning-path-course:uchaguzi-wa-mbegu-za-mpunga:RICE-SEED-001",
+      "learning_path_code": "uchaguzi-wa-mbegu-za-mpunga",
+      "course_code": "RICE-SEED-001",
+      "sort_order": 10
+    },
+    {
+      "item_type": "module",
+      "external_id": "MOD-VID-01",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "code": "mod-vid-01",
+      "title_sw": "Utambuzi wa Mbegu Fupi na Ndefu (Saro, Beyenge na Shingo ya Mwali)",
+      "summary_sw": "Tofauti za kimaumbile na kiuzalishaji kati ya Saro, Beyenge, na Shingo ya Mwali.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 10
+    },
+    {
+      "item_type": "module",
+      "external_id": "MOD-VID-02",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-02",
+      "code": "mod-vid-02",
+      "title_sw": "Mbegu Tamu na Changamoto za Ndege (Super Karamata)",
+      "summary_sw": "Sifa za Super Karamata na tahadhari ya ulinzi dhidi ya ndege wanaokula nafaka.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 20
+    },
+    {
+      "item_type": "module",
+      "external_id": "MOD-VID-03",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-03",
+      "code": "mod-vid-03",
+      "title_sw": "Mbegu Zenye Sifa Maalum na Palizi (Mbawa Mbili na Zambia)",
+      "summary_sw": "Sifa za Mbawa Mbili na Zambia pamoja na umuhimu wa palizi na usafishaji wa mbegu.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 30
+    },
+    {
+      "item_type": "lesson",
+      "external_id": "LSN-VID-001",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-001",
+      "code": "lsn-vid-001",
+      "title_sw": "Tofauti ya Saro na Beyenge",
+      "body_sw": "Hatua ya vitendo: Tembelea shamba kutambua mbegu. Beyenge ni ndefu na ina mavuno pungufu kulinganisha na Saro ambayo ni fupi.",
+      "lesson_type": "video",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "video_source_document_id": "03f3ce43-485f-4705-8656-5b6ea0697a43",
+      "transcript_source_document_id": "33eb2b52-899e-4b5a-bd01-69dc442fc9dd",
+      "sort_order": 10
+    },
+    {
+      "item_type": "lesson",
+      "external_id": "LSN-VID-002",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-002",
+      "code": "lsn-vid-002",
+      "title_sw": "Changamoto ya Shingo ya Mwali",
+      "body_sw": "Hatua ya vitendo: Kagua mpunga mrefu shambani. Mbegu ya Shingo ya Mwali inalala na kuoza majini, hivyo inahitaji uangalizi maalumu.",
+      "lesson_type": "video",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "video_source_document_id": "03f3ce43-485f-4705-8656-5b6ea0697a43",
+      "transcript_source_document_id": "33eb2b52-899e-4b5a-bd01-69dc442fc9dd",
+      "sort_order": 20
+    },
+    {
+      "item_type": "lesson",
+      "external_id": "LSN-VID-003",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-003",
+      "code": "lsn-vid-003",
+      "title_sw": "Usimamizi wa Maji Shambani",
+      "body_sw": "Hatua ya vitendo: Kagua mifereji yako kuhakikisha mpunga unapata maji ya uhakika muda wote kama inavyohitajika.",
+      "lesson_type": "video",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "video_source_document_id": "03f3ce43-485f-4705-8656-5b6ea0697a43",
+      "transcript_source_document_id": "33eb2b52-899e-4b5a-bd01-69dc442fc9dd",
+      "sort_order": 30
+    },
+    {
+      "item_type": "lesson",
+      "external_id": "MOD-VID-02:lesson",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-02",
+      "lesson_code": "mod-vid-02-video-01",
+      "code": "mod-vid-02-video-01",
+      "title_sw": "Mbegu Tamu na Changamoto za Ndege (Super Karamata)",
+      "body_sw": "Jifunze sifa za Super Karamata, ikiwa ni pamoja na utamu, harufu, na changamoto ya kushambuliwa na ndege wanaokula nafaka.",
+      "lesson_type": "video",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "video_source_document_id": "03f3ce43-485f-4705-8656-5b6ea0697a43",
+      "transcript_source_document_id": "33eb2b52-899e-4b5a-bd01-69dc442fc9dd",
+      "sort_order": 10
+    },
+    {
+      "item_type": "lesson",
+      "external_id": "MOD-VID-03:lesson",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-03",
+      "lesson_code": "mod-vid-03-video-01",
+      "code": "mod-vid-03-video-01",
+      "title_sw": "Mbegu Zenye Sifa Maalum na Palizi (Mbawa Mbili na Zambia)",
+      "body_sw": "Jifunze sifa za Mbawa Mbili na Zambia, pamoja na umuhimu wa palizi na usafishaji wa mbegu zilizochanganyikana.",
+      "lesson_type": "video",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "video_source_document_id": "03f3ce43-485f-4705-8656-5b6ea0697a43",
+      "transcript_source_document_id": "33eb2b52-899e-4b5a-bd01-69dc442fc9dd",
+      "sort_order": 10
+    },
+    {
+      "item_type": "checklist",
+      "external_id": "CHK-VID-001",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-001",
+      "code": "chk-vid-001",
+      "title_sw": "Moduli 1: Ukaguzi wa Saro, Beyenge na Shingo ya Mwali",
+      "items_sw": [
+        "Nimetambua tofauti ya urefu kati ya Saro na Beyenge.",
+        "Nimekagua mpunga wa Shingo ya Mwali usianguke na kuoza.",
+        "Shamba lina maji ya kutosha."
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 40
+    },
+    {
+      "item_type": "checklist",
+      "external_id": "CHK-VID-002",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-02",
+      "lesson_code": "mod-vid-02-video-01",
+      "code": "chk-vid-002",
+      "title_sw": "Moduli 2: Ukaguzi wa Super Karamata",
+      "items_sw": [
+        "Nimeandaa ulinzi dhidi ya ndege kwa ajili ya mbegu ya Karamata.",
+        "Nimehakikisha palizi inafanyika kwa kung'oa magugu."
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 50
+    },
+    {
+      "item_type": "checklist",
+      "external_id": "CHK-VID-003",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-03",
+      "lesson_code": "mod-vid-03-video-01",
+      "code": "chk-vid-003",
+      "title_sw": "Moduli 3: Ukaguzi wa Mbawa Mbili na Zambia",
+      "items_sw": [
+        "Nimetambua mbegu ya Mbawa mbili inayozaa punje mbili.",
+        "Nimeona mbegu ya Zambia inavyosimama wima kama mtama.",
+        "Wataalamu (TARI) wamehusishwa kusafisha mbegu."
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 60
+    },
+    {
+      "item_type": "quiz",
+      "external_id": "QZ-VID-001",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-001",
+      "code": "qz-vid-001",
+      "question_sw": "Tofauti gani kubwa kimaumbile ipo kati ya mbegu ya Saro na Beyenge?",
+      "correct_answer": "Beyenge ni ndefu sana ukilinganisha na Saro iliyo fupi, lakini Saro ina mavuno mengi zaidi.",
+      "explanation_sw": "Swali linatokana na maelezo ya video kuhusu urefu na mavuno ya mbegu hizi.",
+      "options_sw": [
+        "Beyenge ni ndefu kuliko Saro",
+        "Saro ni ndefu kuliko Beyenge",
+        "Zote zina urefu sawa"
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 70
+    },
+    {
+      "item_type": "quiz",
+      "external_id": "QZ-VID-002",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-01",
+      "lesson_code": "lsn-vid-002",
+      "code": "qz-vid-002",
+      "question_sw": "Hasara gani inatajwa kuhusu kupanda mbegu ya Shingo ya Mwali?",
+      "correct_answer": "Ni ndefu sana hivyo inalala chini, mpunga huingia kwenye maji na hatimaye kuoza.",
+      "explanation_sw": "Video inaeleza kuwa urefu wa Shingo ya Mwali unaweza kuifanya ilale na kuoza majini.",
+      "options_sw": [
+        "Inalala chini na kuoza majini",
+        "Haina punje kabisa",
+        "Haihitaji maji"
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 80
+    },
+    {
+      "item_type": "quiz",
+      "external_id": "QZ-VID-003",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-02",
+      "lesson_code": "mod-vid-02-video-01",
+      "code": "qz-vid-003",
+      "question_sw": "Kwa nini wakulima wanaopanda mbegu ya Super Karamata wanashauriwa wasilale?",
+      "correct_answer": "Kwa sababu ina harufu nzuri na ni tamu sana, hivyo inashambuliwa sana na ndege wanaokula nafaka.",
+      "explanation_sw": "Hili ni tahadhari ya ulinzi dhidi ya ndege kwa mbegu ya Super Karamata.",
+      "options_sw": [
+        "Kwa sababu ndege huishambulia sana",
+        "Kwa sababu haioti bila kulindwa usiku",
+        "Kwa sababu inahitaji kupaliliwa kila saa"
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 90
+    },
+    {
+      "item_type": "quiz",
+      "external_id": "QZ-VID-004",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-03",
+      "lesson_code": "mod-vid-03-video-01",
+      "code": "qz-vid-004",
+      "question_sw": "Kwa nini mbegu moja ya mpunga inaitwa Mbawa Mbili?",
+      "correct_answer": "Imepewa jina hilo kwa sababu ikikauka inaonyesha kuwa na watoto wawili au punje mbili ndani yake.",
+      "explanation_sw": "Jibu linatokana na sifa ya punje mbili iliyoelezwa kwenye video.",
+      "options_sw": [
+        "Inaonyesha punje mbili ndani yake",
+        "Inasimama kama mtama",
+        "Ina harufu nzuri kuliko zote"
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 100
+    },
+    {
+      "item_type": "quiz",
+      "external_id": "QZ-VID-005",
+      "course_code": "RICE-SEED-001",
+      "module_code": "mod-vid-03",
+      "lesson_code": "mod-vid-03-video-01",
+      "code": "qz-vid-005",
+      "question_sw": "Ni mbegu gani inasemekana kusimama wima kama mmea wa mtama?",
+      "correct_answer": "Mbegu inayoitwa Zambia.",
+      "explanation_sw": "Video inaeleza kuwa Zambia husimama wima kama mtama.",
+      "options_sw": [
+        "Zambia",
+        "Shingo ya Mwali",
+        "Beyenge"
+      ],
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 110
+    },
+    {
+      "item_type": "faq",
+      "external_id": "FAQ-VID-001",
+      "course_code": "RICE-SEED-001",
+      "code": "faq-vid-001",
+      "question_sw": "Kati ya mbegu ya Saro na Beyenge, ipi inatoa mavuno mengi?",
+      "answer_sw": "Saro inatoa mavuno mengi zaidi. Beyenge ina mavuno yake lakini yapo chini ukilinganisha na Saro.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 120
+    },
+    {
+      "item_type": "faq",
+      "external_id": "FAQ-VID-002",
+      "course_code": "RICE-SEED-001",
+      "code": "faq-vid-002",
+      "question_sw": "Kwa nini mpunga wangu aina ya Shingo ya Mwali umeoza shambani?",
+      "answer_sw": "Mbegu hii ni ndefu sana na huwa inalala inapokua. Ikilala, mpunga unaingia kwenye maji na kuanza kuoza.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 130
+    },
+    {
+      "item_type": "faq",
+      "external_id": "FAQ-VID-003",
+      "course_code": "RICE-SEED-001",
+      "code": "faq-vid-003",
+      "question_sw": "Mpunga wangu una magonjwa na wadudu wengi, nitumie dawa gani?",
+      "answer_sw": "Kwa ushauri sahihi kulingana na hali ya shamba lako, tafadhali wasiliana na mtaalamu kupitia WhatsApp.",
+      "status": "needs_review",
+      "risk_level": "high",
+      "source_reference": "SOURCE_MISSING",
+      "sort_order": 140
+    },
+    {
+      "item_type": "faq",
+      "external_id": "FAQ-VID-004",
+      "course_code": "RICE-SEED-001",
+      "code": "faq-vid-004",
+      "question_sw": "Nifanye nini kuzuia magugu shambani?",
+      "answer_sw": "Palizi hufanyika kwa njia ya asili kwa kung'oa magugu yote yanayoota katikati ya mpunga kwa kutumia mikono.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 150
+    },
+    {
+      "item_type": "faq",
+      "external_id": "FAQ-VID-005",
+      "course_code": "RICE-SEED-001",
+      "code": "faq-vid-005",
+      "question_sw": "Wataalamu wa TARI wanafanya nini wakifika shambani kwenye mbegu zilizochanganyikana?",
+      "answer_sw": "Wanafanya zoezi la kusafisha mbegu (purification) kwa sababu mbegu zinaweza kuchanganyikana kutokana na uchavushaji.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "source_document_ids": [
+        "03f3ce43-485f-4705-8656-5b6ea0697a43",
+        "33eb2b52-899e-4b5a-bd01-69dc442fc9dd"
+      ],
+      "sort_order": 160
+    },
+    {
+      "item_type": "content_gap",
+      "external_id": "CG-VID-001",
+      "course_code": "RICE-SEED-001",
+      "code": "cg-vid-001",
+      "title_sw": "Chanzo hakijatoa maelezo ya magonjwa, dawa na mbolea",
+      "body_sw": "Chanzo hakijaeleza majina ya magonjwa ya mpunga, dawa za kemikali, na viwango vya mbolea vinavyohitajika shambani.",
+      "status": "needs_review",
+      "risk_level": "high",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "sort_order": 170
+    },
+    {
+      "item_type": "content_gap",
+      "external_id": "CG-VID-002",
+      "course_code": "RICE-SEED-001",
+      "code": "cg-vid-002",
+      "title_sw": "Chanzo hakijatoa makadirio ya gharama na faida",
+      "body_sw": "Chanzo hakijatoa makadirio ya gharama za uzalishaji, bei ya kuuza mchele wa Karamata au Saro, wala faida ya kulima mpunga kibiashara.",
+      "status": "needs_review",
+      "risk_level": "high",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "sort_order": 180
+    },
+    {
+      "item_type": "content_gap",
+      "external_id": "CG-VID-003",
+      "course_code": "RICE-SEED-001",
+      "code": "cg-vid-003",
+      "title_sw": "Chanzo hakijatoa vipimo halisi vya upandaji",
+      "body_sw": "Vipimo halisi vya upandaji (umbali wa miche au kiasi cha mbegu kwa ekari) havikutajwa kwenye maelezo ya sauti haya.",
+      "status": "draft",
+      "risk_level": "normal",
+      "source_reference": "WhatsApp Video 2026-07-06 at 18.09.24.mp4, Transcript",
+      "sort_order": 190
+    }
+  ]
+}

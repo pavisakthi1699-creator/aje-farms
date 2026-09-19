@@ -1,0 +1,19 @@
+project_id = "aje-farms"
+
+[functions.import-notebooklm-curriculum]
+verify_jwt = true
+
+[functions.promote-staged-curriculum]
+verify_jwt = true
+
+[functions.queue-document-ingestion]
+verify_jwt = true
+
+[functions.generate-course-draft]
+verify_jwt = true
+
+[functions.validate-course-sources]
+verify_jwt = true
+
+[functions.publish-course]
+verify_jwt = true

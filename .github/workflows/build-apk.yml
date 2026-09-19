@@ -1,0 +1,40 @@
+name: Build Android Live APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build Live APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        working-directory: aje_farms_mobile
+        run: flutter pub get
+
+      - name: Build Live Release APK
+        working-directory: aje_farms_mobile
+        run: flutter build apk --release --dart-define=AJE_API_BASE_URL=https://aje-farms-api-production.up.railway.app
+
+      - name: Upload Live APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AJE-Farms-Live-APK
+          path: aje_farms_mobile/build/app/outputs/flutter-apk/app-release.apk

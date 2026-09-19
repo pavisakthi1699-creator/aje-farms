@@ -1,0 +1,119 @@
+// ignore_for_file: use_key_in_widget_constructors
+
+import '../../ui.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCourse = context.dependencies.learningRepository.featuredCourse;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const BrandHeader(compact: true),
+        actions: [
+          const LanguageToggleButton(),
+          const SearchActionButton(),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: CircleIconButton(
+              icon: Icons.notifications_none,
+              tooltip: 'Taarifa'.tr(context),
+              semanticLabel: 'Taarifa'.tr(context),
+              onPressed: () => AppNavigator.pushNotifications(context),
+            ),
+          ),
+        ],
+      ),
+      body: AppLayout(
+        child: ListView(
+          key: AppPageStorage.dashboard,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.md,
+            AppSpacing.xl,
+            AppSpacing.xxxl,
+          ),
+          children: [
+            Text(
+              context.session.state.dashboardGreeting,
+              style: Theme.of(context).textTheme.headlineLarge,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Endeleza shamba lako leo'.tr(context),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const TrialStatusCard(),
+            const SizedBox(height: AppSpacing.lg),
+            HeroActionCard(
+              onTap: () => AppNavigator.pushProblem(context),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: MiniActionCard(
+                    color: context.colors.mint,
+                    icon: Icons.smart_toy_outlined,
+                    title: 'Uliza AI'.tr(context),
+                    subtitle: 'Uliza chochote kuhusu kilimo au ufugaji...'.tr(context),
+                    onTap: () {
+                      context.switchMainShellTab(MainShellTab.aiChat);
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: MiniActionCard(
+                    color: context.colors.surfacePeach,
+                    icon: Icons.workspace_premium_outlined,
+                    title: 'Hali ya Akaunti'.tr(context),
+                    subtitle: 'Angalia hali yako'.tr(context),
+                    onTap: () => AppNavigator.pushPaywall(context),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            SectionHeader(
+              title: 'Endelea Kujifunza'.tr(context),
+              actionIcon: Icons.add,
+              onAction: () {
+                context.switchMainShellTab(MainShellTab.courses);
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (activeCourse == null)
+              EmptyState(
+                icon: Icons.menu_book_outlined,
+                title: 'Mafunzo yanaandaliwa'.tr(context),
+                body: 'Hakuna kozi iliyokamilisha ukaguzi wa vyanzo kwa sasa.'.tr(context),
+              )
+            else
+              CourseProgressCard(
+                key: ValueKey('dashboard-course-${activeCourse.id}'),
+                course: activeCourse,
+                onTap: () => AppNavigator.pushCourse(context, activeCourse),
+              ),
+            const SizedBox(height: AppSpacing.xxl),
+            Text(
+              'Mada za Kujifunza'.tr(context),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const TrendingTopics(),
+            const SizedBox(height: AppSpacing.xxl),
+            CommunityTeaser(
+              onTap: () {
+                context.switchMainShellTab(MainShellTab.community);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

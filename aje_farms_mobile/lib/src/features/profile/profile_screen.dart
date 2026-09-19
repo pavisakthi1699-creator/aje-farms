@@ -1,0 +1,924 @@
+// ignore_for_file: use_key_in_widget_constructors
+
+import "../../ui.dart";
+import '../../app/build_flags.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final session = context.session;
+    final displayName = session.state.displayName;
+    final phoneLabel = displayName ?? session.email ?? 'Mgeni'.tr(context);
+    final memberLabel = (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni').tr(context);
+    final subscriptionPlan = session.state.subscriptionPlan;
+    // Shared with the home status card so the two screens cannot disagree
+    // about the same account.
+    final accessStatus = AccountAccessStatus.of(session.state);
+    final avatarLabel = _profileInitials(
+      displayName: displayName,
+      email: session.email,
+      signedIn: session.isSignedIn,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Profaili'.tr(context)),
+        actions: const [LanguageToggleButton(), SearchActionButton()],
+      ),
+      body: AppLayout(
+        child: ListView(
+          key: AppPageStorage.profile,
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Semantics(
+              header: true,
+              excludeSemantics: true,
+              label: phoneLabel == memberLabel
+                  ? phoneLabel
+                  : '$phoneLabel, $memberLabel',
+              child: Card(
+                color: context.colors.surfaceMuted,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xxl),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 48,
+                        backgroundColor: context.colors.primaryContainer,
+                        child: Text(
+                          avatarLabel,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: context.colors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        phoneLabel,
+                        style: Theme.of(context).textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      if (displayName != null && session.email != null)
+                        Text(
+                          session.email!,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: context.colors.muted,
+                                  ),
+                          textAlign: TextAlign.center,
+                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          if (phoneLabel != memberLabel)
+                            Pill(
+                              label: memberLabel,
+                              color: context.colors.surface,
+                            ),
+                          if (session.isAdmin)
+                            Pill(
+                              label: 'Admin',
+                              color: context.colors.surfaceLavender,
+                            ),
+                          if (subscriptionPlan != null)
+                            Pill(
+                              label: 'Premium',
+                              color: context.colors.surfacePeach,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            if (kInternalBuild && session.isSignedIn) ...[
+              const _AdminAccessDiagnosticsCard(),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Hali ya Akaunti'.tr(context),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        Icon(accessStatus.icon,
+                            color: context.colors.secondary),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      accessStatus.shortLabel.tr(context),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: context.colors.secondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: AppDecorations.pastelPanel(
+                        context,
+                        context.colors.peach,
+                      ),
+                      child: Text(
+                        (accessStatus == AccountAccessStatus.active &&
+                                subscriptionPlan != null
+                            ? '$subscriptionPlan imewashwa. Unaweza kuendelea '
+                                'na masomo na Mwalimu AI.'
+                            : accessStatus.body).tr(context),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (accessStatus != AccountAccessStatus.active)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            AppFeedback.tap();
+                            AppNavigator.pushPaywall(context);
+                          },
+                          icon: const Icon(Icons.workspace_premium),
+                          label: Text('Angalia Hali ya Uanachama'.tr(context)),
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            AppFeedback.tap();
+                            // Cancelling revokes premium access immediately and
+                            // cannot be undone from the app.
+                            final confirmed = await confirmAction(
+                              context,
+                              title: 'Sitisha kifurushi?'.tr(context),
+                              message:
+                                  'Utapoteza ufikiaji wa masomo ya premium na Mwalimu AI mara moja.'.tr(context),
+                              confirmLabel: 'Sitisha'.tr(context),
+                              isDestructive: true,
+                            );
+                            if (!confirmed || !context.mounted) return;
+                            if (session.isSignedIn) {
+                              try {
+                                await context.dependencies.authService
+                                    .cancelSubscription();
+                              } on AuthException catch (error) {
+                                if (!context.mounted) return;
+                                showErrorSnack(context, error.message.tr(context));
+                                return;
+                              } catch (_) {
+                                if (!context.mounted) return;
+                                showErrorSnack(
+                                  context,
+                                  'Imeshindikana kusitisha kifurushi. Angalia mtandao wako.'.tr(context),
+                                );
+                                return;
+                              }
+                            }
+                            await session.cancelSubscription();
+                            if (!context.mounted) return;
+                            showSuccessSnack(context, 'Kifurushi kimezimwa.'.tr(context));
+                          },
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: Text('Sitisha Kifurushi'.tr(context)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Shughuli Zangu'.tr(context),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Card(
+              child: Column(
+                children: [
+                  ProfileRow(
+                    icon: Icons.menu_book,
+                    title: 'Mafunzo yangu'.tr(context),
+                    onTap: () =>
+                        context.switchMainShellTab(MainShellTab.courses),
+                  ),
+                  ProfileRow(
+                    icon: Icons.description_outlined,
+                    title: 'Nyaraka zilizohifadhiwa'.tr(context),
+                    subtitle:
+                        '${session.state.savedDocumentIds.length} zimehifadhiwa'.tr(context),
+                    onTap: () => AppNavigator.pushSavedDocuments(context),
+                  ),
+                  ProfileRow(
+                    icon: Icons.assignment_turned_in_outlined,
+                    title: 'Kazi za vitendo'.tr(context),
+                    onTap: () => AppNavigator.pushAssessments(context),
+                  ),
+                  ProfileRow(
+                    icon: Icons.settings_outlined,
+                    title: 'Mipangilio'.tr(context),
+                    onTap: () => AppNavigator.pushSettings(context),
+                  ),
+                  if (session.isAdmin)
+                    ProfileRow(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'Dashibodi ya Admin'.tr(context),
+                      subtitle: 'Simamia maandishi, usimamizi, na watumiaji'.tr(context),
+                      onTap: () => AppNavigator.pushAdminDashboard(context),
+                    ),
+                  ProfileRow(
+                    icon: Icons.help_outline,
+                    title: 'Msaada / WhatsApp'.tr(context),
+                    subtitle: 'Wasiliana nasi kupitia WhatsApp'.tr(context),
+                    color: context.colors.success,
+                    showDivider: false,
+                    onTap: () => AppNavigator.pushWhatsApp(context),
+                  ),
+                  if (privacyPolicyUrl.isNotEmpty)
+                    ProfileRow(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Sera ya Faragha'.tr(context),
+                      onTap: () => _openAccountUrl(
+                        context,
+                        privacyPolicyUrl,
+                      ),
+                    ),
+                  if (session.isSignedIn && !session.isAdmin)
+                    ProfileRow(
+                      icon: Icons.person_remove_outlined,
+                      title: 'Futa akaunti na data'.tr(context),
+                      subtitle: 'Hatua hii haiwezi kutenduliwa'.tr(context),
+                      color: context.colors.error,
+                      showDivider: false,
+                      onTap: () => _deleteAccount(context),
+                    ),
+                  if (session.isSignedIn &&
+                      session.isAdmin &&
+                      accountDeletionUrl.isNotEmpty)
+                    ProfileRow(
+                      icon: Icons.person_remove_outlined,
+                      title: 'Omba kufuta akaunti ya admin'.tr(context),
+                      subtitle: 'Inahitaji uhakiki wa usimamizi'.tr(context),
+                      color: context.colors.error,
+                      showDivider: false,
+                      onTap: () => _openAccountUrl(context, accountDeletionUrl),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            TextButton.icon(
+              onPressed: () async {
+                AppFeedback.tap();
+                // Signing out drops the stored session; on a shared phone an
+                // accidental tap here means signing in again with a password.
+                final confirmed = await confirmAction(
+                  context,
+                  title: 'Ondoka kwenye akaunti?'.tr(context),
+                  message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.'.tr(context),
+                  confirmLabel: 'Ondoka'.tr(context),
+                  isDestructive: true,
+                );
+                if (!confirmed || !context.mounted) return;
+                final dependencies = context.dependencies;
+                dependencies.cachedRepository?.clearProtectedContent();
+                await dependencies.authService.signOut();
+                await session.signOut();
+                if (!context.mounted) return;
+                AppNavigator.replaceWithAuth(context);
+              },
+              icon: Icon(Icons.logout, color: context.colors.error),
+              label: Text(
+                'Ondoka kwenye Akaunti'.tr(context),
+                style: TextStyle(color: context.colors.error),
+              ),
+            ),
+            Center(
+              child: Text(
+                'Chuo Kikuu Cha Mtaani'.tr(context),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.colors.muted,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _openAccountUrl(BuildContext context, String value) async {
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (context.mounted) {
+      showErrorSnack(context, 'Kiungo hakikuweza kufunguka. Jaribu tena.');
+    }
+  }
+}
+
+Future<void> _deleteAccount(BuildContext context) async {
+  AppFeedback.tap();
+  final confirmed = await confirmAction(
+    context,
+    title: 'Futa akaunti kabisa?',
+    message: 'Wasifu, maendeleo ya masomo, arifa na machapisho yako yatafutwa. '
+        'Rekodi za fedha zinaweza kuhifadhiwa bila taarifa zako kwa masharti ya kisheria. '
+        'Hatua hii haiwezi kutenduliwa.',
+    confirmLabel: 'Futa akaunti',
+    isDestructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+
+  final dependencies = context.dependencies;
+  final session = context.session;
+  try {
+    await dependencies.authService.deleteAccount();
+    dependencies.cachedRepository?.clearProtectedContent();
+    await session.signOut();
+    if (!context.mounted) return;
+    showSuccessSnack(context, 'Akaunti na data zako zimefutwa.');
+    AppNavigator.replaceWithAuth(context);
+  } on AuthException catch (error) {
+    if (!context.mounted) return;
+    showErrorSnack(context, error.message);
+  } catch (_) {
+    if (!context.mounted) return;
+    showErrorSnack(
+      context,
+      'Imeshindikana kufuta akaunti. Angalia mtandao wako na ujaribu tena.',
+    );
+  }
+}
+
+class _AdminAccessDiagnosticsCard extends StatefulWidget {
+  const _AdminAccessDiagnosticsCard();
+
+  @override
+  State<_AdminAccessDiagnosticsCard> createState() =>
+      _AdminAccessDiagnosticsCardState();
+}
+
+class _AdminAccessDiagnosticsCardState
+    extends State<_AdminAccessDiagnosticsCard> {
+  AdminAccessDiagnostics? _diagnostics;
+  String? _error;
+  bool _loading = true;
+
+  bool _didRequestInitialLoad = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // `_load` reads `context.dependencies`, an InheritedWidget lookup that
+    // Flutter forbids before initState completes. Running it from initState
+    // threw on every mount and the generic catch below turned that into a
+    // permanent "Imeshindikana kusoma hali ya admin."
+    if (_didRequestInitialLoad) return;
+    _didRequestInitialLoad = true;
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final diagnostics =
+          await context.dependencies.authService.getAdminAccessDiagnostics();
+      if (!mounted) return;
+      setState(() {
+        _diagnostics = diagnostics;
+        _loading = false;
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Imeshindikana kusoma hali ya admin.';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diagnostics = _diagnostics;
+    final sessionIsAdmin = context.session.isAdmin;
+    final hasMismatch =
+        diagnostics != null && sessionIsAdmin != diagnostics.hasAdminAccess;
+
+    return Card(
+      color: context.colors.surfaceMuted,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bug_report_outlined, color: context.colors.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Debug: Hali ya Admin',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Onyesha upya',
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (_loading)
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else if (_error != null)
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.colors.error,
+                    ),
+              )
+            else if (diagnostics != null) ...[
+              Text(
+                'Barua pepe: ${diagnostics.email}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Role: ${diagnostics.role}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Admin access (server): ${diagnostics.hasAdminAccess ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Allowlist: ${diagnostics.allowlistedAdmin ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Chanzo: ${diagnostics.source}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Admin access (app): ${sessionIsAdmin ? "NDIYO" : "HAPANA"}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (hasMismatch) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Tahadhari: app na server hazilingani. Toka kisha ingia tena.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _profileInitials({
+  required String? displayName,
+  required String? email,
+  required bool signedIn,
+}) {
+  final name = displayName?.trim();
+  if (name != null && name.isNotEmpty) {
+    final parts =
+        name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return ('${parts.first[0]}${parts.last[0]}').toUpperCase();
+    }
+    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
+  }
+  final address = email?.trim();
+  if (address != null && address.isNotEmpty) {
+    return address.substring(0, address.length >= 2 ? 2 : 1).toUpperCase();
+  }
+  return signedIn ? 'MF' : 'CK';
+}
+
+class SavedDocumentsScreen extends StatelessWidget {
+  const SavedDocumentsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final documents = context.dependencies.learningRepository.documents;
+    final savedIds = context.session.state.savedDocumentIds;
+    final saved =
+        documents.where((document) => savedIds.contains(document.id)).toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Nyaraka Zilizohifadhiwa'.tr(context)),
+        actions: const [SearchActionButton(scope: SearchScope.documents)],
+      ),
+      body: AppLayout(
+        child: CustomScrollView(
+          key: AppPageStorage.savedDocuments,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  ContextualSearchBar(
+                    hint: 'Tafuta nyaraka'.tr(context),
+                    scope: SearchScope.documents,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (saved.isEmpty)
+                    EmptyState(
+                      icon: Icons.bookmark_add_outlined,
+                      title: 'Hujaweka nyaraka bado'.tr(context),
+                      body:
+                          'Chagua nyaraka hapa chini ili uzihifadhi kwa kusoma baadaye.'.tr(context),
+                    ),
+                  if (saved.isNotEmpty)
+                    ...saved.map(
+                      (entry) => Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: AppDecorations.pastelPanel(
+                              context,
+                              context.colors.surfacePeach,
+                            ),
+                            child: Icon(
+                              Icons.picture_as_pdf_outlined,
+                              color: context.colors.primary,
+                            ),
+                          ),
+                          title: Text(
+                            entry.title.tr(context),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          subtitle: Text(
+                            entry.courseTitle.tr(context),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: context.colors.muted,
+                                    ),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Ondoa'.tr(context),
+                            icon: const Icon(Icons.bookmark_remove_outlined),
+                            onPressed: () {
+                              AppFeedback.tap();
+                              context.session.removeSavedDocument(entry.id);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    'Nyaraka zote'.tr(context),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ]),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                0,
+                AppSpacing.xl,
+                AppSpacing.xl,
+              ),
+              sliver: SliverList.builder(
+                itemCount: documents.length,
+                itemBuilder: (context, index) {
+                  final document = documents[index];
+                  final isSaved = savedIds.contains(document.id);
+                  return Card(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: AppDecorations.pastelPanel(
+                          context,
+                          isSaved
+                              ? context.colors.primaryContainer
+                              : context.colors.surfaceMuted,
+                        ),
+                        child: Icon(
+                          isSaved
+                              ? Icons.bookmark
+                              : Icons.bookmark_add_outlined,
+                          color: context.colors.primary,
+                        ),
+                      ),
+                      title: Text(
+                        document.title.tr(context),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      subtitle: Text(
+                        document.description.tr(context),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.colors.muted,
+                            ),
+                      ),
+                      trailing: TextButton(
+                        onPressed: () {
+                          AppFeedback.tap();
+                          if (isSaved) {
+                            context.session.removeSavedDocument(document.id);
+                          } else {
+                            context.session.saveDocument(document.id);
+                          }
+                        },
+                        child: Text((isSaved ? 'Ondoa' : 'Hifadhi').tr(context)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => SettingsScreenState();
+}
+
+class SettingsScreenState extends State<SettingsScreen> {
+  late final TextEditingController _locationController;
+  late final TextEditingController _displayNameController;
+  bool _initializedProfileFields = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationController = TextEditingController();
+    _displayNameController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedProfileFields) return;
+    final sessionState = context.session.state;
+    _locationController.text = sessionState.preferredLocation ?? '';
+    _displayNameController.text = sessionState.displayName ?? '';
+    _initializedProfileFields = true;
+  }
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    _displayNameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final session = context.session;
+    final displayName = _displayNameController.text.trim();
+    final location = _locationController.text.trim();
+    if (session.isSignedIn) {
+      try {
+        final profile = await context.dependencies.authService.updateProfile(
+          displayName: displayName,
+          preferredLocation: location,
+        );
+        await session.syncProfileFromAuthSession(profile);
+      } on AuthException catch (error) {
+        if (!mounted) return;
+        showSnack(context, error.message);
+        return;
+      } catch (_) {
+        if (!mounted) return;
+        showSnack(context, 'Imeshindikana kuhifadhi wasifu.');
+        return;
+      }
+    } else {
+      await session.setDisplayName(displayName);
+      await session.setPreferredLocation(location);
+    }
+    if (!mounted) return;
+    AppFeedback.success();
+    showSnack(context, 'Mipangilio imehifadhiwa.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notificationsEnabled = context.session.state.notificationsEnabled;
+    return Scaffold(
+      appBar: AppBar(title: Text('Mipangilio'.tr(context))),
+      body: AppLayout(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Muonekano wa app'.tr(context),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Chagua mwanga, giza, au fuata mipangilio ya kifaa.'.tr(context),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    SegmentedButton<AppThemePreference>(
+                      segments: [
+                        for (final preference in AppThemePreference.values)
+                          ButtonSegment(
+                            value: preference,
+                            label: Text(preference.label.tr(context)),
+                          ),
+                      ],
+                      selected: {context.session.state.themePreference},
+                      onSelectionChanged: (selection) {
+                        AppFeedback.selection();
+                        context.session.setThemePreference(selection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.session.state.languagePreference.languageCode == 'en'
+                              ? 'Language / Lugha'
+                              : 'Lugha / Language',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Icon(Icons.language),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      context.session.state.languagePreference.languageCode == 'en'
+                          ? 'Switch between Swahili and English across the entire app.'
+                          : 'Badili kati ya Kiswahili na Kiingereza kwenye app nzima.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    SegmentedButton<Locale>(
+                      segments: const [
+                        ButtonSegment(
+                          value: Locale('sw'),
+                          label: Text('Kiswahili'),
+                        ),
+                        ButtonSegment(
+                          value: Locale('en'),
+                          label: Text('English'),
+                        ),
+                      ],
+                      selected: {context.session.state.languagePreference},
+                      onSelectionChanged: (selection) {
+                        AppFeedback.selection();
+                        context.session.setLanguagePreference(selection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Card(
+              child: SwitchListTile(
+                value: notificationsEnabled,
+                onChanged: (value) {
+                  AppFeedback.selection();
+                  context.session.setNotificationsEnabled(value);
+                },
+                contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                title: Text('Arifa za mafunzo na jamii'.tr(context)),
+                subtitle: Text('Washa au zima vikumbusho kwenye app.'.tr(context)),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: TextField(
+                  controller: _displayNameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Jina lako'.tr(context),
+                    hintText: 'Mfano: Asha'.tr(context),
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: TextField(
+                  controller: _locationController,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
+                  decoration: InputDecoration(
+                    labelText: 'Eneo la kawaida'.tr(context),
+                    hintText: 'Mfano: Morogoro'.tr(context),
+                    prefixIcon: const Icon(Icons.place_outlined),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  AppFeedback.tap();
+                  _save();
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: Text('Hifadhi Mipangilio'.tr(context)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

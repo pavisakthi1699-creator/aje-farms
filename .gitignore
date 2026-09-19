@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+server/data.local.json
+supabase/.temp/
+aje_farms_mobile/test/failures/
+.gstack/
