@@ -12,10 +12,10 @@ test('native Android release metadata accepts the Flutter application', () => {
       'res/mipmap-xxxhdpi-v4/ic_launcher.png',
     ],
     badging: [
-      "package: name='com.ajefarms.mobile' versionCode='1' versionName='0.1.0'",
+      "package: name='com.nurulabs.ajefarms' versionCode='1' versionName='0.1.0'",
       "application-label:'Chuo Kikuu Cha Mtaani'",
       "application: label='Chuo Kikuu Cha Mtaani' icon='res/mipmap-xxxhdpi-v4/ic_launcher.png'",
-      "launchable-activity: name='com.ajefarms.mobile.MainActivity'",
+      "launchable-activity: name='com.nurulabs.ajefarms.MainActivity'",
     ].join('\n'),
   });
 
@@ -31,10 +31,10 @@ test('native Android release metadata rejects the former app label', () => {
       'res/mipmap-xxxhdpi-v4/ic_launcher.png',
     ],
     badging: [
-      "package: name='com.ajefarms.mobile' versionCode='1' versionName='0.1.0'",
+      "package: name='com.nurulabs.ajefarms' versionCode='1' versionName='0.1.0'",
       "application-label:'AJE Farms'",
       "application: label='AJE Farms' icon='res/mipmap-xxxhdpi-v4/ic_launcher.png'",
-      "launchable-activity: name='com.ajefarms.mobile.MainActivity'",
+      "launchable-activity: name='com.nurulabs.ajefarms.MainActivity'",
     ].join('\n'),
   });
 
@@ -54,10 +54,10 @@ test('native Android release metadata requires a packaged launcher icon', () => 
       'lib/arm64-v8a/libflutter.so',
     ],
     badging: [
-      "package: name='com.ajefarms.mobile' versionCode='1' versionName='0.1.0'",
+      "package: name='com.nurulabs.ajefarms' versionCode='1' versionName='0.1.0'",
       "application-label:'Chuo Kikuu Cha Mtaani'",
       "application: label='Chuo Kikuu Cha Mtaani' icon='res/mipmap-xxxhdpi-v4/ic_launcher.png'",
-      "launchable-activity: name='com.ajefarms.mobile.MainActivity'",
+      "launchable-activity: name='com.nurulabs.ajefarms.MainActivity'",
     ].join('\n'),
   });
 
@@ -83,7 +83,7 @@ test('native Android release metadata rejects a Median WebView wrapper', () => {
   assert.equal(result.ok, false);
   assert.ok(
     result.errors.some((error) =>
-      error.includes('Expected package com.ajefarms.mobile'),
+      error.includes('Expected package com.nurulabs.ajefarms'),
     ),
   );
   assert.ok(
@@ -102,7 +102,7 @@ test('native Android release metadata requires Flutter assets and activity', () 
   const result = validateAndroidArtifactMetadata({
     entries: ['classes.dex', 'lib/arm64-v8a/libflutter.so'],
     badging: [
-      "package: name='com.ajefarms.mobile' versionCode='1' versionName='0.1.0'",
+      "package: name='com.nurulabs.ajefarms' versionCode='1' versionName='0.1.0'",
       "launchable-activity: name='com.example.MainActivity'",
     ].join('\n'),
   });
