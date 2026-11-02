@@ -46,7 +46,7 @@ export function installPolicyRoutes(app, store) {
         relation: ['delegate_permission/common.handle_all_urls'],
         target: {
           namespace: 'android_app',
-          package_name: 'com.ajefarms.mobile',
+          package_name: 'com.nurulabs.ajefarms',
           sha256_cert_fingerprints: fingerprints,
         },
       },
