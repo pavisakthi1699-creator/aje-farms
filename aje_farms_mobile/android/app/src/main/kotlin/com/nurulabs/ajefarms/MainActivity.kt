@@ -1,4 +1,4 @@
-package com.ajefarms.mobile
+package com.nurulabs.ajefarms
 
 import io.flutter.embedding.android.FlutterActivity
 
