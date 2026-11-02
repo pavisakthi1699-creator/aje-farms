@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const ANDROID_APPLICATION_ID = 'com.ajefarms.mobile';
+export const ANDROID_APPLICATION_ID = 'com.nurulabs.ajefarms';
 export const ANDROID_APPLICATION_LABEL = 'Chuo Kikuu Cha Mtaani';
 export const ANDROID_LAUNCH_ACTIVITY =
-  'com.ajefarms.mobile.MainActivity';
+  'com.nurulabs.ajefarms.MainActivity';
 export const PRODUCTION_API_BASE_URL =
   'https://aje-farms-api-production.up.railway.app';
 
