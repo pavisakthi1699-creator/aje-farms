@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  intl: 0.20.3
+  intl: ^0.20.2
   connectivity_plus: ^6.1.4
   flutter_secure_storage: ^9.2.4
   supabase_flutter: ^2.8.0
