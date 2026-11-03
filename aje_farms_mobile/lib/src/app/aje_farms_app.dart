@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../ui.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AjeFarmsApp extends StatefulWidget {
@@ -83,6 +84,9 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
                 theme: AppTheme.light(),
                 darkTheme: AppTheme.dark(),
                 themeMode: _themeMode(_sessionController.state.themePreference),
+                locale: _sessionController.state.languagePreference,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
                 builder: (context, child) {
                   final overlayStyle =
                       AppTheme.overlayStyle(Theme.of(context).brightness);

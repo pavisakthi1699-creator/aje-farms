@@ -28,6 +28,7 @@ class AppSessionState {
     this.role,
     this.termsAcceptedVersion,
     this.themePreference = AppThemePreference.system,
+    this.languagePreference = const Locale('sw'),
   });
 
   final bool hasStarted;
@@ -51,6 +52,7 @@ class AppSessionState {
   final String? role;
   final String? termsAcceptedVersion;
   final AppThemePreference themePreference;
+  final Locale languagePreference;
 
   bool get isAdmin => role == 'admin';
 
@@ -95,6 +97,7 @@ class AppSessionState {
     String? role,
     String? termsAcceptedVersion,
     AppThemePreference? themePreference,
+    Locale? languagePreference,
     bool clearEmail = false,
     bool clearSubscription = false,
     bool clearAccountStatus = false,
@@ -130,6 +133,7 @@ class AppSessionState {
           ? null
           : termsAcceptedVersion ?? this.termsAcceptedVersion,
       themePreference: themePreference ?? this.themePreference,
+      languagePreference: languagePreference ?? this.languagePreference,
     );
   }
 }
@@ -157,6 +161,7 @@ class AppSessionController extends ChangeNotifier {
   static const _roleKey = 'app_session.role';
   static const _termsAcceptedVersionKey = 'app_session.terms_accepted_version';
   static const _themePreferenceKey = 'app_session.theme_preference';
+  static const _languagePreferenceKey = 'app_session.language_preference';
 
   SharedPreferences? _preferences;
   AppSessionState _state = const AppSessionState();
@@ -199,6 +204,9 @@ class AppSessionController extends ChangeNotifier {
       termsAcceptedVersion: preferences.getString(_termsAcceptedVersionKey),
       themePreference: AppThemePreference.fromStorage(
         preferences.getString(_themePreferenceKey),
+      ),
+      languagePreference: Locale(
+        preferences.getString(_languagePreferenceKey) ?? 'sw',
       ),
     );
     notifyListeners();
@@ -343,6 +351,12 @@ class AppSessionController extends ChangeNotifier {
 
   Future<void> setThemePreference(AppThemePreference preference) async {
     _state = _state.copyWith(themePreference: preference);
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setLanguagePreference(Locale locale) async {
+    _state = _state.copyWith(languagePreference: locale);
     notifyListeners();
     await _save();
   }
@@ -548,6 +562,10 @@ class AppSessionController extends ChangeNotifier {
     await preferences.setString(
       _themePreferenceKey,
       _state.themePreference.name,
+    );
+    await preferences.setString(
+      _languagePreferenceKey,
+      _state.languagePreference.languageCode,
     );
   }
 }
