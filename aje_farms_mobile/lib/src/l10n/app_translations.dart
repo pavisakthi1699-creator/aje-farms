@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../state/app_session.dart';
 
-/// Comprehensive local translation engine for AJE Farms / Chuo Kikuu Cha Mtaani.
+/// Comprehensive local translation engine for Chuo Kikuu Cha Mtaani.
 /// Works 100% offline without external network or API dependencies.
 class AppTranslations {
   AppTranslations._();
@@ -10,7 +10,6 @@ class AppTranslations {
   static const Map<String, String> _swToEn = {
     // App Branding & Navigation
     'Chuo Kikuu Cha Mtaani': 'Mtaani Open University',
-    'AJE Farms': 'AJE Farms',
     'Nyumbani': 'Home',
     'Kozi': 'Courses',
     'Mafunzo': 'Courses',
@@ -217,8 +216,6 @@ class AppTranslations {
     'Akaunti Inayotumika': 'Active Account',
     'Malipo Yaliyoidhinishwa': 'Payment Approved',
     'Angalia hali yako': 'Check your status',
-    'Subiri Maafisa wa AJE Farms Waidhinishe':
-        'Awaiting approval from AJE Farms staff',
     'Wasiliana na Huduma kwa Wateja': 'Contact Support',
 
     // Assessments & Quizzes
