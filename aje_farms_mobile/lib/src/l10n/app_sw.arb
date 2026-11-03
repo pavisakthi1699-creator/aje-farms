@@ -1,0 +1,32 @@
+{
+  "@@locale": "sw",
+  "appTitle": "Chuo Kikuu Cha Mtaani",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "translateToEnglish": "Tafsiri kwa Kiingereza",
+  "language": "Lugha",
+  "swahili": "Kiswahili",
+  "english": "Kiingereza",
+  "settings": "Mipangilio",
+  "profile": "Profaili",
+  "home": "Nyumbani",
+  "courses": "Kozi",
+  "community": "Jamii",
+  "notifications": "Taarifa",
+  "aiSupport": "Msaidizi wa AI",
+  "theme": "Mandhari",
+  "lightTheme": "Mwanga",
+  "darkTheme": "Giza",
+  "systemTheme": "Mfumo",
+  "signOut": "Ondoka",
+  "signIn": "Ingia",
+  "signUp": "Jiandikishe",
+  "searchHint": "Tafuta kozi, makala au mada...",
+  "save": "Hifadhi",
+  "cancel": "Ghairi",
+  "editProfile": "Hariri Profaili",
+  "adminDashboard": "Dashibodi ya Admin",
+  "notificationsSettingTitle": "Arifa za mafunzo na jamii",
+  "notificationsSettingSubtitle": "Washa au zima vikumbusho kwenye app."
+}

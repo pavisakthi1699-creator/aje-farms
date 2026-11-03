@@ -11,8 +11,8 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = context.session;
     final displayName = session.state.displayName;
-    final phoneLabel = displayName ?? session.email ?? 'Mgeni';
-    final memberLabel = session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni';
+    final phoneLabel = displayName ?? session.email ?? 'Mgeni'.tr(context);
+    final memberLabel = (session.isSignedIn ? 'Mkulima Mwanachama' : 'Mgeni').tr(context);
     final subscriptionPlan = session.state.subscriptionPlan;
     // Shared with the home status card so the two screens cannot disagree
     // about the same account.
@@ -25,8 +25,8 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Akaunti Yangu'),
-        actions: const [SearchActionButton()],
+        title: Text('Profaili'.tr(context)),
+        actions: const [LanguageToggleButton(), SearchActionButton()],
       ),
       body: AppLayout(
         child: ListView(
@@ -115,7 +115,7 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Hali ya Akaunti',
+                            'Hali ya Akaunti'.tr(context),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
@@ -125,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      accessStatus.shortLabel,
+                      accessStatus.shortLabel.tr(context),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: context.colors.secondary,
                             fontWeight: FontWeight.w600,
@@ -139,11 +139,11 @@ class ProfileScreen extends StatelessWidget {
                         context.colors.peach,
                       ),
                       child: Text(
-                        accessStatus == AccountAccessStatus.active &&
+                        (accessStatus == AccountAccessStatus.active &&
                                 subscriptionPlan != null
                             ? '$subscriptionPlan imewashwa. Unaweza kuendelea '
                                 'na masomo na Mwalimu AI.'
-                            : accessStatus.body,
+                            : accessStatus.body).tr(context),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -157,7 +157,7 @@ class ProfileScreen extends StatelessWidget {
                             AppNavigator.pushPaywall(context);
                           },
                           icon: const Icon(Icons.workspace_premium),
-                          label: const Text('Angalia Hali ya Uanachama'),
+                          label: Text('Angalia Hali ya Uanachama'.tr(context)),
                         ),
                       )
                     else
@@ -170,10 +170,10 @@ class ProfileScreen extends StatelessWidget {
                             // cannot be undone from the app.
                             final confirmed = await confirmAction(
                               context,
-                              title: 'Sitisha kifurushi?',
+                              title: 'Sitisha kifurushi?'.tr(context),
                               message:
-                                  'Utapoteza ufikiaji wa masomo ya premium na Mwalimu AI mara moja.',
-                              confirmLabel: 'Sitisha',
+                                  'Utapoteza ufikiaji wa masomo ya premium na Mwalimu AI mara moja.'.tr(context),
+                              confirmLabel: 'Sitisha'.tr(context),
                               isDestructive: true,
                             );
                             if (!confirmed || !context.mounted) return;
@@ -183,23 +183,23 @@ class ProfileScreen extends StatelessWidget {
                                     .cancelSubscription();
                               } on AuthException catch (error) {
                                 if (!context.mounted) return;
-                                showErrorSnack(context, error.message);
+                                showErrorSnack(context, error.message.tr(context));
                                 return;
                               } catch (_) {
                                 if (!context.mounted) return;
                                 showErrorSnack(
                                   context,
-                                  'Imeshindikana kusitisha kifurushi. Angalia mtandao wako.',
+                                  'Imeshindikana kusitisha kifurushi. Angalia mtandao wako.'.tr(context),
                                 );
                                 return;
                               }
                             }
                             await session.cancelSubscription();
                             if (!context.mounted) return;
-                            showSuccessSnack(context, 'Kifurushi kimezimwa.');
+                            showSuccessSnack(context, 'Kifurushi kimezimwa.'.tr(context));
                           },
                           icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Sitisha Kifurushi'),
+                          label: Text('Sitisha Kifurushi'.tr(context)),
                         ),
                       ),
                   ],
@@ -208,7 +208,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Shughuli Zangu',
+              'Shughuli Zangu'.tr(context),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -217,38 +217,38 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   ProfileRow(
                     icon: Icons.menu_book,
-                    title: 'Mafunzo yangu',
+                    title: 'Mafunzo yangu'.tr(context),
                     onTap: () =>
                         context.switchMainShellTab(MainShellTab.courses),
                   ),
                   ProfileRow(
                     icon: Icons.description_outlined,
-                    title: 'Nyaraka zilizohifadhiwa',
+                    title: 'Nyaraka zilizohifadhiwa'.tr(context),
                     subtitle:
-                        '${session.state.savedDocumentIds.length} zimehifadhiwa',
+                        '${session.state.savedDocumentIds.length} zimehifadhiwa'.tr(context),
                     onTap: () => AppNavigator.pushSavedDocuments(context),
                   ),
                   ProfileRow(
                     icon: Icons.assignment_turned_in_outlined,
-                    title: 'Kazi za vitendo',
+                    title: 'Kazi za vitendo'.tr(context),
                     onTap: () => AppNavigator.pushAssessments(context),
                   ),
                   ProfileRow(
                     icon: Icons.settings_outlined,
-                    title: 'Mipangilio',
+                    title: 'Mipangilio'.tr(context),
                     onTap: () => AppNavigator.pushSettings(context),
                   ),
                   if (session.isAdmin)
                     ProfileRow(
                       icon: Icons.admin_panel_settings_outlined,
-                      title: 'Dashibodi ya Admin',
-                      subtitle: 'Simamia maandishi, usimamizi, na watumiaji',
+                      title: 'Dashibodi ya Admin'.tr(context),
+                      subtitle: 'Simamia maandishi, usimamizi, na watumiaji'.tr(context),
                       onTap: () => AppNavigator.pushAdminDashboard(context),
                     ),
                   ProfileRow(
                     icon: Icons.help_outline,
-                    title: 'Msaada / WhatsApp',
-                    subtitle: 'Wasiliana nasi kupitia WhatsApp',
+                    title: 'Msaada / WhatsApp'.tr(context),
+                    subtitle: 'Wasiliana nasi kupitia WhatsApp'.tr(context),
                     color: context.colors.success,
                     showDivider: false,
                     onTap: () => AppNavigator.pushWhatsApp(context),
@@ -256,7 +256,7 @@ class ProfileScreen extends StatelessWidget {
                   if (privacyPolicyUrl.isNotEmpty)
                     ProfileRow(
                       icon: Icons.privacy_tip_outlined,
-                      title: 'Sera ya Faragha',
+                      title: 'Sera ya Faragha'.tr(context),
                       onTap: () => _openAccountUrl(
                         context,
                         privacyPolicyUrl,
@@ -265,8 +265,8 @@ class ProfileScreen extends StatelessWidget {
                   if (session.isSignedIn && !session.isAdmin)
                     ProfileRow(
                       icon: Icons.person_remove_outlined,
-                      title: 'Futa akaunti na data',
-                      subtitle: 'Hatua hii haiwezi kutenduliwa',
+                      title: 'Futa akaunti na data'.tr(context),
+                      subtitle: 'Hatua hii haiwezi kutenduliwa'.tr(context),
                       color: context.colors.error,
                       showDivider: false,
                       onTap: () => _deleteAccount(context),
@@ -276,8 +276,8 @@ class ProfileScreen extends StatelessWidget {
                       accountDeletionUrl.isNotEmpty)
                     ProfileRow(
                       icon: Icons.person_remove_outlined,
-                      title: 'Omba kufuta akaunti ya admin',
-                      subtitle: 'Inahitaji uhakiki wa usimamizi',
+                      title: 'Omba kufuta akaunti ya admin'.tr(context),
+                      subtitle: 'Inahitaji uhakiki wa usimamizi'.tr(context),
                       color: context.colors.error,
                       showDivider: false,
                       onTap: () => _openAccountUrl(context, accountDeletionUrl),
@@ -293,9 +293,9 @@ class ProfileScreen extends StatelessWidget {
                 // accidental tap here means signing in again with a password.
                 final confirmed = await confirmAction(
                   context,
-                  title: 'Ondoka kwenye akaunti?',
-                  message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.',
-                  confirmLabel: 'Ondoka',
+                  title: 'Ondoka kwenye akaunti?'.tr(context),
+                  message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.'.tr(context),
+                  confirmLabel: 'Ondoka'.tr(context),
                   isDestructive: true,
                 );
                 if (!confirmed || !context.mounted) return;
@@ -308,13 +308,13 @@ class ProfileScreen extends StatelessWidget {
               },
               icon: Icon(Icons.logout, color: context.colors.error),
               label: Text(
-                'Ondoka kwenye Akaunti',
+                'Ondoka kwenye Akaunti'.tr(context),
                 style: TextStyle(color: context.colors.error),
               ),
             ),
             Center(
               child: Text(
-                'Chuo Kikuu Cha Mtaani',
+                'Chuo Kikuu Cha Mtaani'.tr(context),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: context.colors.muted,
                     ),
@@ -556,7 +556,7 @@ class SavedDocumentsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nyaraka Zilizohifadhiwa'),
+        title: Text('Nyaraka Zilizohifadhiwa'.tr(context)),
         actions: const [SearchActionButton(scope: SearchScope.documents)],
       ),
       body: AppLayout(
@@ -567,17 +567,17 @@ class SavedDocumentsScreen extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.xl),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const ContextualSearchBar(
-                    hint: 'Tafuta nyaraka',
+                  ContextualSearchBar(
+                    hint: 'Tafuta nyaraka'.tr(context),
                     scope: SearchScope.documents,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   if (saved.isEmpty)
-                    const EmptyState(
+                    EmptyState(
                       icon: Icons.bookmark_add_outlined,
-                      title: 'Hujaweka nyaraka bado',
+                      title: 'Hujaweka nyaraka bado'.tr(context),
                       body:
-                          'Chagua nyaraka hapa chini ili uzihifadhi kwa kusoma baadaye.',
+                          'Chagua nyaraka hapa chini ili uzihifadhi kwa kusoma baadaye.'.tr(context),
                     ),
                   if (saved.isNotEmpty)
                     ...saved.map(
@@ -597,7 +597,7 @@ class SavedDocumentsScreen extends StatelessWidget {
                             ),
                           ),
                           title: Text(
-                            entry.title,
+                            entry.title.tr(context),
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -606,14 +606,14 @@ class SavedDocumentsScreen extends StatelessWidget {
                                 ),
                           ),
                           subtitle: Text(
-                            entry.courseTitle,
+                            entry.courseTitle.tr(context),
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: context.colors.muted,
                                     ),
                           ),
                           trailing: IconButton(
-                            tooltip: 'Ondoa',
+                            tooltip: 'Ondoa'.tr(context),
                             icon: const Icon(Icons.bookmark_remove_outlined),
                             onPressed: () {
                               AppFeedback.tap();
@@ -625,7 +625,7 @@ class SavedDocumentsScreen extends StatelessWidget {
                     ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Nyaraka zote',
+                    'Nyaraka zote'.tr(context),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -664,13 +664,13 @@ class SavedDocumentsScreen extends StatelessWidget {
                         ),
                       ),
                       title: Text(
-                        document.title,
+                        document.title.tr(context),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                       ),
                       subtitle: Text(
-                        document.description,
+                        document.description.tr(context),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: context.colors.muted,
                             ),
@@ -684,7 +684,7 @@ class SavedDocumentsScreen extends StatelessWidget {
                             context.session.saveDocument(document.id);
                           }
                         },
-                        child: Text(isSaved ? 'Ondoa' : 'Hifadhi'),
+                        child: Text((isSaved ? 'Ondoa' : 'Hifadhi').tr(context)),
                       ),
                     ),
                   );
@@ -767,7 +767,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final notificationsEnabled = context.session.state.notificationsEnabled;
     return Scaffold(
-      appBar: AppBar(title: const Text('Mipangilio')),
+      appBar: AppBar(title: Text('Mipangilio'.tr(context))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -779,12 +779,12 @@ class SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Muonekano wa app',
+                      'Muonekano wa app'.tr(context),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Chagua mwanga, giza, au fuata mipangilio ya kifaa.',
+                      'Chagua mwanga, giza, au fuata mipangilio ya kifaa.'.tr(context),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: context.colors.muted,
                           ),
@@ -795,13 +795,63 @@ class SettingsScreenState extends State<SettingsScreen> {
                         for (final preference in AppThemePreference.values)
                           ButtonSegment(
                             value: preference,
-                            label: Text(preference.label),
+                            label: Text(preference.label.tr(context)),
                           ),
                       ],
                       selected: {context.session.state.themePreference},
                       onSelectionChanged: (selection) {
                         AppFeedback.selection();
                         context.session.setThemePreference(selection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.session.state.languagePreference.languageCode == 'en'
+                              ? 'Language / Lugha'
+                              : 'Lugha / Language',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Icon(Icons.language),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      context.session.state.languagePreference.languageCode == 'en'
+                          ? 'Switch between Swahili and English across the entire app.'
+                          : 'Badili kati ya Kiswahili na Kiingereza kwenye app nzima.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: context.colors.muted,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    SegmentedButton<Locale>(
+                      segments: const [
+                        ButtonSegment(
+                          value: Locale('sw'),
+                          label: Text('Kiswahili'),
+                        ),
+                        ButtonSegment(
+                          value: Locale('en'),
+                          label: Text('English'),
+                        ),
+                      ],
+                      selected: {context.session.state.languagePreference},
+                      onSelectionChanged: (selection) {
+                        AppFeedback.selection();
+                        context.session.setLanguagePreference(selection.first);
                       },
                     ),
                   ],
@@ -817,8 +867,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                   context.session.setNotificationsEnabled(value);
                 },
                 contentPadding: const EdgeInsets.all(AppSpacing.lg),
-                title: const Text('Arifa za mafunzo na jamii'),
-                subtitle: const Text('Washa au zima vikumbusho kwenye app.'),
+                title: Text('Arifa za mafunzo na jamii'.tr(context)),
+                subtitle: Text('Washa au zima vikumbusho kwenye app.'.tr(context)),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -828,10 +878,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                 child: TextField(
                   controller: _displayNameController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Jina lako',
-                    hintText: 'Mfano: Asha',
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: 'Jina lako'.tr(context),
+                    hintText: 'Mfano: Asha'.tr(context),
+                    prefixIcon: const Icon(Icons.person_outline),
                     border: InputBorder.none,
                   ),
                 ),
@@ -845,10 +895,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                   controller: _locationController,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _save(),
-                  decoration: const InputDecoration(
-                    labelText: 'Eneo la kawaida',
-                    hintText: 'Mfano: Morogoro',
-                    prefixIcon: Icon(Icons.place_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'Eneo la kawaida'.tr(context),
+                    hintText: 'Mfano: Morogoro'.tr(context),
+                    prefixIcon: const Icon(Icons.place_outlined),
                     border: InputBorder.none,
                   ),
                 ),
@@ -863,7 +913,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   _save();
                 },
                 icon: const Icon(Icons.save_outlined),
-                label: const Text('Hifadhi Mipangilio'),
+                label: Text('Hifadhi Mipangilio'.tr(context)),
               ),
             ),
           ],
