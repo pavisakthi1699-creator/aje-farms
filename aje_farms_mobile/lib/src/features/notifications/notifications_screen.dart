@@ -25,7 +25,10 @@ class NotificationsScreenState extends State<NotificationsScreen> {
     final isSignedIn = context.session.isSignedIn;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Arifa')),
+      appBar: AppBar(
+        title: Text('Taarifa'.tr(context)),
+        actions: const [LanguageToggleButton()],
+      ),
       body: AppLayout(
         child: isSignedIn && _inboxFuture != null
             ? FutureBuilder<NotificationInbox>(
@@ -92,7 +95,7 @@ class NotificationsScreenState extends State<NotificationsScreen> {
                                         AppFeedback.tap();
                                         _markRead(notification.id);
                                       },
-                                      child: const Text('Soma'),
+                                      child: Text('Soma'.tr(context)),
                                     ),
                             ),
                           if (inbox.notifications.isEmpty)
@@ -134,46 +137,46 @@ class NotificationsScreenState extends State<NotificationsScreen> {
       if (state.subscriptionPlan == null)
         _NotificationTile(
           icon: Icons.hourglass_top_rounded,
-          title: 'Ufikiaji unasubiri idhini',
+          title: 'Ufikiaji unasubiri idhini'.tr(context),
           body:
-              'Msimamizi akiwasha akaunti yako, mafunzo na Mwalimu AI vitafunguka.',
+              'Msimamizi akiwasha akaunti yako, mafunzo na Mwalimu AI vitafunguka.'.tr(context),
           accentColor: context.colors.surfacePeach,
         )
       else
         _NotificationTile(
           icon: Icons.workspace_premium,
-          title: 'Kifurushi kipo hai',
-          body: '${state.subscriptionPlan} imewashwa kwenye kifaa hiki.',
+          title: 'Akaunti Inayotumika'.tr(context),
+          body: '${state.subscriptionPlan} imewashwa kwenye kifaa hiki.'.tr(context),
           accentColor: context.colors.successSurface,
         ),
       if (state.assessmentScores.isNotEmpty)
         _NotificationTile(
           icon: Icons.assignment_turned_in_outlined,
-          title: 'Kazi zilizowasilishwa',
+          title: 'Tathmini'.tr(context),
           body:
-              'Umewasilisha kazi ${state.assessmentScores.length}. Endelea kutumia maarifa shambani.',
+              'Umewasilisha kazi ${state.assessmentScores.length}. Endelea kutumia maarifa shambani.'.tr(context),
           accentColor: context.colors.surfaceLavender,
         ),
       if (state.savedDocumentIds.isNotEmpty)
         _NotificationTile(
           icon: Icons.bookmark,
-          title: 'Nyaraka zimehifadhiwa',
+          title: 'Kozi Zilizohifadhiwa'.tr(context),
           body:
-              'Una nyaraka ${state.savedDocumentIds.length} za kusoma baadaye.',
+              'Una nyaraka ${state.savedDocumentIds.length} za kusoma baadaye.'.tr(context),
           accentColor: context.colors.surfaceAqua,
         ),
       if (state.localPosts.isNotEmpty)
         _NotificationTile(
           icon: Icons.groups_outlined,
-          title: 'Jamii inasubiri',
+          title: 'Jamii ya Wakulima'.tr(context),
           body:
-              'Umetuma post ${state.localPosts.length}. Angalia majibu mapya.',
+              'Umetuma post ${state.localPosts.length}. Angalia majibu mapya.'.tr(context),
           accentColor: context.colors.surfaceMuted,
         ),
       _NotificationTile(
         icon: Icons.menu_book,
-        title: 'Somo jipya limeongezwa',
-        body: 'Angalia mwongozo mpya wa nyanya na udhibiti wa wadudu.',
+        title: 'Somo jipya limeongezwa'.tr(context),
+        body: 'Angalia mwongozo mpya wa nyanya na udhibiti wa wadudu.'.tr(context),
         accentColor: context.colors.primaryContainer,
       ),
     ];
@@ -235,7 +238,7 @@ class _NotificationTile extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              title,
+                              title.tr(context),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleSmall
@@ -258,7 +261,7 @@ class _NotificationTile extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        body,
+                        body.tr(context),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: context.colors.muted,
                               height: 1.4,
