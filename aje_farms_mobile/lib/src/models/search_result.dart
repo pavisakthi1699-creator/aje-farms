@@ -1,3 +1,4 @@
+import '../l10n/app_strings.dart';
 import 'community_post.dart';
 
 enum SearchScope {
@@ -6,10 +7,13 @@ enum SearchScope {
   community('community', 'Jamii'),
   documents('documents', 'Nyaraka');
 
-  const SearchScope(this.apiValue, this.label);
+  const SearchScope(this.apiValue, this.labelSw);
 
   final String apiValue;
-  final String label;
+
+  /// Kiswahili source label; [label] is the display text.
+  final String labelSw;
+  String get label => tr(labelSw);
 
   static SearchScope fromApiValue(String value) {
     return values.firstWhere(

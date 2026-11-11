@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../theme/app_color_scheme.dart';
 import '../../theme/app_radius.dart';
 import 'loading_skeleton.dart';
+import '../../l10n/app_strings.dart';
 
 /// Renders bundled assets or remote URLs for course and hero imagery.
 class AppPhoto extends StatefulWidget {
@@ -50,10 +51,13 @@ class _AppPhotoState extends State<AppPhoto> {
       child: Container(
         color: context.colors.primaryContainer,
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.broken_image_outlined,
-              color: context.colors.primary, size: 44),
+          Icon(
+            Icons.broken_image_outlined,
+            color: context.colors.primary,
+            size: 44,
+          ),
           const SizedBox(height: 6),
-          Text('Picha haijapatikana. Gusa ujaribu tena.',
+          Text(tr('Picha haijapatikana. Gusa ujaribu tena.'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall),
         ]),

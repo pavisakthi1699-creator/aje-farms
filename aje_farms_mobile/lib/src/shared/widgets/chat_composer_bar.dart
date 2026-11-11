@@ -6,13 +6,14 @@ import '../../theme/app_decorations.dart';
 import '../../theme/app_feedback.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
+import '../../l10n/app_strings.dart';
 
 /// Floating message composer used in chat and community reply flows.
 class ChatComposerBar extends StatelessWidget {
   const ChatComposerBar({
     required this.controller,
     required this.onSend,
-    this.hintText = 'Andika ujumbe…',
+    this.hintText,
     this.isLoading = false,
     this.sendButtonKey,
     super.key,
@@ -20,7 +21,7 @@ class ChatComposerBar extends StatelessWidget {
 
   final TextEditingController controller;
   final VoidCallback onSend;
-  final String hintText;
+  final String? hintText;
   final bool isLoading;
   final Key? sendButtonKey;
 
@@ -54,7 +55,7 @@ class ChatComposerBar extends StatelessWidget {
                     maxLines: 4,
                     textInputAction: TextInputAction.send,
                     decoration: InputDecoration(
-                      hintText: hintText,
+                      hintText: hintText ?? tr('Andika ujumbe…'),
                       filled: true,
                       fillColor: context.colors.background,
                       border: OutlineInputBorder(
@@ -78,9 +79,9 @@ class ChatComposerBar extends StatelessWidget {
                   child: Semantics(
                     button: true,
                     enabled: !isLoading,
-                    label: 'Tuma',
+                    label: tr('Tuma'),
                     child: Tooltip(
-                      message: 'Tuma',
+                      message: tr('Tuma'),
                       child: FilledButton(
                         key: sendButtonKey,
                         onPressed: isLoading

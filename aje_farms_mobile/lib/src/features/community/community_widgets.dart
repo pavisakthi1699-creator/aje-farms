@@ -15,11 +15,14 @@ class CommunityPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semanticLabel =
-        'Post ya ${post.author} kutoka ${post.location}. ${post.content}';
+    final semanticLabel = tr('Post ya {author} kutoka {location}. {content}', {
+      'author': post.author,
+      'location': post.location,
+      'content': post.content,
+    });
     return AccessibleTappable(
       label: semanticLabel,
-      hint: post.isUrgent ? 'Inahitaji haraka' : null,
+      hint: post.isUrgent ? tr('Inahitaji haraka') : null,
       onTap: onOpen,
       child: Card(
         key: ValueKey(
@@ -48,7 +51,7 @@ class CommunityPostCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            post.author,
+                            tr(post.author),
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -58,21 +61,21 @@ class CommunityPostCard extends StatelessWidget {
                           ),
                           if (post.isExpert)
                             Text(
-                              'Mtaalamu aliyethibitishwa',
+                              tr('Mtaalamu aliyethibitishwa'),
                               style: accessibleCaption(
                                 context,
                                 color: context.colors.primary,
                               ),
                             ),
                           Text(
-                            '${post.location} - ${post.time}',
+                            '${post.location} - ${tr(post.time)}',
                             style: accessibleCaption(context),
                           ),
                         ],
                       ),
                     ),
                     Semantics(
-                      label: 'Chaguo zaidi',
+                      label: tr('Chaguo zaidi'),
                       child: Icon(Icons.more_vert, color: context.colors.muted),
                     ),
                   ],
@@ -94,13 +97,13 @@ class CommunityPostCard extends StatelessWidget {
                     if (post.isUrgent)
                       CommunityBadge(
                         icon: Icons.priority_high,
-                        label: 'Inahitaji haraka',
+                        label: tr('Inahitaji haraka'),
                         color: context.colors.secondary,
                       ),
                     for (final tag in compact ? post.tags.take(2) : post.tags)
                       CommunityBadge(
                         icon: Icons.local_offer_outlined,
-                        label: tag,
+                        label: tr(tag),
                         color: context.colors.primary,
                       ),
                   ],
@@ -155,11 +158,11 @@ class CommunityPostCard extends StatelessWidget {
                   runSpacing: AppSpacing.xs,
                   children: [
                     Text(
-                      '${post.likes} wamependa',
+                      tr('{likes} wamependa', {'likes': post.likes}),
                       style: accessibleCaption(context),
                     ),
                     Text(
-                      '${post.comments} majibu',
+                      tr('{comments} majibu', {'comments': post.comments}),
                       style: accessibleCaption(context),
                     ),
                   ],
@@ -175,7 +178,7 @@ class CommunityPostCard extends StatelessWidget {
                             onOpen();
                           },
                           icon: const Icon(Icons.mode_comment_outlined),
-                          label: const Text('Jibu'),
+                          label: Text(tr('Jibu')),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -185,18 +188,20 @@ class CommunityPostCard extends StatelessWidget {
                             AppFeedback.tap();
                             AppNavigator.pushAiChat(
                               context,
-                              initialPromptTopic: 'Jamii',
-                              initialPrompt:
-                                  'Nimesoma post ya jamii: "${post.content}". Nisaidie kutoa ushauri salama na wa vitendo.',
+                              initialPromptTopic: tr('Jamii'),
+                              initialPrompt: tr(
+                                'Nimesoma post ya jamii: "{content}". Nisaidie kutoa ushauri salama na wa vitendo.',
+                                {'content': post.content},
+                              ),
                             );
                           },
                           icon: const Icon(Icons.smart_toy_outlined),
-                          label: const Text('Uliza AI'),
+                          label: Text(tr('Uliza AI')),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       IconButton.outlined(
-                        tooltip: 'Piga simu kwa msaada',
+                        tooltip: tr('Piga simu kwa msaada'),
                         onPressed: () {
                           AppFeedback.tap();
                           AppNavigator.pushWhatsApp(context);
@@ -238,7 +243,7 @@ class CommunityFilters extends StatelessWidget {
         itemBuilder: (_, index) => ChoiceChip(
           key: ValueKey('community-filter-${filters[index]}'),
           selected: selectedFilter == filters[index],
-          label: Text(filters[index]),
+          label: Text(tr(filters[index])),
           onSelected: (_) {
             AppFeedback.selection();
             onSelected(filters[index]);
@@ -279,17 +284,22 @@ class CommunitySummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Jamii ya Chuo Kikuu Cha Mtaani',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    tr('Jamii ya Chuo Kikuu Cha Mtaani'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '${posts.length} mijadala, $expertReplies majibu ya wataalamu.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: context.colors.muted,
-                        ),
+                    tr(
+                      '{posts} mijadala, {expertReplies} majibu ya wataalamu.',
+                      {'posts': posts.length, 'expertReplies': expertReplies},
+                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
@@ -355,11 +365,15 @@ class DiscussionActionPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hatua inayofuata',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              tr('Hatua inayofuata'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Tumia AI kupanga muhtasari wa mjadala au mpe mtaalamu muktadha wake.',
+              tr(
+                'Tumia AI kupanga muhtasari wa mjadala au mpe mtaalamu muktadha wake.',
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -371,18 +385,20 @@ class DiscussionActionPanel extends StatelessWidget {
                       AppFeedback.tap();
                       AppNavigator.pushAiChat(
                         context,
-                        initialPromptTopic: 'Jamii',
-                        initialPrompt:
-                            'Fupisha mjadala huu, taja taarifa ambazo hazijathibitishwa, na orodhesha maswali ya kumuuliza mtaalamu: "${post.content}".',
+                        initialPromptTopic: tr('Jamii'),
+                        initialPrompt: tr(
+                          'Fupisha mjadala huu, taja taarifa ambazo hazijathibitishwa, na orodhesha maswali ya kumuuliza mtaalamu: "{content}".',
+                          {'content': post.content},
+                        ),
                       );
                     },
                     icon: const Icon(Icons.smart_toy_outlined),
-                    label: const Text('Andaa muhtasari'),
+                    label: Text(tr('Andaa muhtasari')),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 IconButton.outlined(
-                  tooltip: 'Mtaalamu',
+                  tooltip: tr('Mtaalamu'),
                   onPressed: () {
                     AppFeedback.tap();
                     AppNavigator.pushWhatsApp(context);
@@ -436,22 +452,19 @@ class CommunityReplyTile extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            reply.author,
+                            tr(reply.author),
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        Text(
-                          reply.time,
-                          style: accessibleCaption(context),
-                        ),
+                        Text(tr(reply.time), style: accessibleCaption(context)),
                       ],
                     ),
                     if (reply.isExpert)
                       Text(
-                        'Mtaalamu',
+                        tr('Mtaalamu'),
                         style: accessibleCaption(
                           context,
                           color: context.colors.primary,

@@ -61,7 +61,7 @@ class IntakeContextCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Muktadha uliotumwa',
+                  tr('Muktadha uliotumwa'),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: context.colors.primary,
@@ -176,13 +176,13 @@ class ChatBubble extends StatelessWidget {
                       runSpacing: AppSpacing.sm,
                       children: [
                         if (message.sources.isNotEmpty)
-                          const ReplyActionChip(
+                          ReplyActionChip(
                             icon: Icons.description_outlined,
-                            label: 'Ona Kwenye Mafunzo',
+                            label: tr('Ona Kwenye Mafunzo'),
                           ),
                         ReplyActionChip(
                           icon: Icons.support_agent,
-                          label: 'Msaidizi wa Binadamu',
+                          label: tr('Msaidizi wa Binadamu'),
                           onTap: () {
                             AppFeedback.tap();
                             onEscalate();
@@ -201,8 +201,8 @@ class ChatBubble extends StatelessWidget {
                       ),
                       label: Text(
                         message.isReported
-                            ? 'Jibu limeripotiwa'
-                            : 'Ripoti jibu hili',
+                            ? tr('Jibu limeripotiwa')
+                            : tr('Ripoti jibu hili'),
                       ),
                     ),
                   ],
@@ -325,7 +325,7 @@ class TypingBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Mwalimu AI anaandika',
+      label: tr('Mwalimu AI anaandika'),
       liveRegion: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -350,7 +350,7 @@ class TypingBubble extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.md),
             Text(
-              'Mwalimu AI anaandika…',
+              tr('Mwalimu AI anaandika…'),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.colors.muted,
                     fontWeight: FontWeight.w600,

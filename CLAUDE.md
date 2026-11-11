@@ -51,6 +51,18 @@ Postgres/Supabase.
   URL/publishable-key defaults). Pointing the app at a different backend or
   Supabase project requires a rebuild.
 
+- **Interface language is Kiswahili-first with an English option.** UI text
+  is written in Kiswahili and translated through one dictionary:
+  `AppTranslations` (`lib/src/l10n/app_translations.dart`) plus the extra
+  entries in `strings_en.dart`. Screens call either `'…'.tr(context)` or the
+  context-free `tr('…')` (`app_strings.dart`, exact matches only, supports
+  `{placeholder}` args). Add an English entry whenever you wrap a new string —
+  `test/l10n_test.dart` fails otherwise. Don't wrap values that are compared,
+  stored or sent to the API (topic names, filter sentinels like `'Zote'`,
+  audit reasons); translate them where they are displayed. The choice lives in
+  `AppSessionState.languagePreference`, survives sign-out, and is sent to
+  `/api/mwalimu-chat` as `language` so Gemini answers in English.
+
 ## Commands
 
 ```bash

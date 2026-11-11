@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 enum LessonType {
   reading('Somo', Icons.article_outlined),
   video('Video', Icons.play_circle_outline);
 
-  const LessonType(this.label, this.icon);
+  const LessonType(this.labelSw, this.icon);
 
-  final String label;
+  /// Kiswahili source label; [label] is the display text.
+  final String labelSw;
+  String get label => tr(labelSw);
   final IconData icon;
 }
 

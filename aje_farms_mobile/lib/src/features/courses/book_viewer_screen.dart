@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../shared/widgets/snack.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_strings.dart';
 
 typedef BookViewerBuilder = Widget Function(Uri sourceUri);
 typedef BookUrlRefresher = Future<String> Function();
@@ -48,7 +49,7 @@ class _BookViewerScreenState extends State<BookViewerScreen> {
         actions: [
           if (sourceUri != null)
             IconButton(
-              tooltip: 'Fungua kwa programu nyingine',
+              tooltip: tr('Fungua kwa programu nyingine'),
               onPressed: () => _openExternally(sourceUri),
               icon: const Icon(Icons.open_in_new),
             ),
@@ -68,8 +69,11 @@ class _BookViewerScreenState extends State<BookViewerScreen> {
                 ),
                 child: Text(
                   _pageCount == null
-                      ? 'Ukurasa $_pageNumber'
-                      : 'Ukurasa $_pageNumber kati ya $_pageCount',
+                      ? tr('Ukurasa {pageNumber}', {'pageNumber': _pageNumber})
+                      : tr('Ukurasa {pageNumber} kati ya {pageCount}', {
+                          'pageNumber': _pageNumber,
+                          'pageCount': _pageCount,
+                        }),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
@@ -111,13 +115,13 @@ class _BookViewerScreenState extends State<BookViewerScreen> {
               : downloadedBytes / totalBytes;
           return Center(
             child: Semantics(
-              label: 'Inapakia kitabu',
+              label: tr('Inapakia kitabu'),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(value: progress),
                   const SizedBox(height: AppSpacing.md),
-                  const Text('Inapakia kurasa za kitabu…'),
+                  Text(tr('Inapakia kurasa za kitabu…')),
                 ],
               ),
             ),
@@ -149,14 +153,17 @@ class _BookViewerScreenState extends State<BookViewerScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isRetrying = false);
-      showSnack(context, 'Kitabu hakikuweza kupakiwa. Kagua mtandao wako.');
+      showSnack(context, tr('Kitabu hakikuweza kupakiwa. Kagua mtandao wako.'));
     }
   }
 
   Future<void> _openExternally(Uri sourceUri) async {
     if (!await launchUrl(sourceUri, mode: LaunchMode.externalApplication) &&
         mounted) {
-      showSnack(context, 'Kitabu hakikuweza kufunguka. Jaribu tena baadaye.');
+      showSnack(
+        context,
+        tr('Kitabu hakikuweza kufunguka. Jaribu tena baadaye.'),
+      );
     }
   }
 }
@@ -195,7 +202,7 @@ class _BookLoadError extends StatelessWidget {
                 size: 44, color: context.colors.muted),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Kitabu hakikuweza kupakiwa.',
+              tr('Kitabu hakikuweza kupakiwa.'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -209,7 +216,9 @@ class _BookLoadError extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(isRetrying ? 'Inajaribu tena…' : 'Jaribu tena'),
+                label: Text(
+                  isRetrying ? tr('Inajaribu tena…') : tr('Jaribu tena'),
+                ),
               ),
             ],
             if (onOpenExternally != null) ...[
@@ -217,7 +226,7 @@ class _BookLoadError extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onOpenExternally,
                 icon: const Icon(Icons.open_in_new),
-                label: const Text('Fungua kwa programu nyingine'),
+                label: Text(tr('Fungua kwa programu nyingine')),
               ),
             ],
           ],

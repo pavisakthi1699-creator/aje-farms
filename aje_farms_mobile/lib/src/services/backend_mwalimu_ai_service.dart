@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../l10n/app_strings.dart';
 import 'backend_session_storage.dart';
 import 'mwalimu_ai_service.dart';
 
@@ -34,6 +35,7 @@ class BackendMwalimuAiService implements MwalimuAiService {
           body: jsonEncode({
             'message': prompt,
             'history': const [],
+            'language': AppStrings.languageCode,
           }),
         )
         .timeout(timeout);

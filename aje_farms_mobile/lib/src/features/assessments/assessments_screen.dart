@@ -11,29 +11,36 @@ class AssessmentsScreen extends StatelessWidget {
         context.session.state.assessmentScores['field-assignment'];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kazi za vitendo')),
+      appBar: AppBar(title: Text(tr('Kazi za vitendo'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             Text(
-              'Tumia maarifa shambani',
+              tr('Tumia maarifa shambani'),
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Eleza hali ya shamba lako na hatua utakazochukua. Hakuna jaribio la maswali.',
+              tr(
+                'Eleza hali ya shamba lako na hatua utakazochukua. Hakuna jaribio la maswali.',
+              ),
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: AppSpacing.xxl),
             ActionCard(
               color: context.colors.surfacePeach,
               icon: Icons.assignment_turned_in,
-              title: 'Kazi ya Vitendo',
+              title: tr('Kazi ya Vitendo'),
               body: fieldScore == null
-                  ? 'Eleza hali ya shamba lako na hatua utakazochukua wiki hii.'
-                  : 'Kazi imewasilishwa. Alama ya ukamilifu: $fieldScore/5.',
-              action: fieldScore == null ? 'Tuma Kazi' : 'Hariri Kazi',
+                  ? tr(
+                      'Eleza hali ya shamba lako na hatua utakazochukua wiki hii.',
+                    )
+                  : tr(
+                      'Kazi imewasilishwa. Alama ya ukamilifu: {fieldScore}/5.',
+                      {'fieldScore': fieldScore},
+                    ),
+              action: fieldScore == null ? tr('Tuma Kazi') : tr('Hariri Kazi'),
               onTap: () {
                 AppFeedback.tap();
                 AppNavigator.pushFieldAssignment(context);
@@ -73,52 +80,54 @@ class FieldAssignmentScreenState extends State<FieldAssignmentScreen> {
       _actionController.text.trim(),
     ].where((value) => value.length >= 4).length;
     if (filled < 3) {
-      showSnack(context, 'Jaza zao, ulichogundua, na hatua utakayochukua.');
+      showSnack(context, tr('Jaza zao, ulichogundua, na hatua utakayochukua.'));
       return;
     }
     await context.session.saveAssessmentScore('field-assignment', 5);
     if (!mounted) return;
     AppFeedback.success();
     Navigator.of(context).pop();
-    showSnack(context, 'Kazi imewasilishwa na kuhifadhiwa.');
+    showSnack(context, tr('Kazi imewasilishwa na kuhifadhiwa.'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kazi ya Vitendo')),
+      appBar: AppBar(title: Text(tr('Kazi ya Vitendo'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             Text(
-              'Eleza ulichoona shambani',
+              tr('Eleza ulichoona shambani'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Andika kwa ufupi zao, uchunguzi, na hatua utakazochukua wiki hii.',
+              tr(
+                'Andika kwa ufupi zao, uchunguzi, na hatua utakazochukua wiki hii.',
+              ),
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: AppSpacing.xxl),
             AppTextField(
               controller: _cropController,
-              labelText: 'Zao au mifugo',
-              hintText: 'Mfano: nyanya, pasheni, kuku',
+              labelText: tr('Zao au mifugo'),
+              hintText: tr('Mfano: nyanya, pasheni, kuku'),
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _observationController,
-              labelText: 'Umegundua nini?',
-              hintText: 'Eleza dalili au hali uliyoiona shambani',
+              labelText: tr('Umegundua nini?'),
+              hintText: tr('Eleza dalili au hali uliyoiona shambani'),
               minLines: 3,
               maxLines: 5,
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               controller: _actionController,
-              labelText: 'Hatua utakazochukua',
-              hintText: 'Andika hatua za wiki hii',
+              labelText: tr('Hatua utakazochukua'),
+              hintText: tr('Andika hatua za wiki hii'),
               minLines: 3,
               maxLines: 5,
             ),
@@ -129,7 +138,7 @@ class FieldAssignmentScreenState extends State<FieldAssignmentScreen> {
                 _submit();
               },
               icon: const Icon(Icons.assignment_turned_in),
-              label: const Text('Hifadhi Kazi'),
+              label: Text(tr('Hifadhi Kazi')),
             ),
           ],
         ),

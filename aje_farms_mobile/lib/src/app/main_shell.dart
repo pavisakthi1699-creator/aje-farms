@@ -18,6 +18,7 @@ import '../features/courses/courses_screen.dart';
 import '../features/home/dashboard_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../shared/widgets/offline_banner.dart';
+import '../l10n/app_strings.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({
@@ -42,33 +43,33 @@ class MainShellState extends State<MainShell> {
     ProfileScreen(),
   ];
 
-  static const _destinations = [
-    _ShellDestination(
-      icon: Icons.home_outlined,
-      selectedIcon: Icons.home,
-      label: 'Nyumbani',
-    ),
-    _ShellDestination(
-      icon: Icons.menu_book_outlined,
-      selectedIcon: Icons.menu_book,
-      label: 'Mafunzo',
-    ),
-    _ShellDestination(
-      icon: Icons.smart_toy_outlined,
-      selectedIcon: Icons.smart_toy,
-      label: 'Uliza AI',
-    ),
-    _ShellDestination(
-      icon: Icons.groups_outlined,
-      selectedIcon: Icons.groups,
-      label: 'Jamii',
-    ),
-    _ShellDestination(
-      icon: Icons.person_outline,
-      selectedIcon: Icons.person,
-      label: 'Akaunti',
-    ),
-  ];
+  static List<_ShellDestination> get _destinations => [
+        _ShellDestination(
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: tr('Nyumbani'),
+        ),
+        _ShellDestination(
+          icon: Icons.menu_book_outlined,
+          selectedIcon: Icons.menu_book,
+          label: tr('Mafunzo'),
+        ),
+        _ShellDestination(
+          icon: Icons.smart_toy_outlined,
+          selectedIcon: Icons.smart_toy,
+          label: tr('Uliza AI'),
+        ),
+        _ShellDestination(
+          icon: Icons.groups_outlined,
+          selectedIcon: Icons.groups,
+          label: tr('Jamii'),
+        ),
+        _ShellDestination(
+          icon: Icons.person_outline,
+          selectedIcon: Icons.person,
+          label: tr('Akaunti'),
+        ),
+      ];
 
   void _selectTab(MainShellTab tab) {
     if (tab.index != _index) {

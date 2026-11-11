@@ -18,8 +18,8 @@ class DashboardScreen extends StatelessWidget {
             padding: const EdgeInsets.only(right: AppSpacing.sm),
             child: CircleIconButton(
               icon: Icons.notifications_none,
-              tooltip: 'Arifa',
-              semanticLabel: 'Arifa',
+              tooltip: tr('Arifa'),
+              semanticLabel: tr('Arifa'),
               onPressed: () => AppNavigator.pushNotifications(context),
             ),
           ),
@@ -40,8 +40,10 @@ class DashboardScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text('Endeleza shamba lako leo',
-                style: Theme.of(context).textTheme.bodyLarge),
+            Text(
+              tr('Endeleza shamba lako leo'),
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             const SizedBox(height: AppSpacing.lg),
             const TrialStatusCard(),
             const SizedBox(height: AppSpacing.lg),
@@ -55,8 +57,8 @@ class DashboardScreen extends StatelessWidget {
                   child: MiniActionCard(
                     color: context.colors.mint,
                     icon: Icons.smart_toy_outlined,
-                    title: 'Uliza AI',
-                    subtitle: 'Andaa swali lako',
+                    title: tr('Uliza AI'),
+                    subtitle: tr('Andaa swali lako'),
                     onTap: () {
                       context.switchMainShellTab(MainShellTab.aiChat);
                     },
@@ -70,8 +72,8 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.workspace_premium_outlined,
                     // Not a package picker: access is granted by staff, so
                     // this only opens the account's current status.
-                    title: 'Uanachama',
-                    subtitle: 'Angalia hali yako',
+                    title: tr('Uanachama'),
+                    subtitle: tr('Angalia hali yako'),
                     onTap: () => AppNavigator.pushPaywall(context),
                   ),
                 ),
@@ -79,7 +81,7 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xxl),
             SectionHeader(
-              title: 'Endelea Kujifunza',
+              title: tr('Endelea Kujifunza'),
               actionIcon: Icons.add,
               onAction: () {
                 context.switchMainShellTab(MainShellTab.courses);
@@ -87,10 +89,12 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             if (activeCourse == null)
-              const EmptyState(
+              EmptyState(
                 icon: Icons.menu_book_outlined,
-                title: 'Mafunzo yanaandaliwa',
-                body: 'Hakuna kozi iliyokamilisha ukaguzi wa vyanzo kwa sasa.',
+                title: tr('Mafunzo yanaandaliwa'),
+                body: tr(
+                  'Hakuna kozi iliyokamilisha ukaguzi wa vyanzo kwa sasa.',
+                ),
               )
             else
               CourseProgressCard(
@@ -99,8 +103,10 @@ class DashboardScreen extends StatelessWidget {
                 onTap: () => AppNavigator.pushCourse(context, activeCourse),
               ),
             const SizedBox(height: AppSpacing.xxl),
-            Text('Mada za Kujifunza',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              tr('Mada za Kujifunza'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.md),
             const TrendingTopics(),
             const SizedBox(height: AppSpacing.xxl),

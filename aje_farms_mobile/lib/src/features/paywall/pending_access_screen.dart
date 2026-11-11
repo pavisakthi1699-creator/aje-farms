@@ -59,19 +59,19 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
         // Only when the learner asked: on the startup check the app simply
         // opens, and a snack would sit over whatever they tap first.
         AppFeedback.success();
-        showSuccessSnack(context, 'Akaunti yako imewashwa. Karibu!');
+        showSuccessSnack(context, tr('Akaunti yako imewashwa. Karibu!'));
         return;
       }
       if (silent) return;
-      showSnack(context, 'Bado hujawashiwa akaunti. Jaribu tena baadaye.');
+      showSnack(context, tr('Bado hujawashiwa akaunti. Jaribu tena baadaye.'));
     } on AuthException catch (error) {
       if (!mounted || silent) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted || silent) return;
       showErrorSnack(
         context,
-        'Imeshindikana kuangalia hali ya akaunti. Angalia mtandao wako.',
+        tr('Imeshindikana kuangalia hali ya akaunti. Angalia mtandao wako.'),
       );
     } finally {
       if (mounted) setState(() => _isRefreshing = false);
@@ -82,9 +82,9 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
     AppFeedback.tap();
     final confirmed = await confirmAction(
       context,
-      title: 'Ondoka kwenye akaunti?',
-      message: 'Utahitaji kuingia tena kwa barua pepe na nenosiri.',
-      confirmLabel: 'Ondoka',
+      title: tr('Ondoka kwenye akaunti?'),
+      message: tr('Utahitaji kuingia tena kwa barua pepe na nenosiri.'),
+      confirmLabel: tr('Ondoka'),
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -107,8 +107,9 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hali ya Akaunti'),
+        title: Text(tr('Hali ya Akaunti')),
         automaticallyImplyLeading: Navigator.of(context).canPop(),
+        actions: const [LanguageToggleButton()],
       ),
       body: AppLayoutScroll(
         padding: const EdgeInsets.only(bottom: AppSpacing.xl),
@@ -129,9 +130,13 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 isSuspended
-                    ? 'Ukishasaidiwa na timu, ufikiaji wako utarudi hapa hapa.'
-                    : 'Mafunzo yatafunguka mara tu timu ya Chuo Kikuu Cha Mtaani '
+                    ? tr(
+                        'Ukishasaidiwa na timu, ufikiaji wako utarudi hapa hapa.',
+                      )
+                    : tr(
+                        'Mafunzo yatafunguka mara tu timu ya Chuo Kikuu Cha Mtaani '
                         'itakapothibitisha akaunti yako.',
+                      ),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: context.colors.muted,
@@ -141,7 +146,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
             if (email != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Akaunti: $email',
+                tr('Akaunti: {email}', {'email': email}),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.colors.muted,
@@ -153,7 +158,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
             if (kPlayConsumptionOnly) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Programu hii haitoi ununuzi ndani ya programu.',
+                tr('Programu hii haitoi ununuzi ndani ya programu.'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.colors.muted,
@@ -172,7 +177,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
                         AppNavigator.pushAuth(context);
                       },
                       icon: const Icon(Icons.person_add_alt),
-                      label: const Text('Ingia / Jisajili'),
+                      label: Text(tr('Ingia / Jisajili')),
                     )
                   : FilledButton.icon(
                       onPressed: _isRefreshing
@@ -187,7 +192,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.refresh),
-                      label: const Text('Onyesha Hali Upya'),
+                      label: Text(tr('Onyesha Hali Upya')),
                     ),
             ),
             if (!isGuest) ...[
@@ -196,7 +201,7 @@ class PendingAccessScreenState extends State<PendingAccessScreen> {
                 onPressed: _signOut,
                 icon: Icon(Icons.logout, color: context.colors.error),
                 label: Text(
-                  'Ondoka kwenye Akaunti',
+                  tr('Ondoka kwenye Akaunti'),
                   style: TextStyle(color: context.colors.error),
                 ),
               ),

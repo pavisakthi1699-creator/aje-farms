@@ -68,9 +68,10 @@ class HeroActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return AccessibleTappable(
-      label: 'Eleza tatizo la shamba',
-      hint:
-          'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
+      label: tr('Eleza tatizo la shamba'),
+      hint: tr(
+        'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
+      ),
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.hero),
@@ -123,12 +124,12 @@ class HeroActionCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Pill(
-                              label: 'Kipaumbele cha leo',
+                              label: tr('Kipaumbele cha leo'),
                               color: colors.accentWarm,
                             ),
                             const SizedBox(height: AppSpacing.xxl),
                             Text(
-                              'Eleza tatizo la shamba',
+                              tr('Eleza tatizo la shamba'),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -136,7 +137,9 @@ class HeroActionCard extends StatelessWidget {
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
-                              'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
+                              tr(
+                                'Chagua aina ya changamoto, ongeza zao au mnyama, kisha Mwalimu AI aanze na muktadha sahihi.',
+                              ),
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
@@ -150,7 +153,7 @@ class HeroActionCard extends StatelessWidget {
                                   onTap();
                                 },
                                 icon: const Icon(Icons.search),
-                                label: const Text('Eleza tatizo'),
+                                label: Text(tr('Eleza tatizo')),
                                 style: FilledButton.styleFrom(
                                   minimumSize: const Size(
                                     170,
@@ -291,10 +294,12 @@ class CourseProgressCard extends StatelessWidget {
                   .isLessonCompleted(lessonProgressKey(course, lesson)),
           orElse: () => null,
         );
-    final progressLabel =
-        '${(progress * 100).round()}% ya ${course.title} imekamilika';
+    final progressLabel = tr('{percent}% ya {title} imekamilika', {
+      'percent': (progress * 100).round(),
+      'title': course.title,
+    });
     return AccessibleTappable(
-      label: 'Endelea na kozi ${course.title}',
+      label: tr('Endelea na kozi {title}', {'title': course.title}),
       hint: progressLabel,
       onTap: onTap,
       child: Card(
@@ -327,15 +332,20 @@ class CourseProgressCard extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         nextLesson == null
-                            ? 'Masomo yote yamekamilika'
-                            : 'Somo linalofuata: ${nextLesson.title}',
+                            ? tr('Masomo yote yamekamilika')
+                            : tr('Somo linalofuata: {title}', {
+                                'title': nextLesson.title,
+                              }),
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
                           Text(
-                            '$completed/$total masomo',
+                            tr('{completed}/{total} masomo', {
+                              'completed': completed,
+                              'total': total,
+                            }),
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
                           const Spacer(),
@@ -366,7 +376,7 @@ class CourseProgressCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Endelea na kozi',
+                        tr('Endelea na kozi'),
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               color: context.colors.primary,
                               fontWeight: FontWeight.w600,

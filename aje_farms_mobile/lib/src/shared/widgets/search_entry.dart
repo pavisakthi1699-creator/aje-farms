@@ -11,7 +11,7 @@ class SearchActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Tafuta',
+      tooltip: tr('Tafuta'),
       icon: const Icon(Icons.search),
       onPressed: () => AppNavigator.pushSearch(context, scope: scope),
     );

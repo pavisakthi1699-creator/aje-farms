@@ -111,8 +111,8 @@ class AppNavigator {
               builder: (context) {
                 final course = _findCourse(context, courseId);
                 if (course == null) {
-                  return const _DeepLinkMissingScreen(
-                    message: 'Kozi haikupatikana kwa kiungo hiki.',
+                  return _DeepLinkMissingScreen(
+                    message: tr('Kozi haikupatikana kwa kiungo hiki.'),
                   );
                 }
                 return CourseDetailScreen(
@@ -138,8 +138,8 @@ class AppNavigator {
               }
               final post = _findCommunityPost(context, postId);
               if (post == null) {
-                return const _DeepLinkMissingScreen(
-                  message: 'Post ya jamii haikupatikana kwa kiungo hiki.',
+                return _DeepLinkMissingScreen(
+                  message: tr('Post ya jamii haikupatikana kwa kiungo hiki.'),
                 );
               }
               return CommunityPostDetailScreen(post: post);
@@ -409,9 +409,9 @@ class _DeepLinkMissingScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: EmptyState(
             icon: Icons.link_off_outlined,
-            title: 'Kiungo hakipatikani',
+            title: tr('Kiungo hakipatikani'),
             body: message,
-            actionLabel: 'Rudi',
+            actionLabel: tr('Rudi'),
             onAction: () => Navigator.of(context).maybePop(),
           ),
         ),

@@ -21,10 +21,11 @@ class AiChatScreen extends StatefulWidget {
 class AiChatScreenState extends State<AiChatScreen> {
   final _controller = TextEditingController();
   final List<ChatMessage> _messages = [
-    const ChatMessage(
+    ChatMessage(
       role: ChatRole.model,
-      text:
-          'Habari! Mimi ni Mwalimu AI. Nawezaje kukusaidia kuhusu kilimo leo?',
+      text: tr(
+        'Habari! Mimi ni Mwalimu AI. Nawezaje kukusaidia kuhusu kilimo leo?',
+      ),
     ),
   ];
   bool _isLoading = false;
@@ -52,11 +53,11 @@ class AiChatScreenState extends State<AiChatScreen> {
           );
         });
       }
-      showSuccessSnack(context, 'Ripoti ya jibu la AI imepokelewa.');
+      showSuccessSnack(context, tr('Ripoti ya jibu la AI imepokelewa.'));
     } on MwalimuAiException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } catch (_) {
-      if (mounted) showErrorSnack(context, 'Imeshindikana kutuma ripoti.');
+      if (mounted) showErrorSnack(context, tr('Imeshindikana kutuma ripoti.'));
     }
   }
 
@@ -77,12 +78,14 @@ class AiChatScreenState extends State<AiChatScreen> {
     super.dispose();
   }
 
-  static const _networkFailureReply =
-      'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au '
-      'wasiliana na mtaalamu.';
-  static const _pendingVerificationReply =
-      'Mwalimu AI itapatikana baada ya timu ya Chuo Kikuu Cha Mtaani kuthibitisha akaunti '
-      'yako. Tunakujulisha mara akaunti yako itakapowashwa.';
+  static String get _networkFailureReply => tr(
+        'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au '
+        'wasiliana na mtaalamu.',
+      );
+  static String get _pendingVerificationReply => tr(
+        'Mwalimu AI itapatikana baada ya timu ya Chuo Kikuu Cha Mtaani kuthibitisha akaunti '
+        'yako. Tunakujulisha mara akaunti yako itakapowashwa.',
+      );
 
   Future<void> _send([String? value]) async {
     final text = (value ?? _controller.text).trim();
@@ -104,13 +107,13 @@ class AiChatScreenState extends State<AiChatScreen> {
       // Telling them to check their connection sends them retrying forever, so
       // name the real reason and open the membership status screen.
       if (error.requiresVerifiedAccount) {
-        answer = const MwalimuAiAnswer(text: _pendingVerificationReply);
+        answer = MwalimuAiAnswer(text: _pendingVerificationReply);
         if (mounted) AppNavigator.pushPaywall(context);
       } else {
-        answer = const MwalimuAiAnswer(text: _networkFailureReply);
+        answer = MwalimuAiAnswer(text: _networkFailureReply);
       }
     } catch (_) {
-      answer = const MwalimuAiAnswer(text: _networkFailureReply);
+      answer = MwalimuAiAnswer(text: _networkFailureReply);
     }
 
     if (!mounted) return;
@@ -136,7 +139,7 @@ class AiChatScreenState extends State<AiChatScreen> {
           children: [
             const Text('Mwalimu AI'),
             Semantics(
-              label: 'Hali: Mtandaoni',
+              label: tr('Hali: Mtandaoni'),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -149,7 +152,7 @@ class AiChatScreenState extends State<AiChatScreen> {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Mtandaoni',
+                    tr('Mtandaoni'),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: context.colors.success,
                           fontWeight: FontWeight.w600,
@@ -241,7 +244,7 @@ class AiChatScreenState extends State<AiChatScreen> {
             child: ChatComposerBar(
               controller: _controller,
               isLoading: _isLoading,
-              hintText: 'Uliza ushauri kuhusu kilimo…',
+              hintText: tr('Uliza ushauri kuhusu kilimo…'),
               onSend: _send,
             ),
           ),
@@ -254,39 +257,47 @@ class AiChatScreenState extends State<AiChatScreen> {
     final lower = topic?.toLowerCase() ?? '';
     if (lower.contains('wadudu')) {
       return [
-        'Nirekodi dalili gani?',
-        'Hatua salama ya kwanza',
-        'Nipige picha gani?'
+        tr('Nirekodi dalili gani?'),
+        tr('Hatua salama ya kwanza'),
+        tr('Nipige picha gani?'),
       ];
     }
     if (lower.contains('mbolea')) {
       return [
-        'Nahitaji taarifa gani?',
-        'Je, nipime udongo?',
-        'Historia ya shamba'
+        tr('Nahitaji taarifa gani?'),
+        tr('Je, nipime udongo?'),
+        tr('Historia ya shamba'),
       ];
     }
     if (lower.contains('maji')) {
-      return ['Ratiba ya kumwagilia', 'Maji yanasimama', 'Dalili za ukame'];
+      return [
+        tr('Ratiba ya kumwagilia'),
+        tr('Maji yanasimama'),
+        tr('Dalili za ukame'),
+      ];
     }
     if (lower.contains('ufugaji')) {
-      return ['Nirekodi dalili gani?', 'Usafi wa banda', 'Nimpateje daktari?'];
+      return [
+        tr('Nirekodi dalili gani?'),
+        tr('Usafi wa banda'),
+        tr('Nimpateje daktari?'),
+      ];
     }
     return [
-      'Nirekodi dalili gani?',
-      'Hatua salama ya kwanza',
-      'Matatizo ya nyanya'
+      tr('Nirekodi dalili gani?'),
+      tr('Hatua salama ya kwanza'),
+      tr('Matatizo ya nyanya'),
     ];
   }
 }
 
 Future<String?> _selectAiReportReason(BuildContext context) {
-  const reasons = <String, String>{
-    'offensive': 'Jibu linaudhi au halifai',
-    'unsafe': 'Jibu linaweza kusababisha madhara',
-    'inaccurate': 'Jibu si sahihi au linapotosha',
-    'personal_data': 'Jibu lina taarifa binafsi',
-    'other': 'Sababu nyingine',
+  final reasons = <String, String>{
+    'offensive': tr('Jibu linaudhi au halifai'),
+    'unsafe': tr('Jibu linaweza kusababisha madhara'),
+    'inaccurate': tr('Jibu si sahihi au linapotosha'),
+    'personal_data': tr('Jibu lina taarifa binafsi'),
+    'other': tr('Sababu nyingine'),
   };
   return showModalBottomSheet<String>(
     context: context,
@@ -298,7 +309,7 @@ Future<String?> _selectAiReportReason(BuildContext context) {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(
-              'Kwa nini unaripoti jibu hili?',
+              tr('Kwa nini unaripoti jibu hili?'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),

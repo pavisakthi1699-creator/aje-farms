@@ -4,6 +4,7 @@ import '../../theme/app_color_scheme.dart';
 import '../../theme/app_decorations.dart';
 import '../../theme/app_spacing.dart';
 import 'connectivity_scope.dart';
+import '../../l10n/app_strings.dart';
 
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({
@@ -21,8 +22,10 @@ class OfflineBanner extends StatelessWidget {
     }
 
     final message = offline
-        ? 'Huna mtandao. Unaweza kuendelea na maudhui yaliyohifadhiwa.'
-        : 'Imeshindikana kusasisha maudhui mapya. Unaona taarifa za hivi karibuni.';
+        ? tr('Huna mtandao. Unaweza kuendelea na maudhui yaliyohifadhiwa.')
+        : tr(
+            'Imeshindikana kusasisha maudhui mapya. Unaona taarifa za hivi karibuni.',
+          );
 
     final surfaceColor =
         offline ? context.colors.surfacePeach : context.colors.surfaceMuted;

@@ -56,7 +56,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnack(
             Icon(icon, size: 20, color: iconColor),
             const SizedBox(width: AppSpacing.md),
           ],
-          Expanded(child: Text(message)),
+          Expanded(child: Text(tr(message))),
         ],
       ),
       action: actionLabel != null && onAction != null

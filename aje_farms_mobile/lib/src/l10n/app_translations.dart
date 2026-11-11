@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../state/app_session.dart';
+import 'strings_en.dart';
 
 /// Comprehensive local translation engine for Chuo Kikuu Cha Mtaani.
 /// Works 100% offline without external network or API dependencies.
@@ -695,6 +696,12 @@ class AppTranslations {
   /// Translates text based on current locale (or target language flag).
   /// If `isEnglish` is true, translates Swahili -> English.
   /// If `isEnglish` is false, translates English -> Swahili (or keeps original Swahili).
+  /// Exact English translation of [swahili], or `null` when neither this
+  /// dictionary nor `strings_en.dart` lists it. Used by the context-free
+  /// `tr()` helper, which never rewrites text partially.
+  static String? exactEnglish(String swahili) =>
+      _swToEn[swahili] ?? englishStrings[swahili] ?? _swToEn[swahili.trim()];
+
   static String translate(String text, {required bool isEnglish}) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return text;
@@ -709,6 +716,8 @@ class AppTranslations {
           return entry.value;
         }
       }
+      final listed = englishStrings[text] ?? englishStrings[trimmed];
+      if (listed != null) return listed;
       if (_enToSw.containsKey(trimmed)) {
         return text;
       }

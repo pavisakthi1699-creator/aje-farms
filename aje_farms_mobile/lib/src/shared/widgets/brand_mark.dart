@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_strings.dart';
+
 /// The official Chuo Kikuu Cha Mtaani mark used in every brand placement.
 class BrandMark extends StatelessWidget {
   const BrandMark({
@@ -13,7 +15,7 @@ class BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       image: true,
-      label: 'Nembo ya Chuo Kikuu Cha Mtaani',
+      label: tr('Nembo ya Chuo Kikuu Cha Mtaani'),
       child: SizedBox.square(
         dimension: size,
         child: ClipOval(

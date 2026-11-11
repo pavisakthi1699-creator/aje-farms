@@ -10,13 +10,14 @@ class WhatsAppEscalationScreen extends StatelessWidget {
     'AJE_WHATSAPP_EXPERT_PHONE',
     defaultValue: '255743812853',
   );
-  static const _message =
-      'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya Chuo Kikuu Cha Mtaani.';
+  static String get _message => tr(
+        'Habari Mwalimu, nahitaji msaada kuhusu kilimo. Nimetokea kwenye app ya Chuo Kikuu Cha Mtaani.',
+      );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ongea na Mtaalamu')),
+      appBar: AppBar(title: Text(tr('Ongea na Mtaalamu'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -33,7 +34,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
-              'Msaada wa Moja kwa Moja',
+              tr('Msaada wa Moja kwa Moja'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: context.colors.primary,
@@ -42,7 +43,9 @@ class WhatsAppEscalationScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Tutafungua WhatsApp na ujumbe uliotayarishwa ili upate msaada wa haraka kutoka kwa wataalamu wetu.',
+              tr(
+                'Tutafungua WhatsApp na ujumbe uliotayarishwa ili upate msaada wa haraka kutoka kwa wataalamu wetu.',
+              ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -54,7 +57,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PREVIEW YA UJUMBE',
+                      tr('PREVIEW YA UJUMBE'),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: context.colors.muted,
                             fontWeight: FontWeight.w600,
@@ -95,10 +98,14 @@ class WhatsAppEscalationScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.lg),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.info_outline,
-                          color: context.colors.primary),
-                      title: const Text(
-                        'Mtaalamu wetu atajibu ndani ya dakika chache baada ya kutuma ujumbe huu.',
+                      leading: Icon(
+                        Icons.info_outline,
+                        color: context.colors.primary,
+                      ),
+                      title: Text(
+                        tr(
+                          'Mtaalamu wetu atajibu ndani ya dakika chache baada ya kutuma ujumbe huu.',
+                        ),
                       ),
                     ),
                   ],
@@ -112,7 +119,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
                 _openWhatsApp(context);
               },
               icon: const Icon(Icons.send),
-              label: const Text('Fungua WhatsApp sasa'),
+              label: Text(tr('Fungua WhatsApp sasa')),
               style: FilledButton.styleFrom(
                 backgroundColor: context.colors.whatsapp,
                 foregroundColor: context.colors.onPrimary,
@@ -124,7 +131,7 @@ class WhatsAppEscalationScreen extends StatelessWidget {
                 AppFeedback.tap();
                 Navigator.of(context).maybePop();
               },
-              child: const Text('Rudi nyuma'),
+              child: Text(tr('Rudi nyuma')),
             ),
           ],
         ),
@@ -149,6 +156,6 @@ class WhatsAppEscalationScreen extends StatelessWidget {
       return;
     }
     if (!context.mounted) return;
-    showSnack(context, 'WhatsApp haijapatikana kwenye kifaa hiki.');
+    showSnack(context, tr('WhatsApp haijapatikana kwenye kifaa hiki.'));
   }
 }

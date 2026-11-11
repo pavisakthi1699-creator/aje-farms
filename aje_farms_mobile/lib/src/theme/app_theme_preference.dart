@@ -1,12 +1,14 @@
+import '../l10n/app_strings.dart';
+
 enum AppThemePreference {
   system,
   light,
   dark;
 
   String get label => switch (this) {
-        AppThemePreference.system => 'Mfumo',
-        AppThemePreference.light => 'Mwanga',
-        AppThemePreference.dark => 'Giza',
+        AppThemePreference.system => tr('Mfumo'),
+        AppThemePreference.light => tr('Mwanga'),
+        AppThemePreference.dark => tr('Giza'),
       };
 
   static AppThemePreference fromStorage(String? value) {

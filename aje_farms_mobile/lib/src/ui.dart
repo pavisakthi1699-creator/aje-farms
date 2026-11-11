@@ -1,6 +1,7 @@
 export 'package:flutter/material.dart';
 
 export 'app/access_gate.dart';
+export 'l10n/app_strings.dart';
 export 'l10n/app_translations.dart';
 export 'shared/widgets/language_toggle_button.dart';
 export 'app/app_dependencies.dart';

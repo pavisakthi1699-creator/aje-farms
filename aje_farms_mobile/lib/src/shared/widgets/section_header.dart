@@ -23,8 +23,8 @@ class SectionHeader extends StatelessWidget {
         CircleIconButtonSmall(
           icon: actionIcon,
           onPressed: onAction,
-          tooltip: 'Fungua $title',
-          semanticLabel: 'Fungua $title',
+          tooltip: tr('Fungua {title}', {'title': title}),
+          semanticLabel: tr('Fungua {title}', {'title': title}),
         ),
       ],
     );

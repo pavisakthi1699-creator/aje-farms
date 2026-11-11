@@ -10,8 +10,8 @@ class CommunityTeaser extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AccessibleTappable(
-      label: 'Jiunge na Jamii',
-      hint: 'Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.',
+      label: tr('Jiunge na Jamii'),
+      hint: tr('Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.'),
       onTap: onTap,
       child: Card(
         child: InteractiveInk(
@@ -37,17 +37,21 @@ class CommunityTeaser extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Jiunge na Jamii',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        tr('Jiunge na Jamii'),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: context.colors.muted,
-                            ),
+                        tr(
+                          'Soma mwongozo wa jamii na shiriki uzoefu wako wa shamba.',
+                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: context.colors.muted),
                       ),
                     ],
                   ),

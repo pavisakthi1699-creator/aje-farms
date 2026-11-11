@@ -26,19 +26,19 @@ class PaywallScreenState extends State<PaywallScreen> {
       if (!mounted) return;
       if (session.hasActiveAccess) {
         AppFeedback.success();
-        showSuccessSnack(context, 'Akaunti yako imewashwa. Karibu!');
+        showSuccessSnack(context, tr('Akaunti yako imewashwa. Karibu!'));
         Navigator.of(context).popUntil((route) => route.isFirst);
         return;
       }
-      showSnack(context, 'Bado hujawashiwa akaunti. Jaribu tena baadaye.');
+      showSnack(context, tr('Bado hujawashiwa akaunti. Jaribu tena baadaye.'));
     } on AuthException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        'Imeshindikana kuangalia hali ya akaunti. Angalia mtandao wako.',
+        tr('Imeshindikana kuangalia hali ya akaunti. Angalia mtandao wako.'),
       );
     } finally {
       if (mounted) setState(() => _isRefreshing = false);
@@ -51,7 +51,7 @@ class PaywallScreenState extends State<PaywallScreen> {
     final isSuspended = status == 'suspended';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hali ya Uanachama')),
+      appBar: AppBar(title: Text(tr('Hali ya Uanachama'))),
       body: AppLayoutScroll(
         padding: const EdgeInsets.only(bottom: AppSpacing.xl),
         header: Padding(
@@ -64,8 +64,12 @@ class PaywallScreenState extends State<PaywallScreen> {
           children: [
             Text(
               isSuspended
-                  ? 'Uanachama wako umesitishwa. Wasiliana na timu ya Chuo Kikuu Cha Mtaani kwa msaada.'
-                  : 'Timu ya Chuo Kikuu Cha Mtaani bado inakagua na kuandaa ufikiaji wa akaunti yako.',
+                  ? tr(
+                      'Uanachama wako umesitishwa. Wasiliana na timu ya Chuo Kikuu Cha Mtaani kwa msaada.',
+                    )
+                  : tr(
+                      'Timu ya Chuo Kikuu Cha Mtaani bado inakagua na kuandaa ufikiaji wa akaunti yako.',
+                    ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -74,7 +78,7 @@ class PaywallScreenState extends State<PaywallScreen> {
             if (kPlayConsumptionOnly) ...[
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Programu hii haitoi ununuzi ndani ya programu.',
+                tr('Programu hii haitoi ununuzi ndani ya programu.'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.colors.muted,
@@ -97,7 +101,7 @@ class PaywallScreenState extends State<PaywallScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: const Text('Onyesha Hali Upya'),
+                label: Text(tr('Onyesha Hali Upya')),
               ),
             ),
           ],
@@ -129,15 +133,19 @@ class _StatusBanner extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Pill(
-              label: isSuspended ? 'Imesitishwa' : 'Inasubiri Uthibitisho',
+              label:
+                  isSuspended ? tr('Imesitishwa') : tr('Inasubiri Uthibitisho'),
               color: context.colors.secondary,
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              isSuspended ? 'Ufikiaji umesitishwa' : 'Akaunti bado haijawashwa',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: context.colors.onPrimary,
-                  ),
+              isSuspended
+                  ? tr('Ufikiaji umesitishwa')
+                  : tr('Akaunti bado haijawashwa'),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(color: context.colors.onPrimary),
             ),
           ],
         ),

@@ -24,12 +24,17 @@ class ProblemScreenState extends State<ProblemScreen> {
     AppFeedback.tap();
     final detail = _detailController.text.trim();
     final prompt = detail.isEmpty
-        ? 'Nina shida kuhusu ${category.topic}. Naweza kupata ushauri?'
-        : 'Nina shida kuhusu ${category.topic}. Zao/mnyama: $detail. Naweza kupata ushauri?';
+        ? tr('Nina shida kuhusu {topic}. Naweza kupata ushauri?', {
+            'topic': tr(category.topic),
+          })
+        : tr(
+            'Nina shida kuhusu {topic}. Zao/mnyama: {detail}. Naweza kupata ushauri?',
+            {'topic': tr(category.topic), 'detail': detail},
+          );
 
     AppNavigator.pushAiChat(
       context,
-      initialPromptTopic: category.topic,
+      initialPromptTopic: tr(category.topic),
       initialPromptDetail: detail.isEmpty ? null : detail,
       initialPrompt: prompt,
     );
@@ -39,12 +44,17 @@ class ProblemScreenState extends State<ProblemScreen> {
     AppFeedback.tap();
     final detail = _detailController.text.trim();
     final prompt = detail.isEmpty
-        ? 'Sijui tatizo kwenye shamba langu. Nisaidie kuuliza maswali ya kutambua.'
-        : 'Sijui tatizo kwenye $detail. Nisaidie kuuliza maswali ya kutambua.';
+        ? tr(
+            'Sijui tatizo kwenye shamba langu. Nisaidie kuuliza maswali ya kutambua.',
+          )
+        : tr(
+            'Sijui tatizo kwenye {detail}. Nisaidie kuuliza maswali ya kutambua.',
+            {'detail': detail},
+          );
 
     AppNavigator.pushAiChat(
       context,
-      initialPromptTopic: 'Sijui tatizo',
+      initialPromptTopic: tr('Sijui tatizo'),
       initialPromptDetail: detail.isEmpty ? null : detail,
       initialPrompt: prompt,
     );
@@ -60,18 +70,18 @@ class ProblemScreenState extends State<ProblemScreen> {
         .firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tueleze Changamoto')),
+      appBar: AppBar(title: Text(tr('Tueleze Changamoto'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             Text(
-              'Eleza tatizo',
+              tr('Eleza tatizo'),
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Una changamoto gani leo kwenye shamba lako?',
+              tr('Una changamoto gani leo kwenye shamba lako?'),
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -85,8 +95,8 @@ class ProblemScreenState extends State<ProblemScreen> {
                       selectedCategory.icon,
                       color: context.colors.primary,
                     ),
-                    title: const Text('Changamoto uliyochagua'),
-                    subtitle: Text(selectedCategory.title),
+                    title: Text(tr('Changamoto uliyochagua')),
+                    subtitle: Text(tr(selectedCategory.title)),
                   ),
                 ),
               ),
@@ -94,8 +104,8 @@ class ProblemScreenState extends State<ProblemScreen> {
             ],
             AppTextField(
               controller: _detailController,
-              labelText: 'Zao au mnyama (hiari)',
-              hintText: 'Mfano: nyanya, pasheni, kuku wa nyama',
+              labelText: tr('Zao au mnyama (hiari)'),
+              hintText: tr('Mfano: nyanya, pasheni, kuku wa nyama'),
               prefixIcon: const Icon(Icons.agriculture_outlined),
               textInputAction: TextInputAction.done,
             ),
@@ -124,7 +134,7 @@ class ProblemScreenState extends State<ProblemScreen> {
             if (suggestedCourse != null) ...[
               const SizedBox(height: AppSpacing.xxxl),
               Text(
-                'Mada Pendekezwa',
+                tr('Mada Pendekezwa'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppSpacing.md),

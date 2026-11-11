@@ -92,11 +92,14 @@ class AuthScreenState extends State<AuthScreen> {
     } on AuthException catch (error) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      showErrorSnack(context, 'Imeshindikana kuingia. Angalia mtandao wako.');
+      showErrorSnack(
+        context,
+        tr('Imeshindikana kuingia. Angalia mtandao wako.'),
+      );
     }
   }
 
@@ -115,31 +118,31 @@ class AuthScreenState extends State<AuthScreen> {
       _startResendCooldown();
       showSuccessSnack(
         context,
-        'Barua mpya ya uthibitisho imetumwa. Angalia inbox na spam.',
+        tr('Barua mpya ya uthibitisho imetumwa. Angalia inbox na spam.'),
       );
     } on AuthException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kutuma barua. Jaribu tena.');
+      showErrorSnack(context, tr('Imeshindikana kutuma barua. Jaribu tena.'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   String? _validateEmail(String email) {
-    if (email.isEmpty) return 'Weka barua pepe yako.';
+    if (email.isEmpty) return tr('Weka barua pepe yako.');
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-      return 'Weka barua pepe sahihi.';
+      return tr('Weka barua pepe sahihi.');
     }
     return null;
   }
 
   String? _validatePassword(String password) {
-    if (password.isEmpty) return 'Weka nenosiri lako.';
+    if (password.isEmpty) return tr('Weka nenosiri lako.');
     if (password.length < 6) {
-      return 'Nenosiri linahitajika kuwa na angalau tarakimu 6.';
+      return tr('Nenosiri linahitajika kuwa na angalau tarakimu 6.');
     }
     return null;
   }
@@ -150,7 +153,7 @@ class AuthScreenState extends State<AuthScreen> {
     final emailError = _validateEmail(email);
     final passwordError = _validatePassword(password);
     final termsError = _mode == _AuthMode.signUp && !_acceptedTerms
-        ? 'Kubali Masharti na Mwongozo wa Jamii ili kujisajili.'
+        ? tr('Kubali Masharti na Mwongozo wa Jamii ili kujisajili.')
         : null;
     if (emailError != null || passwordError != null || termsError != null) {
       setState(() {
@@ -188,7 +191,9 @@ class AuthScreenState extends State<AuthScreen> {
         _startResendCooldown();
         showSuccessSnack(
           context,
-          'Kama hii ni akaunti mpya, barua ya uthibitisho imetumwa. Thibitisha kisha ingia.',
+          tr(
+            'Kama hii ni akaunti mpya, barua ya uthibitisho imetumwa. Thibitisha kisha ingia.',
+          ),
         );
         setState(() => _mode = _AuthMode.signIn);
         return;
@@ -205,12 +210,12 @@ class AuthScreenState extends State<AuthScreen> {
         _pendingConfirmationEmail = email;
         _mode = _AuthMode.signIn;
       });
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
       return;
     } on AuthException catch (error) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
       return;
     } catch (_) {
       if (!mounted) return;
@@ -218,8 +223,8 @@ class AuthScreenState extends State<AuthScreen> {
       showErrorSnack(
         context,
         _mode == _AuthMode.signUp
-            ? 'Imeshindikana kujisajili. Angalia mtandao wako.'
-            : 'Imeshindikana kuingia. Angalia mtandao wako.',
+            ? tr('Imeshindikana kujisajili. Angalia mtandao wako.')
+            : tr('Imeshindikana kuingia. Angalia mtandao wako.'),
       );
       return;
     }
@@ -239,16 +244,16 @@ class AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
       showSuccessSnack(
         context,
-        'Tumetuma barua pepe yenye maelekezo ya kubadilisha nenosiri.',
+        tr('Tumetuma barua pepe yenye maelekezo ya kubadilisha nenosiri.'),
       );
     } on AuthException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        'Imeshindikana kutuma barua pepe. Angalia mtandao wako.',
+        tr('Imeshindikana kutuma barua pepe. Angalia mtandao wako.'),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -259,7 +264,10 @@ class AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     final isSignUp = _mode == _AuthMode.signUp;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ingia / Jisajili')),
+      appBar: AppBar(
+        title: Text(tr('Ingia / Jisajili')),
+        actions: const [LanguageToggleButton()],
+      ),
       body: AutofillGroup(
         child: AppLayout(
           child: ListView(
@@ -268,21 +276,26 @@ class AuthScreenState extends State<AuthScreen> {
               const BrandHeader(),
               const SizedBox(height: AppSpacing.xxl),
               Text(
-                isSignUp ? 'Fungua akaunti mpya' : 'Karibu tena',
+                isSignUp ? tr('Fungua akaunti mpya') : tr('Karibu tena'),
                 style: Theme.of(context).textTheme.headlineLarge,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Tumia barua pepe na nenosiri kupata mafunzo, kuhifadhi maendeleo yako, na kufungua msaada wa premium.',
+                tr(
+                  'Tumia barua pepe na nenosiri kupata mafunzo, kuhifadhi maendeleo yako, na kufungua msaada wa premium.',
+                ),
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: AppSpacing.xl),
               SegmentedButton<_AuthMode>(
-                segments: const [
-                  ButtonSegment(value: _AuthMode.signIn, label: Text('Ingia')),
+                segments: [
+                  ButtonSegment(
+                    value: _AuthMode.signIn,
+                    label: Text(tr('Ingia')),
+                  ),
                   ButtonSegment(
                     value: _AuthMode.signUp,
-                    label: Text('Jisajili'),
+                    label: Text(tr('Jisajili')),
                   ),
                 ],
                 selected: {_mode},
@@ -303,8 +316,8 @@ class AuthScreenState extends State<AuthScreen> {
               AppTextField(
                 controller: _emailController,
                 focusNode: _emailFocus,
-                labelText: 'Barua pepe',
-                helperText: 'Mfano: jina@barua.com',
+                labelText: tr('Barua pepe'),
+                helperText: tr('Mfano: jina@barua.com'),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
@@ -318,7 +331,7 @@ class AuthScreenState extends State<AuthScreen> {
               AppTextField(
                 controller: _passwordController,
                 focusNode: _passwordFocus,
-                labelText: 'Nenosiri',
+                labelText: tr('Nenosiri'),
                 obscureText: _obscurePassword,
                 autocorrect: false,
                 enableSuggestions: false,
@@ -326,11 +339,11 @@ class AuthScreenState extends State<AuthScreen> {
                 smartQuotesType: SmartQuotesType.disabled,
                 enableIMEPersonalizedLearning: false,
                 suffixIcon: IconButton(
-                  tooltip:
-                      _obscurePassword ? 'Onyesha nenosiri' : 'Ficha nenosiri',
-                  onPressed: () => setState(
-                    () => _obscurePassword = !_obscurePassword,
-                  ),
+                  tooltip: _obscurePassword
+                      ? tr('Onyesha nenosiri')
+                      : tr('Ficha nenosiri'),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                   icon: Icon(
                     _obscurePassword
                         ? Icons.visibility_outlined
@@ -355,8 +368,8 @@ class AuthScreenState extends State<AuthScreen> {
                   value: _acceptedTerms,
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text(
-                    'Ninakubali Masharti ya Matumizi na Mwongozo wa Jamii',
+                  title: Text(
+                    tr('Ninakubali Masharti ya Matumizi na Mwongozo wa Jamii'),
                   ),
                   subtitle: _termsError == null
                       ? null
@@ -376,16 +389,16 @@ class AuthScreenState extends State<AuthScreen> {
                     children: [
                       TextButton(
                         onPressed: () => _openAuthPolicy('/terms'),
-                        child: const Text('Soma Masharti'),
+                        child: Text(tr('Soma Masharti')),
                       ),
                       TextButton(
                         onPressed: () =>
                             _openAuthPolicy('/community-guidelines'),
-                        child: const Text('Mwongozo wa Jamii'),
+                        child: Text(tr('Mwongozo wa Jamii')),
                       ),
                       TextButton(
                         onPressed: () => _openAuthPolicy('/privacy'),
-                        child: const Text('Sera ya Faragha'),
+                        child: Text(tr('Sera ya Faragha')),
                       ),
                     ],
                   ),
@@ -396,7 +409,7 @@ class AuthScreenState extends State<AuthScreen> {
                   alignment: Alignment.centerLeft,
                   child: TextButton(
                     onPressed: _isLoading ? null : _forgotPassword,
-                    child: const Text('Umesahau nenosiri?'),
+                    child: Text(tr('Umesahau nenosiri?')),
                   ),
                 ),
                 if (_pendingConfirmationEmail != null) ...[
@@ -408,12 +421,18 @@ class AuthScreenState extends State<AuthScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Barua pepe bado haijathibitishwa',
+                            tr('Barua pepe bado haijathibitishwa'),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Fungua kiungo tulichotuma kwa $_pendingConfirmationEmail. Kama hakijafika, angalia spam au utume tena.',
+                            tr(
+                              'Fungua kiungo tulichotuma kwa {pendingConfirmationEmail}. Kama hakijafika, angalia spam au utume tena.',
+                              {
+                                'pendingConfirmationEmail':
+                                    _pendingConfirmationEmail,
+                              },
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           TextButton.icon(
@@ -423,8 +442,14 @@ class AuthScreenState extends State<AuthScreen> {
                             icon: const Icon(Icons.mark_email_unread_outlined),
                             label: Text(
                               _resendSecondsRemaining > 0
-                                  ? 'Tuma tena baada ya sekunde $_resendSecondsRemaining'
-                                  : 'Tuma tena barua ya uthibitisho',
+                                  ? tr(
+                                      'Tuma tena baada ya sekunde {resendSecondsRemaining}',
+                                      {
+                                        'resendSecondsRemaining':
+                                            _resendSecondsRemaining,
+                                      },
+                                    )
+                                  : tr('Tuma tena barua ya uthibitisho'),
                             ),
                           ),
                         ],
@@ -447,7 +472,7 @@ class AuthScreenState extends State<AuthScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(isSignUp ? Icons.person_add_outlined : Icons.login),
-                label: Text(isSignUp ? 'Jisajili Sasa' : 'Ingia Sasa'),
+                label: Text(isSignUp ? tr('Jisajili Sasa') : tr('Ingia Sasa')),
               ),
             ],
           ),

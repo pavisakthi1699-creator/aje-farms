@@ -12,6 +12,25 @@ Kama swali halipo kwenye vyanzo hivyo, jibu: "Samahani, sina taarifa ya kutosha 
 Usipe ushauri wowote ambao haupo kwenye reference data uliyopewa. Majibu yako yawe mafupi, rahisi kueleweka kwa mkulima.
 `;
 
+const NO_SOURCE_REPLY = {
+  sw: 'Samahani, sina taarifa ya kutosha kwenye mafunzo yaliyowekwa. Unaweza kuwasiliana na mtaalamu kupitia WhatsApp.',
+  en: "Sorry, I don't have enough information in the approved courses. You can contact an expert on WhatsApp.",
+};
+
+// The approved sources are written in Kiswahili. For English-interface users
+// Gemini still grounds on them but answers in English; the knowledge-base
+// fallback (no API key) can only quote the sources as written.
+const ENGLISH_INSTRUCTION = `
+The learner is using the app in English. Reply in clear, simple English,
+translating from the Kiswahili sources. All other rules above still apply.
+If the sources do not cover the question, reply exactly:
+"${NO_SOURCE_REPLY.en}"
+`;
+
+export function normalizeLanguage(value) {
+  return value === 'en' ? 'en' : 'sw';
+}
+
 function readApiKey() {
   return configuredGeminiApiKey();
 }
@@ -21,20 +40,18 @@ export async function chatWithMwalimuServer(
   history = [],
   courses,
   groundingSources,
+  { language = 'sw' } = {},
 ) {
+  const lang = normalizeLanguage(language);
   const sources = Array.isArray(groundingSources)
     ? groundingSources
     : findApprovedSources(message, courses);
   const apiKey = readApiKey();
   if (!apiKey) {
-    return answerFromKnowledgeBase(message, sources);
+    return answerFromKnowledgeBase(message, sources, lang);
   }
   if (sources.length === 0) {
-    return {
-      text:
-        'Samahani, sina taarifa ya kutosha kwenye mafunzo yaliyowekwa. Unaweza kuwasiliana na mtaalamu kupitia WhatsApp.',
-      sources: [],
-    };
+    return { text: NO_SOURCE_REPLY[lang], sources: [] };
   }
 
   const ai = new GoogleGenAI({
@@ -63,7 +80,10 @@ export async function chatWithMwalimuServer(
       },
     ],
     config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction:
+        lang === 'en'
+          ? `${SYSTEM_INSTRUCTION}\n${ENGLISH_INSTRUCTION}`
+          : SYSTEM_INSTRUCTION,
       temperature: 0.2,
       maxOutputTokens: 512,
     },
@@ -75,13 +95,9 @@ export async function chatWithMwalimuServer(
   };
 }
 
-function answerFromKnowledgeBase(_message, sources) {
+function answerFromKnowledgeBase(_message, sources, lang = 'sw') {
   if (sources.length === 0) {
-    return {
-      text:
-        'Samahani, sina taarifa ya kutosha kwenye mafunzo yaliyowekwa. Unaweza kuwasiliana na mtaalamu kupitia WhatsApp.',
-      sources: [],
-    };
+    return { text: NO_SOURCE_REPLY[lang], sources: [] };
   }
 
   const primary = sources[0];

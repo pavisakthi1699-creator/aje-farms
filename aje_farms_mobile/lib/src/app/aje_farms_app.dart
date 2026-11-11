@@ -29,16 +29,39 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
       widget.sessionController ?? AppSessionController();
   bool _appliedPendingDeepLink = false;
   bool _isBootstrapping = true;
+  late String _renderedLanguage =
+      _sessionController.state.languagePreference.languageCode;
 
   @override
   void initState() {
     super.initState();
+    AppStrings.isEnglish = _renderedLanguage == 'en';
+    _sessionController.addListener(_handleLanguageChange);
     AppNavigator.captureInitialRoute();
     _restoreAndSyncSession();
   }
 
+  /// Most screens look strings up with the context-free `tr()` while they
+  /// build, so a language switch has to rebuild every mounted widget —
+  /// including `const` subtrees and screens lower in the navigation stack,
+  /// which an ordinary `setState` would skip. Widget state (scroll position,
+  /// form input, open routes) is kept because no element is replaced.
+  void _handleLanguageChange() {
+    final language = _sessionController.state.languagePreference.languageCode;
+    if (language == _renderedLanguage || !mounted) return;
+    _renderedLanguage = language;
+    AppStrings.isEnglish = language == 'en';
+    void rebuild(Element element) {
+      element.markNeedsBuild();
+      element.visitChildren(rebuild);
+    }
+
+    (context as Element).visitChildren(rebuild);
+  }
+
   @override
   void dispose() {
+    _sessionController.removeListener(_handleLanguageChange);
     if (widget.sessionController == null) {
       _sessionController.dispose();
     }
@@ -141,8 +164,8 @@ class AjeFarmsAppState extends State<AjeFarmsApp> {
 
       final session = await _dependencies.authService.getSession().timeout(
             const Duration(seconds: 8),
-            onTimeout: () => throw const AuthNetworkException(
-              'Mtandao umechukua muda mrefu. Jaribu tena.',
+            onTimeout: () => throw AuthNetworkException(
+              tr('Mtandao umechukua muda mrefu. Jaribu tena.'),
             ),
           );
       await _sessionController.signInWithEmail(session.email,

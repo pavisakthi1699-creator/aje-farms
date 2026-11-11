@@ -13,7 +13,7 @@ import {
   requireCommunityTerms,
 } from './auth.js';
 import { hasConfiguredGeminiApiKey } from './gemini-config.js';
-import { chatWithMwalimuServer } from './mwalimu.js';
+import { chatWithMwalimuServer, normalizeLanguage } from './mwalimu.js';
 import { createNotificationProvider } from './notifications.js';
 import { createPaymentProvider } from './payments.js';
 import { installPolicyRoutes } from './policy-pages.js';
@@ -1589,6 +1589,7 @@ export async function registerApiRoutes(app) {
     requirePaidLearningAccess(store),
     async (req, res) => {
       const { message, history } = req.body;
+      const language = normalizeLanguage(req.body?.language);
 
       if (typeof message !== 'string' || message.trim().length === 0) {
         res.status(400).json({ error: 'Message is required.' });
@@ -1615,6 +1616,7 @@ export async function registerApiRoutes(app) {
           [],
           (await store.catalogSnapshot()).courses,
           groundingSources,
+          { language },
         );
         const stored = await store.createAiAnswer({
           userId: req.userId,
@@ -1627,7 +1629,9 @@ export async function registerApiRoutes(app) {
         console.error('Mwalimu AI server error:', error);
         res.status(500).json({
           error:
-            'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
+            language === 'en'
+              ? "Sorry, there's a network problem. Please try again later or contact an expert."
+              : 'Samahani, kuna tatizo la kimtandao. Tafadhali jaribu tena baadae au wasiliana na mtaalamu.',
         });
       }
     }

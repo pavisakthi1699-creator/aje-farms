@@ -7,7 +7,35 @@ import test from 'node:test';
 import express from 'express';
 
 import { registerApiRoutes } from '../api.js';
-import { findApprovedSources } from '../mwalimu.js';
+import {
+  chatWithMwalimuServer,
+  findApprovedSources,
+  normalizeLanguage,
+} from '../mwalimu.js';
+
+test('normalizeLanguage only accepts en, defaulting to Kiswahili', () => {
+  assert.equal(normalizeLanguage('en'), 'en');
+  assert.equal(normalizeLanguage('sw'), 'sw');
+  assert.equal(normalizeLanguage('fr'), 'sw');
+  assert.equal(normalizeLanguage(undefined), 'sw');
+});
+
+test('Mwalimu replies in the learner language when no source matches', async () => {
+  const saved = { a: process.env.GEMINI_API, b: process.env.GEMINI_API_KEY };
+  delete process.env.GEMINI_API;
+  delete process.env.GEMINI_API_KEY;
+  try {
+    const english = await chatWithMwalimuServer('xyz', [], [], [], {
+      language: 'en',
+    });
+    assert.match(english.text, /^Sorry, I don't have enough information/);
+    const swahili = await chatWithMwalimuServer('xyz', [], [], []);
+    assert.match(swahili.text, /^Samahani, sina taarifa/);
+  } finally {
+    if (saved.a !== undefined) process.env.GEMINI_API = saved.a;
+    if (saved.b !== undefined) process.env.GEMINI_API_KEY = saved.b;
+  }
+});
 
 test('findApprovedSources returns approved lesson source metadata', () => {
   const sources = findApprovedSources('Nifanye nini kuhusu pasheni na maji?');

@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import '../models/community_post.dart';
 import '../services/auth_service.dart';
 import '../services/backend_session_storage.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_theme_preference.dart';
 
 class AppSessionState {
@@ -209,6 +210,7 @@ class AppSessionController extends ChangeNotifier {
         preferences.getString(_languagePreferenceKey) ?? 'sw',
       ),
     );
+    AppStrings.isEnglish = _state.languagePreference.languageCode == 'en';
     notifyListeners();
   }
 
@@ -241,7 +243,8 @@ class AppSessionController extends ChangeNotifier {
   /// Clears local session state only. Callers must also call
   /// `authService.signOut()` to end the Supabase session itself.
   Future<void> signOut() async {
-    _state = const AppSessionState();
+    // Keep the interface language so the sign-in screen stays readable.
+    _state = AppSessionState(languagePreference: _state.languagePreference);
     notifyListeners();
     await _save();
   }
@@ -357,6 +360,7 @@ class AppSessionController extends ChangeNotifier {
 
   Future<void> setLanguagePreference(Locale locale) async {
     _state = _state.copyWith(languagePreference: locale);
+    AppStrings.isEnglish = locale.languageCode == 'en';
     notifyListeners();
     await _save();
   }

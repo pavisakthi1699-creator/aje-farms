@@ -8,7 +8,7 @@ class CoursesScreen extends StatelessWidget {
   Future<void> _handleRefresh(BuildContext context) async {
     await context.dependencies.refreshCatalog();
     if (!context.mounted) return;
-    showSnack(context, 'Maudhui yamesasishwa.');
+    showSnack(context, tr('Maudhui yamesasishwa.'));
   }
 
   @override
@@ -18,7 +18,7 @@ class CoursesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mafunzo'),
+        title: Text(tr('Mafunzo')),
         actions: const [SearchActionButton(scope: SearchScope.learning)],
       ),
       body: AppLayout(
@@ -43,10 +43,11 @@ class CoursesScreen extends StatelessWidget {
                         children: [
                           EmptyState(
                             icon: Icons.menu_book_outlined,
-                            title: 'Hakuna kozi bado',
-                            body:
-                                'Hakuna maudhui ya mafunzo yaliyopatikana kwa sasa. Vuta chini kusasisha.',
-                            actionLabel: 'Sasisha',
+                            title: tr('Hakuna kozi bado'),
+                            body: tr(
+                              'Hakuna maudhui ya mafunzo yaliyopatikana kwa sasa. Vuta chini kusasisha.',
+                            ),
+                            actionLabel: tr('Sasisha'),
                             onAction: () => _handleRefresh(context),
                           ),
                         ],
@@ -59,19 +60,21 @@ class CoursesScreen extends StatelessWidget {
                             padding: const EdgeInsets.all(AppSpacing.xl),
                             sliver: SliverList(
                               delegate: SliverChildListDelegate([
-                                const ContextualSearchBar(
-                                  hint: 'Tafuta kozi au somo',
+                                ContextualSearchBar(
+                                  hint: tr('Tafuta kozi au somo'),
                                   scope: SearchScope.learning,
                                 ),
                                 const SizedBox(height: AppSpacing.xl),
                                 Text(
-                                  'Chagua Mada.\nJifunze Kilimo.',
+                                  tr('Chagua Mada.\nJifunze Kilimo.'),
                                   style:
                                       Theme.of(context).textTheme.headlineLarge,
                                 ),
                                 const SizedBox(height: AppSpacing.sm),
                                 Text(
-                                  'Chagua kozi hapa chini ili kuongeza tija kwenye shamba lako leo.',
+                                  tr(
+                                    'Chagua kozi hapa chini ili kuongeza tija kwenye shamba lako leo.',
+                                  ),
                                   style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                                 const SizedBox(height: AppSpacing.xxl),

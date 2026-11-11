@@ -7,10 +7,10 @@ class AccessBenefitsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const benefits = [
-      (Icons.smart_toy_outlined, 'Ufikiaji wa Mwalimu AI'),
-      (Icons.menu_book_outlined, 'Masomo yaliyo kwenye kifurushi'),
-      (Icons.support_agent, 'Njia ya kuwasiliana na mtaalamu'),
+    final benefits = [
+      (Icons.smart_toy_outlined, tr('Ufikiaji wa Mwalimu AI')),
+      (Icons.menu_book_outlined, tr('Masomo yaliyo kwenye kifurushi')),
+      (Icons.support_agent, tr('Njia ya kuwasiliana na mtaalamu')),
     ];
 
     return Card(

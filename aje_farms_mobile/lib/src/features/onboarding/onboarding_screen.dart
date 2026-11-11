@@ -23,7 +23,12 @@ class OnboardingScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const BrandHeader(),
+                        const Row(
+                          children: [
+                            Expanded(child: BrandHeader()),
+                            LanguageToggleButton(),
+                          ],
+                        ),
                         const SizedBox(height: AppSpacing.xxl),
                         Expanded(
                           child: expanded
@@ -98,7 +103,7 @@ class _OnboardingHeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Pill(
-            label: 'Mafunzo ya vitendo',
+            label: tr('Mafunzo ya vitendo'),
             color: context.colors.secondary,
           ),
           Expanded(
@@ -126,7 +131,7 @@ class _OnboardingHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
-                  'Kilimo na Ujasiriamali',
+                  tr('Kilimo na Ujasiriamali'),
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         color: context.colors.onPrimary,
                         fontWeight: FontWeight.w700,
@@ -135,7 +140,9 @@ class _OnboardingHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Soma mafunzo, rekodi changamoto za shamba, shiriki na wakulima, na wasiliana na mtaalamu unapohitaji uthibitisho.',
+                  tr(
+                    'Soma mafunzo, rekodi changamoto za shamba, shiriki na wakulima, na wasiliana na mtaalamu unapohitaji uthibitisho.',
+                  ),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: context.colors.onPrimarySubtle,
                         height: 1.45,
@@ -143,19 +150,19 @@ class _OnboardingHeroCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                const OnboardingValueRow(
+                OnboardingValueRow(
                   icon: Icons.smart_toy_outlined,
-                  label: 'Mwongozo wa kurekodi changamoto za shamba',
+                  label: tr('Mwongozo wa kurekodi changamoto za shamba'),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                const OnboardingValueRow(
+                OnboardingValueRow(
                   icon: Icons.menu_book_outlined,
-                  label: 'Masomo ya vitendo kwa mazao na mifugo',
+                  label: tr('Masomo ya vitendo kwa mazao na mifugo'),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                const OnboardingValueRow(
+                OnboardingValueRow(
                   icon: Icons.support_agent,
-                  label: 'Msaada wa mtaalamu kupitia WhatsApp',
+                  label: tr('Msaada wa mtaalamu kupitia WhatsApp'),
                 ),
               ],
             ),
@@ -175,7 +182,7 @@ abstract final class _OnboardingActions {
           AppNavigator.pushAuth(context);
         },
         icon: const Icon(Icons.login),
-        label: const Text('Ingia / Jisajili'),
+        label: Text(tr('Ingia / Jisajili')),
       ),
     ];
   }

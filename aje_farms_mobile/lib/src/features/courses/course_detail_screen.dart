@@ -91,7 +91,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       child: Semantics(
                         button: true,
                         enabled: true,
-                        label: 'Fungua somo la kwanza',
+                        label: tr('Fungua somo la kwanza'),
                         child: MinTouchTarget(
                           child: Material(
                             color: Colors.transparent,
@@ -149,10 +149,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       const SizedBox(height: AppSpacing.md),
                       Card(
                         child: ListTile(
-                          leading: Icon(Icons.play_circle_fill_outlined,
-                              color: context.colors.primary),
-                          title: const Text('Tazama video fupi ya utangulizi'),
-                          subtitle: const Text('Utangulizi wa kozi hii'),
+                          leading: Icon(
+                            Icons.play_circle_fill_outlined,
+                            color: context.colors.primary,
+                          ),
+                          title: Text(tr('Tazama video fupi ya utangulizi')),
+                          subtitle: Text(tr('Utangulizi wa kozi hii')),
                           trailing: const Icon(Icons.open_in_new),
                           onTap: () async {
                             final uri =
@@ -162,7 +164,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                                     mode: LaunchMode.externalApplication)) {
                               if (context.mounted) {
                                 showErrorSnack(
-                                    context, 'Imeshindikana kufungua video.');
+                                  context,
+                                  tr('Imeshindikana kufungua video.'),
+                                );
                               }
                             }
                           },
@@ -199,7 +203,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             ),
                             const SizedBox(height: AppSpacing.xl),
                             Text(
-                              'Malengo ya Somo:',
+                              tr('Malengo ya Somo:'),
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: AppSpacing.sm),
@@ -235,7 +239,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xxl),
                     Text(
-                      'Masomo',
+                      tr('Masomo'),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -263,7 +267,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         ),
                         child: Semantics(
                           liveRegion: true,
-                          label: 'Somo lililopatikana: ${lesson.title}',
+                          label: tr('Somo lililopatikana: {title}', {
+                            'title': lesson.title,
+                          }),
                           child: tile,
                         ),
                       );
@@ -275,8 +281,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         AppNavigator.pushAiChat(
                           context,
                           initialPromptTopic: currentCourse.title,
-                          initialPrompt:
-                              'Ninaendelea na ${currentCourse.title}. Nisaidie kuelewa somo linalofuata.',
+                          initialPrompt: tr(
+                            'Ninaendelea na {title}. Nisaidie kuelewa somo linalofuata.',
+                            {'title': currentCourse.title},
+                          ),
                         );
                       },
                     ),

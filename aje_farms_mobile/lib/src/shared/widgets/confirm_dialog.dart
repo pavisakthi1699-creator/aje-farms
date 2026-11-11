@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_color_scheme.dart';
 import '../../theme/app_feedback.dart';
 import '../../theme/app_spacing.dart';
+import '../../l10n/app_strings.dart';
 
 /// Asks the user to confirm an action before it runs.
 ///
@@ -17,7 +18,7 @@ Future<bool> confirmAction(
   required String title,
   required String message,
   required String confirmLabel,
-  String cancelLabel = 'Ghairi',
+  String? cancelLabel,
   bool isDestructive = false,
 }) async {
   final colors = context.colors;
@@ -41,7 +42,7 @@ Future<bool> confirmAction(
               AppFeedback.tap();
               Navigator.of(dialogContext).pop(false);
             },
-            child: Text(cancelLabel),
+            child: Text(cancelLabel ?? tr('Ghairi')),
           ),
           const SizedBox(width: AppSpacing.sm),
           FilledButton(

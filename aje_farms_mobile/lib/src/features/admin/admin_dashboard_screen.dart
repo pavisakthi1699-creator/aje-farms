@@ -13,13 +13,13 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!context.session.isAdmin) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Usimamizi')),
-        body: const AppLayout(
+        appBar: AppBar(title: Text(tr('Usimamizi'))),
+        body: AppLayout(
           child: Center(
             child: EmptyState(
               icon: Icons.lock_outline,
-              title: 'Huna ruhusa',
-              body: 'Ingia kwa akaunti ya admin ili kuona dashibodi.',
+              title: tr('Huna ruhusa'),
+              body: tr('Ingia kwa akaunti ya admin ili kuona dashibodi.'),
             ),
           ),
         ),
@@ -29,25 +29,25 @@ class AdminDashboardScreen extends StatelessWidget {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Dashibodi ya Admin'),
-          bottom: const TabBar(
+          title: Text(tr('Dashibodi ya Admin')),
+          bottom: TabBar(
             isScrollable: true,
             tabs: [
               Tab(
-                text: 'Maandishi',
-                icon: Icon(Icons.menu_book_outlined, size: 20),
+                text: tr('Maandishi'),
+                icon: const Icon(Icons.menu_book_outlined, size: 20),
               ),
               Tab(
-                text: 'Usimamizi',
-                icon: Icon(Icons.flag_outlined, size: 20),
+                text: tr('Usimamizi'),
+                icon: const Icon(Icons.flag_outlined, size: 20),
               ),
               Tab(
-                text: 'Watumiaji',
-                icon: Icon(Icons.people_outline, size: 20),
+                text: tr('Watumiaji'),
+                icon: const Icon(Icons.people_outline, size: 20),
               ),
               Tab(
-                text: 'Malipo',
-                icon: Icon(Icons.payments_outlined, size: 20),
+                text: tr('Malipo'),
+                icon: const Icon(Icons.payments_outlined, size: 20),
               ),
             ],
           ),
@@ -126,24 +126,24 @@ class _AdminStatusPill extends StatelessWidget {
       case 'published':
         tone = colors.success;
         icon = Icons.check_circle_outline;
-        label = 'Imeidhinishwa';
+        label = tr('Imeidhinishwa');
       case 'draft':
         tone = colors.warning;
         icon = Icons.edit_note_outlined;
-        label = 'Rasimu';
+        label = tr('Rasimu');
       case 'open':
       case 'pending':
         tone = colors.accentWarm;
         icon = Icons.hourglass_top_outlined;
-        label = 'Inasubiri';
+        label = tr('Inasubiri');
       case 'dismissed':
         tone = colors.muted;
         icon = Icons.do_not_disturb_on_outlined;
-        label = 'Imeondolewa';
+        label = tr('Imeondolewa');
       case 'hidden':
         tone = colors.error;
         icon = Icons.visibility_off_outlined;
-        label = 'Imefichwa';
+        label = tr('Imefichwa');
       default:
         tone = colors.primary;
         icon = Icons.info_outline;
@@ -151,7 +151,7 @@ class _AdminStatusPill extends StatelessWidget {
     }
 
     return Semantics(
-      label: 'Hali: $label',
+      label: tr('Hali: {label}', {'label': label}),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
@@ -240,7 +240,7 @@ Future<_ContentEditResult?> _showContentEditor({
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Hariri content',
+                    tr('Hariri content'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -260,64 +260,77 @@ Future<_ContentEditResult?> _showContentEditor({
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('Media ya kitabu',
-                      style: Theme.of(context).textTheme.labelLarge),
+                  Text(
+                    tr('Media ya kitabu'),
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final url =
-                                await _pickContentMedia(context, video: false);
-                            if (url != null) {
-                              setSheetState(() => imageUrl = url);
-                            }
-                          },
-                          icon: const Icon(Icons.image_outlined),
-                          label: Text(imageUrl.isEmpty
-                              ? 'Ongeza picha'
-                              : 'Badilisha picha'),
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final url = await _pickContentMedia(
+                            context,
+                            video: false,
+                          );
+                          if (url != null) {
+                            setSheetState(() => imageUrl = url);
+                          }
+                        },
+                        icon: const Icon(Icons.image_outlined),
+                        label: Text(
+                          imageUrl.isEmpty
+                              ? tr('Ongeza picha')
+                              : tr('Badilisha picha'),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final url =
-                                await _pickContentMedia(context, video: true);
-                            if (url != null) {
-                              setSheetState(() => introVideoUrl = url);
-                            }
-                          },
-                          icon: const Icon(Icons.video_library_outlined),
-                          label: Text(introVideoUrl.isEmpty
-                              ? 'Ongeza video fupi'
-                              : 'Badilisha video'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final url = await _pickContentMedia(
+                            context,
+                            video: true,
+                          );
+                          if (url != null) {
+                            setSheetState(() => introVideoUrl = url);
+                          }
+                        },
+                        icon: const Icon(Icons.video_library_outlined),
+                        label: Text(
+                          introVideoUrl.isEmpty
+                              ? tr('Ongeza video fupi')
+                              : tr('Badilisha video'),
                         ),
-                        if (introVideoUrl.isNotEmpty)
-                          TextButton(
-                              onPressed: () =>
-                                  setSheetState(() => introVideoUrl = ''),
-                              child: const Text('Ondoa video')),
-                      ]),
+                      ),
+                      if (introVideoUrl.isNotEmpty)
+                        TextButton(
+                          onPressed: () =>
+                              setSheetState(() => introVideoUrl = ''),
+                          child: Text(tr('Ondoa video')),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Hali ya uchapishaji',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: context.colors.muted,
-                        ),
+                    tr('Hali ya uchapishaji'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(color: context.colors.muted),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'draft',
-                        label: Text('Rasimu'),
-                        icon: Icon(Icons.edit_note_outlined),
+                        label: Text(tr('Rasimu')),
+                        icon: const Icon(Icons.edit_note_outlined),
                       ),
                       ButtonSegment(
                         value: 'approved',
-                        label: Text('Idhinisha'),
-                        icon: Icon(Icons.check_circle_outline),
+                        label: Text(tr('Idhinisha')),
+                        icon: const Icon(Icons.check_circle_outline),
                       ),
                     ],
                     selected: {status},
@@ -336,7 +349,7 @@ Future<_ContentEditResult?> _showContentEditor({
                         // happened.
                         AppFeedback.error();
                         setSheetState(
-                          () => titleError = 'Jina haliwezi kuwa tupu.',
+                          () => titleError = tr('Jina haliwezi kuwa tupu.'),
                         );
                         return;
                       }
@@ -350,7 +363,7 @@ Future<_ContentEditResult?> _showContentEditor({
                       );
                     },
                     icon: const Icon(Icons.save_outlined),
-                    label: const Text('Hifadhi'),
+                    label: Text(tr('Hifadhi')),
                   ),
                 ],
               ),
@@ -375,14 +388,16 @@ Future<String?> _pickContentMedia(BuildContext context,
       video ? _contentTypeForVideo(file) : _contentTypeForImage(file);
   if (contentType == null) {
     showErrorSnack(
-        context, video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+      context,
+      video ? tr('Tumia MP4, MOV au WEBM.') : tr('Tumia JPG, PNG au WEBP.'),
+    );
     return null;
   }
   try {
     final length = await file.length();
     if (!context.mounted) return null;
     if (length > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
-      throw const AdminException('Faili ni kubwa mno.');
+      throw AdminException(tr('Faili ni kubwa mno.'));
     }
     return await adminService.uploadContentMedia(
       stream: file.openRead(),
@@ -391,11 +406,11 @@ Future<String?> _pickContentMedia(BuildContext context,
       kind: video ? 'video' : 'image',
     );
   } on AdminException catch (error) {
-    if (context.mounted) showErrorSnack(context, error.message);
+    if (context.mounted) showErrorSnack(context, tr(error.message));
     return null;
   } catch (_) {
     if (context.mounted) {
-      showErrorSnack(context, 'Imeshindikana kupakia media. Jaribu tena.');
+      showErrorSnack(context, tr('Imeshindikana kupakia media. Jaribu tena.'));
     }
     return null;
   }
@@ -513,20 +528,22 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Ondoa somo?'),
+        title: Text(tr('Ondoa somo?')),
         content: Text(
           lesson.title.trim().isEmpty
-              ? 'Somo hili jipya litaondolewa kwenye mtaala.'
-              : '“${lesson.title}” litaondolewa kwenye mtaala baada ya kuhifadhi.',
+              ? tr('Somo hili jipya litaondolewa kwenye mtaala.')
+              : tr('“{title}” litaondolewa kwenye mtaala baada ya kuhifadhi.', {
+                  'title': lesson.title,
+                }),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Ghairi'),
+            child: Text(tr('Ghairi')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Ondoa'),
+            child: Text(tr('Ondoa')),
           ),
         ],
       ),
@@ -556,7 +573,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     if (contentType == null) {
       showErrorSnack(
         context,
-        'Aina ya video haikubaliki. Tumia MP4, MOV au WEBM.',
+        tr('Aina ya video haikubaliki. Tumia MP4, MOV au WEBM.'),
       );
       return;
     }
@@ -569,7 +586,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         if (!mounted) return;
         showErrorSnack(
           context,
-          'Video ni kubwa kuliko MB 200. Punguza ubora kisha jaribu tena.',
+          tr('Video ni kubwa kuliko MB 200. Punguza ubora kisha jaribu tena.'),
         );
         return;
       }
@@ -597,18 +614,21 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         lesson.videoUrl = '';
         lesson.type = LessonType.video;
       });
-      showSuccessSnack(context, 'Video imepakiwa. Hifadhi kozi kukamilisha.');
+      showSuccessSnack(
+        context,
+        tr('Video imepakiwa. Hifadhi kozi kukamilisha.'),
+      );
     } on AdminException catch (error) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: () => _pickLessonVideo(index),
       );
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kupakia video. Jaribu tena.');
+      showErrorSnack(context, tr('Imeshindikana kupakia video. Jaribu tena.'));
     } finally {
       if (mounted) {
         setState(() => _uploadingVideoKeys.remove(lesson.key));
@@ -629,15 +649,17 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     final contentType =
         video ? _contentTypeForVideo(picked) : _contentTypeForImage(picked);
     if (contentType == null) {
-      showErrorSnack(context,
-          video ? 'Tumia MP4, MOV au WEBM.' : 'Tumia JPG, PNG au WEBP.');
+      showErrorSnack(
+        context,
+        video ? tr('Tumia MP4, MOV au WEBM.') : tr('Tumia JPG, PNG au WEBP.'),
+      );
       return;
     }
     setState(() => _uploadingPreviewMedia = true);
     try {
       final length = await picked.length();
       if (length > (video ? _maxVideoBytes : 6 * 1024 * 1024)) {
-        throw const AdminException('Faili ni kubwa mno kwa preview hii.');
+        throw AdminException(tr('Faili ni kubwa mno kwa preview hii.'));
       }
       final url = await adminService.uploadContentMedia(
         stream: picked.openRead(),
@@ -672,15 +694,19 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         _pendingPreviewUrls.add(url);
       });
       showSuccessSnack(
-          context,
-          video
-              ? 'Video ya utangulizi imepakiwa.'
-              : 'Picha ya jalada imepakiwa.');
+        context,
+        video
+            ? tr('Video ya utangulizi imepakiwa.')
+            : tr('Picha ya jalada imepakiwa.'),
+      );
     } on AdminException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (mounted) {
-        showErrorSnack(context, 'Imeshindikana kupakia media. Jaribu tena.');
+        showErrorSnack(
+          context,
+          tr('Imeshindikana kupakia media. Jaribu tena.'),
+        );
       }
     } finally {
       if (mounted) setState(() => _uploadingPreviewMedia = false);
@@ -720,7 +746,9 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     if (_uploadingVideoKeys.isNotEmpty || _uploadingPreviewMedia) {
       AppFeedback.error();
       showErrorSnack(
-          context, 'Subiri media imalize kupakiwa kabla ya kuhifadhi.');
+        context,
+        tr('Subiri media imalize kupakiwa kabla ya kuhifadhi.'),
+      );
       return;
     }
     setState(() => _showValidation = true);
@@ -730,10 +758,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     }
     if (_lessons.isEmpty) {
       AppFeedback.error();
-      showErrorSnack(
-        context,
-        'Kozi lazima iwe na angalau somo moja.',
-      );
+      showErrorSnack(context, tr('Kozi lazima iwe na angalau somo moja.'));
       return;
     }
     _formKey.currentState!.save();
@@ -812,13 +837,15 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
     if (widget.isNew) {
       final code = _courseId.trim().toUpperCase();
       if (!RegExp(r'^[A-Z0-9][A-Z0-9-]{2,49}$').hasMatch(code)) {
-        return 'Msimbo wa kozi unahitaji herufi kubwa, namba au vistari; '
-            'tarakimu 3–50.';
+        return tr(
+          'Msimbo wa kozi unahitaji herufi kubwa, namba au vistari; '
+          'tarakimu 3–50.',
+        );
       }
     }
-    if (_title.trim().isEmpty) return 'Jina la kozi haliwezi kuwa tupu.';
+    if (_title.trim().isEmpty) return tr('Jina la kozi haliwezi kuwa tupu.');
     if (_description.trim().isEmpty) {
-      return 'Maelezo ya kozi hayawezi kuwa tupu.';
+      return tr('Maelezo ya kozi hayawezi kuwa tupu.');
     }
     return null;
   }
@@ -828,21 +855,27 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
       final lesson = _lessons[index];
       final number = index + 1;
       if (lesson.moduleTitle.trim().isEmpty) {
-        return 'Somo la $number linahitaji jina la sehemu.';
+        return tr('Somo la {number} linahitaji jina la sehemu.', {
+          'number': number,
+        });
       }
       if (lesson.title.trim().isEmpty) {
-        return 'Somo la $number linahitaji jina.';
+        return tr('Somo la {number} linahitaji jina.', {'number': number});
       }
       if (lesson.durationMinutes <= 0) {
-        return 'Somo la $number linahitaji dakika zaidi ya sifuri.';
+        return tr('Somo la {number} linahitaji dakika zaidi ya sifuri.', {
+          'number': number,
+        });
       }
       if (lesson.type == LessonType.reading && lesson.body.trim().isEmpty) {
-        return 'Somo la $number linahitaji maandishi.';
+        return tr('Somo la {number} linahitaji maandishi.', {'number': number});
       }
       if (lesson.type == LessonType.video &&
           lesson.videoPath == null &&
           lesson.videoUrl.trim().isEmpty) {
-        return 'Somo la $number linahitaji video iliyopakiwa au kiungo.';
+        return tr('Somo la {number} linahitaji video iliyopakiwa au kiungo.', {
+          'number': number,
+        });
       }
       final videoUrl = lesson.videoUrl.trim();
       if (videoUrl.isNotEmpty) {
@@ -850,7 +883,9 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
         if (uri == null ||
             (uri.scheme != 'https' && uri.scheme != 'http') ||
             uri.host.isEmpty) {
-          return 'Somo la $number lina kiungo cha video kisicho sahihi.';
+          return tr('Somo la {number} lina kiungo cha video kisicho sahihi.', {
+            'number': number,
+          });
         }
       }
     }
@@ -861,12 +896,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isNew ? 'Kozi mpya' : 'Hariri mtaala'),
+        title: Text(widget.isNew ? tr('Kozi mpya') : tr('Hariri mtaala')),
         actions: [
           TextButton.icon(
             onPressed: () => _save(status: 'draft'),
             icon: const Icon(Icons.save_outlined),
-            label: const Text('Hifadhi rasimu'),
+            label: Text(tr('Hifadhi rasimu')),
           ),
         ],
       ),
@@ -880,7 +915,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
             padding: const EdgeInsets.all(AppSpacing.xl),
             children: [
               Text(
-                'Taarifa za kozi',
+                tr('Taarifa za kozi'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppSpacing.md),
@@ -888,15 +923,17 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 TextFormField(
                   initialValue: _courseId,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Msimbo wa kozi',
-                    helperText: 'Mfano: CRS-MAH-01',
+                  decoration: InputDecoration(
+                    labelText: tr('Msimbo wa kozi'),
+                    helperText: tr('Mfano: CRS-MAH-01'),
                   ),
                   validator: (value) {
                     final code = value?.trim().toUpperCase() ?? '';
                     return RegExp(r'^[A-Z0-9][A-Z0-9-]{2,49}$').hasMatch(code)
                         ? null
-                        : 'Tumia herufi kubwa, namba au vistari; tarakimu 3–50.';
+                        : tr(
+                            'Tumia herufi kubwa, namba au vistari; tarakimu 3–50.',
+                          );
                   },
                   onChanged: (value) => _courseId = value,
                   onSaved: (value) => _courseId = value ?? '',
@@ -910,8 +947,8 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
               // in initState ('' for a new course).
               TextFormField(
                 initialValue: _title,
-                decoration: const InputDecoration(labelText: 'Jina la kozi'),
-                validator: _requiredField('Jina haliwezi kuwa tupu.'),
+                decoration: InputDecoration(labelText: tr('Jina la kozi')),
+                validator: _requiredField(tr('Jina haliwezi kuwa tupu.')),
                 onChanged: (value) => _title = value,
                 onSaved: (value) => _title = value ?? '',
               ),
@@ -920,66 +957,76 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 initialValue: _description,
                 minLines: 3,
                 maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Maelezo ya kozi',
+                decoration: InputDecoration(
+                  labelText: tr('Maelezo ya kozi'),
                   alignLabelWithHint: true,
                 ),
-                validator: _requiredField('Maelezo hayawezi kuwa tupu.'),
+                validator: _requiredField(tr('Maelezo hayawezi kuwa tupu.')),
                 onChanged: (value) => _description = value,
                 onSaved: (value) => _description = value ?? '',
               ),
               const SizedBox(height: AppSpacing.md),
               Card(
                 child: ExpansionTile(
-                  title: const Text('Media ya preview'),
-                  subtitle: Text(_introVideoUrl.isEmpty
-                      ? 'Picha ya jalada na video fupi'
-                      : 'Picha na video vimewekwa'),
+                  title: Text(tr('Media ya preview')),
+                  subtitle: Text(
+                    _introVideoUrl.isEmpty
+                        ? tr('Picha ya jalada na video fupi')
+                        : tr('Picha na video vimewekwa'),
+                  ),
                   childrenPadding: const EdgeInsets.fromLTRB(
                       AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
                   children: [
                     Text(
+                      tr(
                         'Weka picha halisi ya jalada na video fupi ya utangulizi.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: context.colors.muted)),
+                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: context.colors.muted),
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _uploadingPreviewMedia
-                                ? null
-                                : () => _pickPreviewMedia(video: false),
-                            icon: const Icon(Icons.image_outlined),
-                            label: Text(_imageUrl.startsWith('http')
-                                ? 'Badilisha picha'
-                                : 'Ongeza picha'),
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _uploadingPreviewMedia
+                              ? null
+                              : () => _pickPreviewMedia(video: false),
+                          icon: const Icon(Icons.image_outlined),
+                          label: Text(
+                            _imageUrl.startsWith('http')
+                                ? tr('Badilisha picha')
+                                : tr('Ongeza picha'),
                           ),
-                          if (_imageUrl != 'assets/images/hero/farm-field.jpg')
-                            TextButton.icon(
-                              onPressed: _resetCoverImage,
-                              icon: const Icon(Icons.hide_image_outlined),
-                              label: const Text('Ondoa picha'),
-                            ),
-                          OutlinedButton.icon(
-                            onPressed: _uploadingPreviewMedia
-                                ? null
-                                : () => _pickPreviewMedia(video: true),
-                            icon: const Icon(Icons.video_library_outlined),
-                            label: Text(_introVideoUrl.isEmpty
-                                ? 'Ongeza video fupi'
-                                : 'Badilisha video'),
+                        ),
+                        if (_imageUrl != 'assets/images/hero/farm-field.jpg')
+                          TextButton.icon(
+                            onPressed: _resetCoverImage,
+                            icon: const Icon(Icons.hide_image_outlined),
+                            label: Text(tr('Ondoa picha')),
                           ),
-                          if (_introVideoUrl.isNotEmpty)
-                            TextButton.icon(
-                              onPressed: _removeIntroVideo,
-                              icon: const Icon(Icons.delete_outline),
-                              label: const Text('Ondoa video'),
-                            ),
-                        ]),
+                        OutlinedButton.icon(
+                          onPressed: _uploadingPreviewMedia
+                              ? null
+                              : () => _pickPreviewMedia(video: true),
+                          icon: const Icon(Icons.video_library_outlined),
+                          label: Text(
+                            _introVideoUrl.isEmpty
+                                ? tr('Ongeza video fupi')
+                                : tr('Badilisha video'),
+                          ),
+                        ),
+                        if (_introVideoUrl.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: _removeIntroVideo,
+                            icon: const Icon(Icons.delete_outline),
+                            label: Text(tr('Ondoa video')),
+                          ),
+                      ],
+                    ),
                     if (_uploadingPreviewMedia)
                       const Padding(
                         padding: EdgeInsets.only(top: AppSpacing.sm),
@@ -995,10 +1042,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                   context,
                   context.colors.surfacePeach,
                 ),
-                child: const Text(
-                  'Wewe ndiye mwandishi na mchapishaji. Hifadhi rasimu kama '
-                  'bado unaendelea, au chapisha kozi moja kwa moja ikiwa '
-                  'maudhui yako tayari.',
+                child: Text(
+                  tr(
+                    'Wewe ndiye mwandishi na mchapishaji. Hifadhi rasimu kama '
+                    'bado unaendelea, au chapisha kozi moja kwa moja ikiwa '
+                    'maudhui yako tayari.',
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -1006,7 +1055,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Sehemu na masomo',
+                      tr('Sehemu na masomo'),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
@@ -1018,12 +1067,15 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Hariri sehemu, kichwa, maandishi, muda na video. '
-                'Buruta kadi kubadilisha mpangilio. Ukichapisha, kozi yote '
-                'itaonekana kwa wanafunzi mara moja.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.colors.muted,
-                    ),
+                tr(
+                  'Hariri sehemu, kichwa, maandishi, muda na video. '
+                  'Buruta kadi kubadilisha mpangilio. Ukichapisha, kozi yote '
+                  'itaonekana kwa wanafunzi mara moja.',
+                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.md),
               ReorderableListView.builder(
@@ -1069,12 +1121,12 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                   OutlinedButton.icon(
                     onPressed: _addLesson,
                     icon: const Icon(Icons.add),
-                    label: const Text('Ongeza somo'),
+                    label: Text(tr('Ongeza somo')),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _addLesson(newSection: true),
                     icon: const Icon(Icons.playlist_add),
-                    label: const Text('Ongeza sehemu'),
+                    label: Text(tr('Ongeza sehemu')),
                   ),
                 ],
               ),
@@ -1085,7 +1137,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     child: OutlinedButton.icon(
                       onPressed: () => _save(status: 'draft'),
                       icon: const Icon(Icons.edit_note_outlined),
-                      label: const Text('Hifadhi rasimu'),
+                      label: Text(tr('Hifadhi rasimu')),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -1093,7 +1145,7 @@ class _CourseCurriculumEditorState extends State<_CourseCurriculumEditor> {
                     child: FilledButton.icon(
                       onPressed: () => _save(status: 'approved'),
                       icon: const Icon(Icons.publish_outlined),
-                      label: const Text('Chapisha kozi'),
+                      label: Text(tr('Chapisha kozi')),
                     ),
                   ),
                 ],
@@ -1136,7 +1188,7 @@ class _CurriculumLessonCard extends StatelessWidget {
         maintainState: true,
         initiallyExpanded: index == 0,
         leading: Semantics(
-          label: 'Hamisha somo la ${index + 1}',
+          label: tr('Hamisha somo la {value}', {'value': index + 1}),
           button: true,
           child: SizedBox.square(
             dimension: 48,
@@ -1147,7 +1199,7 @@ class _CurriculumLessonCard extends StatelessWidget {
           ),
         ),
         title: Text(
-          lesson.title.trim().isEmpty ? 'Somo jipya' : lesson.title,
+          lesson.title.trim().isEmpty ? tr('Somo jipya') : lesson.title,
         ),
         subtitle: Text(
           '${lesson.moduleTitle} · ${lesson.type.label}',
@@ -1163,22 +1215,22 @@ class _CurriculumLessonCard extends StatelessWidget {
         children: [
           TextFormField(
             initialValue: lesson.moduleTitle,
-            decoration: const InputDecoration(labelText: 'Jina la sehemu'),
-            validator: _requiredField('Jina la sehemu linahitajika.'),
+            decoration: InputDecoration(labelText: tr('Jina la sehemu')),
+            validator: _requiredField(tr('Jina la sehemu linahitajika.')),
             onChanged: onModuleTitleChanged,
           ),
           const SizedBox(height: AppSpacing.md),
           TextFormField(
             initialValue: lesson.title,
-            decoration: const InputDecoration(labelText: 'Jina la somo'),
-            validator: _requiredField('Jina la somo linahitajika.'),
+            decoration: InputDecoration(labelText: tr('Jina la somo')),
+            validator: _requiredField(tr('Jina la somo linahitajika.')),
             onSaved: (value) => lesson.title = value ?? '',
             onChanged: (value) => lesson.title = value,
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<LessonType>(
             initialValue: lesson.type,
-            decoration: const InputDecoration(labelText: 'Aina ya somo'),
+            decoration: InputDecoration(labelText: tr('Aina ya somo')),
             items: [
               for (final type in LessonType.values)
                 DropdownMenuItem(
@@ -1194,11 +1246,11 @@ class _CurriculumLessonCard extends StatelessWidget {
           TextFormField(
             initialValue: '${lesson.durationMinutes}',
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Muda (dakika)'),
+            decoration: InputDecoration(labelText: tr('Muda (dakika)')),
             validator: (value) {
               final parsed = int.tryParse(value?.trim() ?? '');
               return parsed == null || parsed <= 0
-                  ? 'Weka dakika zaidi ya sifuri.'
+                  ? tr('Weka dakika zaidi ya sifuri.')
                   : null;
             },
             onSaved: (value) {
@@ -1216,14 +1268,14 @@ class _CurriculumLessonCard extends StatelessWidget {
             maxLines: 12,
             decoration: InputDecoration(
               labelText: lesson.type == LessonType.video
-                  ? 'Maelezo ya video'
-                  : 'Maandishi ya somo',
+                  ? tr('Maelezo ya video')
+                  : tr('Maandishi ya somo'),
               alignLabelWithHint: true,
             ),
             validator: (value) {
               if (lesson.type == LessonType.reading &&
                   (value == null || value.trim().isEmpty)) {
-                return 'Maandishi ya somo yanahitajika.';
+                return tr('Maandishi ya somo yanahitajika.');
               }
               return null;
             },
@@ -1247,8 +1299,8 @@ class _CurriculumLessonCard extends StatelessWidget {
             enabled: lesson.videoPath == null,
             decoration: InputDecoration(
               labelText: lesson.videoPath == null
-                  ? 'Kiungo cha video (hiari kwa video iliyohifadhiwa)'
-                  : 'Kiungo cha video (hakitumiki — video imepakiwa)',
+                  ? tr('Kiungo cha video (hiari kwa video iliyohifadhiwa)')
+                  : tr('Kiungo cha video (hakitumiki — video imepakiwa)'),
             ),
             validator: (value) {
               final text = value?.trim() ?? '';
@@ -1259,7 +1311,7 @@ class _CurriculumLessonCard extends StatelessWidget {
                       uri.host.isNotEmpty)) {
                 return null;
               }
-              return 'Weka kiungo kamili cha video.';
+              return tr('Weka kiungo kamili cha video.');
             },
             onSaved: (value) => lesson.videoUrl = value ?? '',
             onChanged: (value) => lesson.videoUrl = value,
@@ -1274,8 +1326,15 @@ class _CurriculumLessonCard extends StatelessWidget {
                 context.colors.surfacePeach,
               ),
               child: Text(
-                'Kabla ya kuonekana kwa mwanafunzi:\n'
-                '${lesson.readinessReasons.map((reason) => '• $reason').join('\n')}',
+                tr(
+                  'Kabla ya kuonekana kwa mwanafunzi:\n'
+                  '{value}',
+                  {
+                    'value': lesson.readinessReasons
+                        .map((reason) => '• $reason')
+                        .join('\n'),
+                  },
+                ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1286,7 +1345,7 @@ class _CurriculumLessonCard extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onRemove,
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Ondoa somo'),
+              label: Text(tr('Ondoa somo')),
             ),
           ),
         ],
@@ -1373,7 +1432,7 @@ class _LessonVideoField extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
-                'Inapakia video… usifunge ukurasa huu.',
+                tr('Inapakia video… usifunge ukurasa huu.'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1389,7 +1448,7 @@ class _LessonVideoField extends StatelessWidget {
         child: OutlinedButton.icon(
           onPressed: onPickVideo,
           icon: const Icon(Icons.videocam_outlined),
-          label: const Text('Pakia video ya somo'),
+          label: Text(tr('Pakia video ya somo')),
         ),
       );
     }
@@ -1410,10 +1469,11 @@ class _LessonVideoField extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Video imepakiwa',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  tr('Video imepakiwa'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -1432,12 +1492,12 @@ class _LessonVideoField extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onPickVideo,
                 icon: const Icon(Icons.swap_horiz),
-                label: const Text('Badilisha'),
+                label: Text(tr('Badilisha')),
               ),
               TextButton.icon(
                 onPressed: onRemoveVideo,
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Ondoa video'),
+                label: Text(tr('Ondoa video')),
               ),
             ],
           ),
@@ -1467,11 +1527,11 @@ Future<_AdminTopicsLoad> _loadAdminTopics(
   try {
     return _AdminTopicsLoad(topics: await loader());
   } on AdminException catch (error) {
-    return _AdminTopicsLoad(topics: const [], error: error.message);
+    return _AdminTopicsLoad(topics: const [], error: tr(error.message));
   } catch (_) {
-    return const _AdminTopicsLoad(
+    return _AdminTopicsLoad(
       topics: [],
-      error: 'Imeshindikana kupakia mada kutoka backend.',
+      error: tr('Imeshindikana kupakia mada kutoka backend.'),
     );
   }
 }
@@ -1531,13 +1591,13 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.message;
+        _error = tr(error.message);
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Imeshindikana kupakia content ya admin.';
+        _error = tr('Imeshindikana kupakia content ya admin.');
         _loading = false;
       });
     }
@@ -1558,10 +1618,10 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       await dependencies.refreshCatalog();
       if (!mounted) return;
       setState(() => _homeTopics = saved);
-      showSuccessSnack(context, 'Mada za kujifunza zimehifadhiwa.');
+      showSuccessSnack(context, tr('Mada za kujifunza zimehifadhiwa.'));
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } finally {
       if (mounted) setState(() => _savingHomeTopics = false);
     }
@@ -1572,9 +1632,10 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     final topics = await _showHomeTopicsEditor(
       context: context,
       initialTopics: _communityTopics,
-      title: 'Hariri Mada za Jamii',
-      description:
-          'Ongeza, ondoa au panga mada za kuchuja machapisho na kuchagua unapoweka swali.',
+      title: tr('Hariri Mada za Jamii'),
+      description: tr(
+        'Ongeza, ondoa au panga mada za kuchuja machapisho na kuchagua unapoweka swali.',
+      ),
     );
     if (topics == null || !mounted) return;
     final dependencies = context.dependencies;
@@ -1586,10 +1647,10 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       await dependencies.refreshCatalog();
       if (!mounted) return;
       setState(() => _communityTopics = saved);
-      showSuccessSnack(context, 'Mada za jamii zimehifadhiwa.');
+      showSuccessSnack(context, tr('Mada za jamii zimehifadhiwa.'));
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } finally {
       if (mounted) setState(() => _savingCommunityTopics = false);
     }
@@ -1621,8 +1682,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       showSuccessSnack(
         context,
         result.status == 'approved'
-            ? 'Kozi imechapishwa na sasa inaonekana kwa wanafunzi.'
-            : 'Kozi imehifadhiwa kama rasimu.',
+            ? tr('Kozi imechapishwa na sasa inaonekana kwa wanafunzi.')
+            : tr('Kozi imehifadhiwa kama rasimu.'),
       );
       _load();
     } on AdminException catch (error) {
@@ -1633,8 +1694,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       var retrySelected = false;
       final controller = showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: () {
           retrySelected = true;
           unawaited(_persistCourseResult(result, isNew: isNew));
@@ -1712,19 +1773,22 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Futa kozi?'),
+        title: Text(tr('Futa kozi?')),
         content: Text(
-          '“${record.course.title}” na masomo yake yatafutwa kabisa. '
-          'Kitendo hiki hakiwezi kutenduliwa.',
+          tr(
+            '“{title}” na masomo yake yatafutwa kabisa. '
+            'Kitendo hiki hakiwezi kutenduliwa.',
+            {'title': record.course.title},
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Ghairi'),
+            child: Text(tr('Ghairi')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Futa kozi'),
+            child: Text(tr('Futa kozi')),
           ),
         ],
       ),
@@ -1737,17 +1801,19 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       await dependencies.refreshCatalog();
       if (!mounted) return;
       if (mediaCleanupSucceeded) {
-        showSuccessSnack(context, 'Kozi imefutwa.');
+        showSuccessSnack(context, tr('Kozi imefutwa.'));
       } else {
         showErrorSnack(
           context,
-          'Kozi imefutwa, lakini baadhi ya media zinahitaji kusafishwa tena.',
+          tr(
+            'Kozi imefutwa, lakini baadhi ya media zinahitaji kusafishwa tena.',
+          ),
         );
       }
       _load();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     }
   }
 
@@ -1756,7 +1822,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
     final adminService = dependencies.adminService;
     final result = await _showContentEditor(
       context: context,
-      titleLabel: 'Jina la document',
+      titleLabel: tr('Jina la document'),
       initialTitle: record.document.title,
       initialStatus: record.status,
       initialImageUrl: record.document.imageUrl,
@@ -1783,14 +1849,14 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       );
       await dependencies.refreshCatalog();
       if (!mounted) return;
-      showSuccessSnack(context, 'Document imehifadhiwa.');
+      showSuccessSnack(context, tr('Document imehifadhiwa.'));
       _load();
     } on AdminException catch (error) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: () => _editDocument(record),
       );
     }
@@ -1800,7 +1866,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Semantics(
-        label: 'Inapakia content ya admin',
+        label: tr('Inapakia content ya admin'),
         child: const _AdminListSkeleton(),
       );
     }
@@ -1808,9 +1874,9 @@ class _AdminContentTabState extends State<_AdminContentTab> {
       return Center(
         child: EmptyState(
           icon: Icons.error_outline,
-          title: 'Imeshindikana kupakia',
+          title: tr('Imeshindikana kupakia'),
           body: _error!,
-          actionLabel: 'Jaribu tena',
+          actionLabel: tr('Jaribu tena'),
           onAction: _load,
         ),
       );
@@ -1821,7 +1887,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
           _AdminSectionHeader(
-            title: 'Mada za Kujifunza',
+            title: tr('Mada za Kujifunza'),
             count: _homeTopics.length,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1843,8 +1909,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                     icon: const Icon(Icons.edit_outlined),
                     label: Text(
                       _savingHomeTopics
-                          ? 'Inahifadhi…'
-                          : 'Hariri mada za utafutaji',
+                          ? tr('Inahifadhi…')
+                          : tr('Hariri mada za utafutaji'),
                     ),
                   ),
                 ],
@@ -1852,17 +1918,14 @@ class _AdminContentTabState extends State<_AdminContentTab> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          _AdminSectionHeader(
-            title: 'Kozi',
-            count: _courses.length,
-          ),
+          _AdminSectionHeader(title: tr('Kozi'), count: _courses.length),
           const SizedBox(height: AppSpacing.sm),
           Align(
             alignment: Alignment.centerLeft,
             child: FilledButton.icon(
               onPressed: _createCourse,
               icon: const Icon(Icons.add),
-              label: const Text('Ongeza kozi na mtaala'),
+              label: Text(tr('Ongeza kozi na mtaala')),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1872,10 +1935,11 @@ class _AdminContentTabState extends State<_AdminContentTab> {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(
-                  'Hakuna kozi zilizopatikana.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.colors.muted,
-                      ),
+                  tr('Hakuna kozi zilizopatikana.'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: context.colors.muted),
                 ),
               ),
             )
@@ -1926,8 +1990,19 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${record.course.lessons.length} masomo'
-                                    '${record.course.lessons.any((lesson) => lesson.type == LessonType.video) ? ' · Ina video' : ''}',
+                                    tr(
+                                      '{lessons} masomo'
+                                      '{value}',
+                                      {
+                                        'lessons': record.course.lessons.length,
+                                        'value': record.course.lessons.any(
+                                          (lesson) =>
+                                              lesson.type == LessonType.video,
+                                        )
+                                            ? tr(' · Ina video')
+                                            : '',
+                                      },
+                                    ),
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -1940,12 +2015,12 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  tooltip: 'Hariri kozi',
+                                  tooltip: tr('Hariri kozi'),
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: openEditor,
                                 ),
                                 IconButton(
-                                  tooltip: 'Futa kozi',
+                                  tooltip: tr('Futa kozi'),
                                   icon: const Icon(Icons.delete_outline),
                                   onPressed: () => _deleteCourse(record),
                                 ),
@@ -1962,7 +2037,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                             child: FilledButton.tonalIcon(
                               onPressed: openEditor,
                               icon: const Icon(Icons.menu_book_outlined),
-                              label: const Text('Hariri maudhui na mtaala'),
+                              label: Text(tr('Hariri maudhui na mtaala')),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
@@ -1981,10 +2056,11 @@ class _AdminContentTabState extends State<_AdminContentTab> {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Text(
-                  'Hakuna documents zilizopatikana.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.colors.muted,
-                      ),
+                  tr('Hakuna documents zilizopatikana.'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: context.colors.muted),
                 ),
               ),
             )
@@ -2024,7 +2100,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                       ),
                     ),
                     trailing: IconButton(
-                      tooltip: 'Hariri document',
+                      tooltip: tr('Hariri document'),
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () {
                         AppFeedback.tap();
@@ -2036,7 +2112,7 @@ class _AdminContentTabState extends State<_AdminContentTab> {
               ),
           const SizedBox(height: AppSpacing.lg),
           _AdminSectionHeader(
-            title: 'Mada za Jamii',
+            title: tr('Mada za Jamii'),
             count: _communityTopics.length,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -2059,8 +2135,8 @@ class _AdminContentTabState extends State<_AdminContentTab> {
                     icon: const Icon(Icons.forum_outlined),
                     label: Text(
                       _savingCommunityTopics
-                          ? 'Inahifadhi…'
-                          : 'Hariri mada za jamii',
+                          ? tr('Inahifadhi…')
+                          : tr('Hariri mada za jamii'),
                     ),
                   ),
                 ],
@@ -2076,16 +2152,18 @@ class _AdminContentTabState extends State<_AdminContentTab> {
 Future<List<String>?> _showHomeTopicsEditor({
   required BuildContext context,
   required List<String> initialTopics,
-  String title = 'Hariri Mada za Kujifunza',
-  String description =
-      'Ongeza, ondoa au panga mada kulingana na hadhira yako. Mada hizi zinaonekana kwenye ukurasa wa mwanzo.',
+  String? title,
+  String? description,
 }) async {
   return showDialog<List<String>>(
     context: context,
     builder: (_) => _HomeTopicsEditorDialog(
       initialTopics: initialTopics,
-      title: title,
-      description: description,
+      title: title ?? tr('Hariri Mada za Kujifunza'),
+      description: description ??
+          tr(
+            'Ongeza, ondoa au panga mada kulingana na hadhira yako. Mada hizi zinaonekana kwenye ukurasa wa mwanzo.',
+          ),
     ),
   );
 }
@@ -2196,13 +2274,15 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
                           child: TextFormField(
                             initialValue: _topics[index].value,
                             decoration: InputDecoration(
-                              labelText: 'Mada ya ${index + 1}',
+                              labelText: tr('Mada ya {value}', {
+                                'value': index + 1,
+                              }),
                             ),
                             maxLength: maxHomeTopicLength,
                             onChanged: (value) => _topics[index].value = value,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'Andika jina la mada.';
+                                return tr('Andika jina la mada.');
                               }
                               final normalized = value.trim().toLowerCase();
                               final matches = _topics.where(
@@ -2211,7 +2291,7 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
                                     normalized,
                               );
                               if (matches.length > 1) {
-                                return 'Kila mada lazima iwe tofauti.';
+                                return tr('Kila mada lazima iwe tofauti.');
                               }
                               return null;
                             },
@@ -2220,21 +2300,27 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
                         Column(
                           children: [
                             IconButton(
-                              tooltip: 'Hamisha mada ya ${index + 1} juu',
+                              tooltip: tr('Hamisha mada ya {value} juu', {
+                                'value': index + 1,
+                              }),
                               onPressed: index == 0
                                   ? null
                                   : () => _moveTopic(index, -1),
                               icon: const Icon(Icons.arrow_upward),
                             ),
                             IconButton(
-                              tooltip: 'Hamisha mada ya ${index + 1} chini',
+                              tooltip: tr('Hamisha mada ya {value} chini', {
+                                'value': index + 1,
+                              }),
                               onPressed: index == _topics.length - 1
                                   ? null
                                   : () => _moveTopic(index, 1),
                               icon: const Icon(Icons.arrow_downward),
                             ),
                             IconButton(
-                              tooltip: 'Ondoa mada ya ${index + 1}',
+                              tooltip: tr('Ondoa mada ya {value}', {
+                                'value': index + 1,
+                              }),
                               onPressed: _topics.length <= minHomeTopics
                                   ? null
                                   : () => _removeTopic(index),
@@ -2253,7 +2339,7 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
                     onPressed:
                         _topics.length >= maxHomeTopics ? null : _addTopic,
                     icon: const Icon(Icons.add),
-                    label: const Text('Ongeza mada'),
+                    label: Text(tr('Ongeza mada')),
                   ),
                 ),
               ],
@@ -2264,12 +2350,9 @@ class _HomeTopicsEditorDialogState extends State<_HomeTopicsEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Ghairi'),
+          child: Text(tr('Ghairi')),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Hifadhi mada'),
-        ),
+        FilledButton(onPressed: _save, child: Text(tr('Hifadhi mada'))),
       ],
     );
   }
@@ -2327,13 +2410,13 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.message;
+        _error = tr(error.message);
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Imeshindikana kupakia moderation reports.';
+        _error = tr('Imeshindikana kupakia moderation reports.');
         _loading = false;
       });
     }
@@ -2344,10 +2427,10 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
     try {
       await context.dependencies.adminService.resolveAiReport(report.id);
       if (!mounted) return;
-      showSuccessSnack(context, 'Ripoti ya AI imekaguliwa.');
+      showSuccessSnack(context, tr('Ripoti ya AI imekaguliwa.'));
       await _load();
     } on AdminException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } finally {
       if (mounted) setState(() => _resolvingQueueId = null);
     }
@@ -2359,11 +2442,13 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
   ) async {
     final confirmed = await confirmAction(
       context,
-      title: status == 'completed' ? 'Thibitisha ombi?' : 'Kataa ombi?',
+      title: status == 'completed' ? tr('Thibitisha ombi?') : tr('Kataa ombi?'),
       message: status == 'completed'
-          ? 'Baada ya kuthibitisha utambulisho, mfumo utafuta akaunti na data zinazohusiana.'
-          : 'Ombi litawekwa kuwa limekataliwa baada ya ukaguzi.',
-      confirmLabel: status == 'completed' ? 'Imekamilika' : 'Kataa',
+          ? tr(
+              'Baada ya kuthibitisha utambulisho, mfumo utafuta akaunti na data zinazohusiana.',
+            )
+          : tr('Ombi litawekwa kuwa limekataliwa baada ya ukaguzi.'),
+      confirmLabel: status == 'completed' ? tr('Imekamilika') : tr('Kataa'),
       isDestructive: status == 'completed',
     );
     if (!confirmed || !mounted) return;
@@ -2374,10 +2459,10 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         status: status,
       );
       if (!mounted) return;
-      showSuccessSnack(context, 'Ombi limesasishwa.');
+      showSuccessSnack(context, tr('Ombi limesasishwa.'));
       await _load();
     } on AdminException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } finally {
       if (mounted) setState(() => _resolvingQueueId = null);
     }
@@ -2389,10 +2474,11 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
     if (action == 'hide') {
       final confirmed = await confirmAction(
         context,
-        title: 'Ficha chapisho?',
-        message:
-            'Chapisho hili halitaonekana kwa wakulima wengine. Unaweza kulirejesha hapa baada ya ukaguzi.',
-        confirmLabel: 'Ficha',
+        title: tr('Ficha chapisho?'),
+        message: tr(
+          'Chapisho hili halitaonekana kwa wakulima wengine. Unaweza kulirejesha hapa baada ya ukaguzi.',
+        ),
+        confirmLabel: tr('Ficha'),
         isDestructive: true,
       );
       if (!confirmed || !mounted) return;
@@ -2407,18 +2493,18 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       showSuccessSnack(
         context,
         action == 'hide'
-            ? 'Chapisho limefichwa.'
+            ? tr('Chapisho limefichwa.')
             : action == 'restore'
-                ? 'Chapisho limerejeshwa.'
-                : 'Ripoti imeondolewa.',
+                ? tr('Chapisho limerejeshwa.')
+                : tr('Ripoti imeondolewa.'),
       );
       await _load();
     } on AdminException catch (error) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: () => _resolve(report, action),
       );
     } finally {
@@ -2432,7 +2518,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Semantics(
-        label: 'Inapakia ripoti za usimamizi',
+        label: tr('Inapakia ripoti za usimamizi'),
         child: const _AdminListSkeleton(),
       );
     }
@@ -2440,9 +2526,9 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       return Center(
         child: EmptyState(
           icon: Icons.error_outline,
-          title: 'Imeshindikana kupakia',
+          title: tr('Imeshindikana kupakia'),
           body: _error!,
-          actionLabel: 'Jaribu tena',
+          actionLabel: tr('Jaribu tena'),
           onAction: _load,
         ),
       );
@@ -2451,9 +2537,9 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
       return Center(
         child: EmptyState(
           icon: Icons.verified_outlined,
-          title: 'Hakuna ripoti',
-          body: 'Hakuna ripoti au machapisho yaliyofichwa kwa sasa.',
-          actionLabel: 'Onyesha tena',
+          title: tr('Hakuna ripoti'),
+          body: tr('Hakuna ripoti au machapisho yaliyofichwa kwa sasa.'),
+          actionLabel: tr('Onyesha tena'),
           onAction: _load,
         ),
       );
@@ -2466,7 +2552,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
         children: [
           if (_deletionRequests.isNotEmpty) ...[
             _AdminSectionHeader(
-              title: 'Maombi ya Kufuta Akaunti',
+              title: tr('Maombi ya Kufuta Akaunti'),
               count: _deletionRequests.length,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -2476,22 +2562,24 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                 child: Card(
                   child: ListTile(
                     title: Text(request.email),
-                    subtitle: const Text(
-                      'Thibitisha utambulisho; kukamilisha kufuta akaunti na data.',
+                    subtitle: Text(
+                      tr(
+                        'Thibitisha utambulisho; kukamilisha kufuta akaunti na data.',
+                      ),
                     ),
                     trailing: _resolvingQueueId == request.id
                         ? const CircularProgressIndicator()
                         : PopupMenuButton<String>(
                             onSelected: (status) =>
                                 _resolveDeletion(request, status),
-                            itemBuilder: (_) => const [
+                            itemBuilder: (_) => [
                               PopupMenuItem(
                                 value: 'completed',
-                                child: Text('Weka limekamilika'),
+                                child: Text(tr('Weka limekamilika')),
                               ),
                               PopupMenuItem(
                                 value: 'rejected',
-                                child: Text('Kataa ombi'),
+                                child: Text(tr('Kataa ombi')),
                               ),
                             ],
                           ),
@@ -2502,7 +2590,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
           ],
           if (_aiReports.isNotEmpty) ...[
             _AdminSectionHeader(
-              title: 'Ripoti za Majibu ya AI',
+              title: tr('Ripoti za Majibu ya AI'),
               count: _aiReports.length,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -2515,20 +2603,20 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Sababu: ${report.reason}'),
+                        Text(tr('Sababu: {reason}', {'reason': report.reason})),
                         if (report.details?.isNotEmpty ?? false)
                           Text(report.details!),
                         const SizedBox(height: AppSpacing.sm),
-                        Text('Swali: ${report.prompt}'),
+                        Text(tr('Swali: {prompt}', {'prompt': report.prompt})),
                         const SizedBox(height: AppSpacing.xs),
-                        Text('Jibu: ${report.answer}'),
+                        Text(tr('Jibu: {answer}', {'answer': report.answer})),
                         const SizedBox(height: AppSpacing.md),
                         FilledButton.icon(
                           onPressed: _resolvingQueueId == report.id
                               ? null
                               : () => _resolveAi(report),
                           icon: const Icon(Icons.task_alt),
-                          label: const Text('Weka imekaguliwa'),
+                          label: Text(tr('Weka imekaguliwa')),
                         ),
                       ],
                     ),
@@ -2539,7 +2627,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
           ],
           if (_reports.isNotEmpty) ...[
             _AdminSectionHeader(
-              title: 'Ripoti na Machapisho Yaliyofichwa',
+              title: tr('Ripoti na Machapisho Yaliyofichwa'),
               count: _reports.length,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -2567,27 +2655,34 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Mwandishi: ${report.post.author}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: context.colors.muted,
-                                  ),
+                          tr('Mwandishi: {author}', {
+                            'author': report.post.author,
+                          }),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: context.colors.muted),
                         ),
                         if (report.report.count > 0) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Ripoti: ${report.report.count} · ${report.report.reasons.join(', ')}',
+                            tr('Ripoti: {count} · {value}', {
+                              'count': report.report.count,
+                              'value': report.report.reasons.join(', '),
+                            }),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                         if (report.post.location.trim().isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Eneo: ${report.post.location}',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: context.colors.muted,
-                                    ),
+                            tr('Eneo: {location}', {
+                              'location': report.post.location,
+                            }),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: context.colors.muted),
                           ),
                         ],
                         const SizedBox(height: AppSpacing.md),
@@ -2612,7 +2707,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                                         ),
                                       )
                                     : const Icon(Icons.visibility_outlined),
-                                label: const Text('Rejesha chapisho'),
+                                label: Text(tr('Rejesha chapisho')),
                               );
                             }
                             return Wrap(
@@ -2636,7 +2731,7 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                                           ),
                                         )
                                       : const Icon(Icons.close),
-                                  label: const Text('Ondoa ripoti'),
+                                  label: Text(tr('Ondoa ripoti')),
                                 ),
                                 // Hiding is destructive: outlined and tinted with
                                 // the semantic error colour so it never reads as
@@ -2654,9 +2749,10 @@ class _AdminModerationTabState extends State<_AdminModerationTab> {
                                           AppFeedback.tap();
                                           _resolve(report, 'hide');
                                         },
-                                  icon:
-                                      const Icon(Icons.visibility_off_outlined),
-                                  label: const Text('Ficha chapisho'),
+                                  icon: const Icon(
+                                    Icons.visibility_off_outlined,
+                                  ),
+                                  label: Text(tr('Ficha chapisho')),
                                 ),
                               ],
                             );
@@ -2726,13 +2822,13 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.message;
+        _error = tr(error.message);
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Imeshindikana kupakia user monitoring.';
+        _error = tr('Imeshindikana kupakia user monitoring.');
         _loading = false;
       });
     }
@@ -2746,15 +2842,17 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     try {
       plans = await adminService.listPlans();
     } on AdminException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
       return;
     } catch (_) {
-      if (mounted) showErrorSnack(context, 'Imeshindikana kupakia vifurushi.');
+      if (mounted) {
+        showErrorSnack(context, tr('Imeshindikana kupakia vifurushi.'));
+      }
       return;
     }
     if (!mounted) return;
     if (plans.isEmpty) {
-      showErrorSnack(context, 'Hakuna kifurushi kinachopatikana.');
+      showErrorSnack(context, tr('Hakuna kifurushi kinachopatikana.'));
       return;
     }
 
@@ -2781,22 +2879,26 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
       AppFeedback.success();
       showSuccessSnack(
         context,
-        'Malipo yamethibitishwa na mafunzo yamefunguliwa.',
+        tr('Malipo yamethibitishwa na mafunzo yamefunguliwa.'),
       );
       await _load();
     } on AdminException catch (error) {
       if (!mounted) return;
       final prefix = recordedPayment == null
           ? ''
-          : 'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
-              'Kamilisha idhini kwenye kichupo cha Malipo. ';
-      showErrorSnack(context, '$prefix${error.message}');
+          : tr(
+              'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
+              'Kamilisha idhini kwenye kichupo cha Malipo. ',
+            );
+      showErrorSnack(context, '$prefix${tr(error.message)}');
     } catch (_) {
       if (!mounted) return;
       final message = recordedPayment == null
-          ? 'Imeshindikana kuthibitisha malipo.'
-          : 'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
-              'Kamilisha idhini kwenye kichupo cha Malipo.';
+          ? tr('Imeshindikana kuthibitisha malipo.')
+          : tr(
+              'Malipo yamerekodiwa lakini ufikiaji haujafunguliwa. '
+              'Kamilisha idhini kwenye kichupo cha Malipo.',
+            );
       showErrorSnack(context, message);
     } finally {
       if (mounted) {
@@ -2810,11 +2912,16 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     final suspending = action == 'suspend';
     final confirmed = await confirmAction(
       context,
-      title: suspending ? 'Sitisha akaunti?' : 'Rudisha akaunti kusubiri?',
+      title:
+          suspending ? tr('Sitisha akaunti?') : tr('Rudisha akaunti kusubiri?'),
       message: suspending
-          ? 'Ufikiaji wa mafunzo utasitishwa na vifurushi vyote hai vitafutwa.'
-          : 'Mtumiaji atahitaji malipo mapya yaliyothibitishwa ili kufungua mafunzo.',
-      confirmLabel: suspending ? 'Sitisha' : 'Rudisha',
+          ? tr(
+              'Ufikiaji wa mafunzo utasitishwa na vifurushi vyote hai vitafutwa.',
+            )
+          : tr(
+              'Mtumiaji atahitaji malipo mapya yaliyothibitishwa ili kufungua mafunzo.',
+            ),
+      confirmLabel: suspending ? tr('Sitisha') : tr('Rudisha'),
       isDestructive: suspending,
     );
     if (!confirmed || !mounted) return;
@@ -2828,11 +2935,13 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
       if (!mounted) return;
       showSuccessSnack(
         context,
-        suspending ? 'Akaunti imesitishwa.' : 'Akaunti imerudishwa kusubiri.',
+        suspending
+            ? tr('Akaunti imesitishwa.')
+            : tr('Akaunti imerudishwa kusubiri.'),
       );
       await _load();
     } on AdminException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } finally {
       if (mounted) setState(() => _changingAccessUserIds.remove(user.id));
     }
@@ -2842,7 +2951,7 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
   Widget build(BuildContext context) {
     if (_loading && _page.users.isEmpty && _error == null) {
       return Semantics(
-        label: 'Inapakia orodha ya watumiaji',
+        label: tr('Inapakia orodha ya watumiaji'),
         child: const _AdminListSkeleton(showSearch: true),
       );
     }
@@ -2850,9 +2959,9 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
       return Center(
         child: EmptyState(
           icon: Icons.error_outline,
-          title: 'Imeshindikana kupakia',
+          title: tr('Imeshindikana kupakia'),
           body: _error!,
-          actionLabel: 'Jaribu tena',
+          actionLabel: tr('Jaribu tena'),
           onAction: _load,
         ),
       );
@@ -2909,10 +3018,10 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    return const EmptyState(
+    return EmptyState(
       icon: Icons.person_search_outlined,
-      title: 'Hakuna matokeo',
-      body: 'Badilisha utafutaji au onyesha tena baadaye.',
+      title: tr('Hakuna matokeo'),
+      body: tr('Badilisha utafutaji au onyesha tena baadaye.'),
     );
   }
 
@@ -2934,14 +3043,11 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
                   child: Text(
                     // Without this the refresh failure was swallowed entirely
                     // and the admin kept reading stale rows as if current.
-                    'Orodha hii si ya sasa: ${_error!}',
+                    tr('Orodha hii si ya sasa: {error}', {'error': _error!}),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
-                TextButton(
-                  onPressed: _load,
-                  child: const Text('Jaribu tena'),
-                ),
+                TextButton(onPressed: _load, child: Text(tr('Jaribu tena'))),
               ],
             ),
           ),
@@ -2951,7 +3057,7 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
     if (index == 0) return _buildSearchField(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: _AdminSectionHeader(title: 'Watumiaji', count: _page.total),
+      child: _AdminSectionHeader(title: tr('Watumiaji'), count: _page.total),
     );
   }
 
@@ -2962,12 +3068,12 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
         controller: _searchController,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          labelText: 'Tafuta kwa barua pepe au jina',
-          hintText: 'Mfano: asha@barua.com au Asha',
+          labelText: tr('Tafuta kwa barua pepe au jina'),
+          hintText: tr('Mfano: asha@barua.com au Asha'),
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isEmpty
               ? IconButton(
-                  tooltip: 'Tafuta',
+                  tooltip: tr('Tafuta'),
                   icon: const Icon(Icons.arrow_forward),
                   onPressed: () {
                     AppFeedback.tap();
@@ -2975,7 +3081,7 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
                   },
                 )
               : IconButton(
-                  tooltip: 'Futa utafutaji',
+                  tooltip: tr('Futa utafutaji'),
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     AppFeedback.tap();
@@ -3036,7 +3142,7 @@ Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Thibitisha malipo na fungua mafunzo',
+                      tr('Thibitisha malipo na fungua mafunzo'),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -3049,12 +3155,12 @@ Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
                     const SizedBox(height: AppSpacing.lg),
                     DropdownButtonFormField<AdminPlan>(
                       initialValue: selectedPlan,
-                      decoration: const InputDecoration(labelText: 'Kifurushi'),
+                      decoration: InputDecoration(labelText: tr('Kifurushi')),
                       items: [
                         for (final plan in plans)
                           DropdownMenuItem(
                             value: plan,
-                            child: Text('${plan.title} — ${plan.price}'),
+                            child: Text('${tr(plan.title)} — ${plan.price}'),
                           ),
                       ],
                       onChanged: (plan) {
@@ -3068,13 +3174,13 @@ Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
                       spacing: AppSpacing.sm,
                       children: [
                         ChoiceChip(
-                          label: const Text('Fedha Taslimu'),
+                          label: Text(tr('Fedha Taslimu')),
                           selected: method == 'cash',
                           onSelected: (_) =>
                               setSheetState(() => method = 'cash'),
                         ),
                         ChoiceChip(
-                          label: const Text('Uhamisho wa Benki'),
+                          label: Text(tr('Uhamisho wa Benki')),
                           selected: method == 'bank_transfer',
                           onSelected: (_) =>
                               setSheetState(() => method = 'bank_transfer'),
@@ -3084,15 +3190,15 @@ Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: referenceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Namba ya risiti (hiari)',
+                      decoration: InputDecoration(
+                        labelText: tr('Namba ya risiti (hiari)'),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: noteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Maelezo (hiari)',
+                      decoration: InputDecoration(
+                        labelText: tr('Maelezo (hiari)'),
                       ),
                       maxLines: 2,
                     ),
@@ -3113,7 +3219,7 @@ Future<_PaidAccessGrant?> _showPaidAccessGrantSheet({
                           );
                         },
                         icon: const Icon(Icons.verified_outlined),
-                        label: const Text('Thibitisha na Fungua'),
+                        label: Text(tr('Thibitisha na Fungua')),
                       ),
                     ),
                   ],
@@ -3194,11 +3300,11 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() => _loadingPlans = false);
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingPlans = false);
-      showErrorSnack(context, 'Imeshindikana kupakia vifurushi.');
+      showErrorSnack(context, tr('Imeshindikana kupakia vifurushi.'));
     }
   }
 
@@ -3217,11 +3323,11 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() => _loadingPayments = false);
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingPayments = false);
-      showErrorSnack(context, 'Imeshindikana kupakia malipo yanayosubiri.');
+      showErrorSnack(context, tr('Imeshindikana kupakia malipo yanayosubiri.'));
     }
   }
 
@@ -3242,11 +3348,11 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
     } on AdminException catch (error) {
       if (!mounted) return;
       setState(() => _searching = false);
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
       setState(() => _searching = false);
-      showErrorSnack(context, 'Imeshindikana kutafuta mtumiaji.');
+      showErrorSnack(context, tr('Imeshindikana kutafuta mtumiaji.'));
     }
   }
 
@@ -3255,15 +3361,15 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
     final plan = _selectedPlan;
     final amount = int.tryParse(_amountController.text.trim());
     if (learner == null) {
-      showSnack(context, 'Chagua mkulima kwanza.');
+      showSnack(context, tr('Chagua mkulima kwanza.'));
       return;
     }
     if (plan == null) {
-      showSnack(context, 'Chagua kifurushi.');
+      showSnack(context, tr('Chagua kifurushi.'));
       return;
     }
     if (amount == null || amount < 0) {
-      showSnack(context, 'Weka kiasi sahihi cha malipo.');
+      showSnack(context, tr('Weka kiasi sahihi cha malipo.'));
       return;
     }
     setState(() => _submitting = true);
@@ -3282,7 +3388,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
       );
       if (!mounted) return;
       AppFeedback.success();
-      showSuccessSnack(context, 'Malipo yamerekodiwa. Yanasubiri idhini.');
+      showSuccessSnack(context, tr('Malipo yamerekodiwa. Yanasubiri idhini.'));
       setState(() {
         _selectedLearner = null;
         _searchController.clear();
@@ -3293,10 +3399,10 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
       await _loadPendingPayments();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kurekodi malipo.');
+      showErrorSnack(context, tr('Imeshindikana kurekodi malipo.'));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -3305,47 +3411,50 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
   Future<void> _approve(AdminPaymentRecord record) async {
     final confirmed = await confirmAction(
       context,
-      title: 'Idhinisha malipo?',
-      message:
-          '${record.userEmail ?? record.userId} atapata ufikiaji mara moja.',
-      confirmLabel: 'Idhinisha',
+      title: tr('Idhinisha malipo?'),
+      message: tr('{value} atapata ufikiaji mara moja.', {
+        'value': record.userEmail ?? record.userId,
+      }),
+      confirmLabel: tr('Idhinisha'),
     );
     if (!confirmed || !mounted) return;
     try {
       await context.dependencies.adminService.approvePayment(record.id);
       if (!mounted) return;
       AppFeedback.success();
-      showSuccessSnack(context, 'Malipo yameidhinishwa.');
+      showSuccessSnack(context, tr('Malipo yameidhinishwa.'));
       await _loadPendingPayments();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kuidhinisha malipo.');
+      showErrorSnack(context, tr('Imeshindikana kuidhinisha malipo.'));
     }
   }
 
   Future<void> _reverse(AdminPaymentRecord record) async {
     final confirmed = await confirmAction(
       context,
-      title: 'Rudisha nyuma malipo?',
-      message: 'Ufikiaji wa ${record.userEmail ?? record.userId} utasitishwa.',
-      confirmLabel: 'Rudisha Nyuma',
+      title: tr('Rudisha nyuma malipo?'),
+      message: tr('Ufikiaji wa {value} utasitishwa.', {
+        'value': record.userEmail ?? record.userId,
+      }),
+      confirmLabel: tr('Rudisha Nyuma'),
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
     try {
       await context.dependencies.adminService.reversePayment(record.id);
       if (!mounted) return;
-      showSnack(context, 'Malipo yamerudishwa nyuma.');
+      showSnack(context, tr('Malipo yamerudishwa nyuma.'));
       await _loadPendingPayments();
     } on AdminException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kurudisha malipo nyuma.');
+      showErrorSnack(context, tr('Imeshindikana kurudisha malipo nyuma.'));
     }
   }
 
@@ -3359,7 +3468,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
         padding: const EdgeInsets.all(AppSpacing.xl),
         children: [
           Text(
-            'Rekodi Malipo Mapya',
+            tr('Rekodi Malipo Mapya'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -3374,8 +3483,8 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                       controller: _searchController,
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
-                        labelText: 'Tafuta mkulima kwa barua pepe',
-                        hintText: 'Mfano: asha@barua.com',
+                        labelText: tr('Tafuta mkulima kwa barua pepe'),
+                        hintText: tr('Mfano: asha@barua.com'),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _searching
                             ? const Padding(
@@ -3388,7 +3497,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                                 ),
                               )
                             : IconButton(
-                                tooltip: 'Tafuta',
+                                tooltip: tr('Tafuta'),
                                 icon: const Icon(Icons.arrow_forward),
                                 onPressed: _searchLearner,
                               ),
@@ -3425,7 +3534,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                       trailing: TextButton(
                         onPressed: () =>
                             setState(() => _selectedLearner = null),
-                        child: const Text('Badilisha'),
+                        child: Text(tr('Badilisha')),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -3434,14 +3543,12 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                     else
                       DropdownButtonFormField<AdminPlan>(
                         initialValue: _selectedPlan,
-                        decoration: const InputDecoration(
-                          labelText: 'Kifurushi',
-                        ),
+                        decoration: InputDecoration(labelText: tr('Kifurushi')),
                         items: [
                           for (final plan in _plans)
                             DropdownMenuItem(
                               value: plan,
-                              child: Text('${plan.title} — ${plan.price}'),
+                              child: Text('${tr(plan.title)} — ${plan.price}'),
                             ),
                         ],
                         onChanged: (plan) {
@@ -3457,12 +3564,12 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                       spacing: AppSpacing.sm,
                       children: [
                         ChoiceChip(
-                          label: const Text('Fedha Taslimu'),
+                          label: Text(tr('Fedha Taslimu')),
                           selected: _method == 'cash',
                           onSelected: (_) => setState(() => _method = 'cash'),
                         ),
                         ChoiceChip(
-                          label: const Text('Uhamisho wa Benki'),
+                          label: Text(tr('Uhamisho wa Benki')),
                           selected: _method == 'bank_transfer',
                           onSelected: (_) =>
                               setState(() => _method = 'bank_transfer'),
@@ -3474,24 +3581,25 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                       controller: _amountController,
                       readOnly: true,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Kiasi (TZS)',
-                        helperText:
-                            'Kiasi kinawekwa na kifurushi kilichochaguliwa.',
+                      decoration: InputDecoration(
+                        labelText: tr('Kiasi (TZS)'),
+                        helperText: tr(
+                          'Kiasi kinawekwa na kifurushi kilichochaguliwa.',
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: _referenceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Namba ya risiti (hiari)',
+                      decoration: InputDecoration(
+                        labelText: tr('Namba ya risiti (hiari)'),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextField(
                       controller: _noteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Maelezo (hiari)',
+                      decoration: InputDecoration(
+                        labelText: tr('Maelezo (hiari)'),
                       ),
                       maxLines: 2,
                     ),
@@ -3512,7 +3620,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                                     CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.add_card_outlined),
-                        label: const Text('Rekodi Malipo'),
+                        label: Text(tr('Rekodi Malipo')),
                       ),
                     ),
                   ],
@@ -3522,17 +3630,17 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
           ),
           const SizedBox(height: AppSpacing.xxl),
           _AdminSectionHeader(
-            title: 'Malipo Yanayosubiri',
+            title: tr('Malipo Yanayosubiri'),
             count: _pendingPayments.total,
           ),
           const SizedBox(height: AppSpacing.md),
           if (_loadingPayments)
             const Center(child: CircularProgressIndicator())
           else if (_pendingPayments.records.isEmpty)
-            const EmptyState(
+            EmptyState(
               icon: Icons.payments_outlined,
-              title: 'Hakuna malipo yanayosubiri',
-              body: 'Malipo mapya yataonekana hapa yakisubiri idhini.',
+              title: tr('Hakuna malipo yanayosubiri'),
+              body: tr('Malipo mapya yataonekana hapa yakisubiri idhini.'),
             )
           else
             for (final record in _pendingPayments.records)
@@ -3553,7 +3661,7 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          '${record.planId} · ${record.method == 'cash' ? 'Fedha Taslimu' : 'Uhamisho wa Benki'} · '
+                          '${record.planId} · ${record.method == 'cash' ? tr('Fedha Taslimu') : tr('Uhamisho wa Benki')} · '
                           '${record.currency} ${record.amountTzs}',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -3563,7 +3671,9 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                         if (record.reference != null) ...[
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Risiti: ${record.reference}',
+                            tr('Risiti: {reference}', {
+                              'reference': record.reference,
+                            }),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -3573,14 +3683,14 @@ class _AdminPaymentsTabState extends State<_AdminPaymentsTab> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () => _reverse(record),
-                                child: const Text('Rudisha Nyuma'),
+                                child: Text(tr('Rudisha Nyuma')),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: FilledButton(
                                 onPressed: () => _approve(record),
-                                child: const Text('Idhinisha'),
+                                child: Text(tr('Idhinisha')),
                               ),
                             ),
                           ],
@@ -3617,11 +3727,11 @@ class _AdminUserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = (user.displayName?.trim().isNotEmpty ?? false)
         ? user.displayName!.trim()
-        : (user.email ?? 'Mtumiaji');
-    final roleLabel = user.role == 'admin' ? 'Admin' : 'Mkulima';
-    final planLabel = user.subscriptionPlan ?? 'Hakuna kifurushi';
+        : (user.email ?? tr('Mtumiaji'));
+    final roleLabel = user.role == 'admin' ? 'Admin' : tr('Mkulima');
+    final planLabel = user.subscriptionPlan ?? tr('Hakuna kifurushi');
     final accessLabel = user.role == 'admin'
-        ? 'Ufikiaji wa Admin'
+        ? tr('Ufikiaji wa Admin')
         : _accountStatusLabel(user.accountStatus);
     final hasEffectiveAccess =
         user.role == 'admin' || user.accountStatus == 'active';
@@ -3681,10 +3791,11 @@ class _AdminUserCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Kifurushi: $planLabel',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.colors.muted,
-                        ),
+                    tr('Kifurushi: {planLabel}', {'planLabel': planLabel}),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: context.colors.muted),
                   ),
                 ),
                 Pill(
@@ -3704,22 +3815,22 @@ class _AdminUserCard extends StatelessWidget {
               children: [
                 _ActivityStat(
                   icon: Icons.school_outlined,
-                  label: 'Maendeleo',
+                  label: tr('Maendeleo'),
                   value: user.learningProgressCount,
                 ),
                 _ActivityStat(
                   icon: Icons.payments_outlined,
-                  label: 'Malipo',
+                  label: tr('Malipo'),
                   value: user.paymentTransactionsCount,
                 ),
                 _ActivityStat(
                   icon: Icons.notifications_outlined,
-                  label: 'Arifa',
+                  label: tr('Arifa'),
                   value: user.notificationCount,
                 ),
                 _ActivityStat(
                   icon: Icons.forum_outlined,
-                  label: 'Machapisho',
+                  label: tr('Machapisho'),
                   value: user.communityPostsCount,
                 ),
               ],
@@ -3736,7 +3847,7 @@ class _AdminUserCard extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.verified_outlined),
-                  label: const Text('Thibitisha Malipo'),
+                  label: Text(tr('Thibitisha Malipo')),
                 ),
               ),
             ],
@@ -3752,12 +3863,16 @@ class _AdminUserCard extends StatelessWidget {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(onSuspend != null
-                          ? Icons.block_outlined
-                          : Icons.restart_alt_outlined),
-                  label: Text(onSuspend != null
-                      ? 'Sitisha Akaunti'
-                      : 'Rudisha Kusubiri'),
+                      : Icon(
+                          onSuspend != null
+                              ? Icons.block_outlined
+                              : Icons.restart_alt_outlined,
+                        ),
+                  label: Text(
+                    onSuspend != null
+                        ? tr('Sitisha Akaunti')
+                        : tr('Rudisha Kusubiri'),
+                  ),
                 ),
               ),
             ],
@@ -3810,9 +3925,9 @@ class _ActivityStat extends StatelessWidget {
 
 String _accountStatusLabel(String accountStatus) {
   return switch (accountStatus) {
-    'active' => 'Amewashwa',
-    'suspended' => 'Amesitishwa',
-    _ => 'Inasubiri',
+    'active' => tr('Amewashwa'),
+    'suspended' => tr('Amesitishwa'),
+    _ => tr('Inasubiri'),
   };
 }
 

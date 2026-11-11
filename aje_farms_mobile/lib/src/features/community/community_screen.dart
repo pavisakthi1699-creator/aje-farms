@@ -27,12 +27,12 @@ class CommunityScreenState extends State<CommunityScreen> {
     try {
       final authSession = await authService.acceptCommunityTerms();
       await session.syncProfileFromAuthSession(authSession);
-      if (mounted) showSuccessSnack(context, 'Masharti yamekubaliwa.');
+      if (mounted) showSuccessSnack(context, tr('Masharti yamekubaliwa.'));
     } on AuthException catch (error) {
-      if (mounted) showErrorSnack(context, error.message);
+      if (mounted) showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (mounted) {
-        showErrorSnack(context, 'Imeshindikana kuhifadhi makubaliano.');
+        showErrorSnack(context, tr('Imeshindikana kuhifadhi makubaliano.'));
       }
     } finally {
       if (mounted) setState(() => _isAcceptingTerms = false);
@@ -57,7 +57,7 @@ class CommunityScreenState extends State<CommunityScreen> {
   Future<void> _handleRefresh() async {
     await context.dependencies.refreshCatalog();
     if (!mounted) return;
-    showSnack(context, 'Jamii imesasishwa.');
+    showSnack(context, tr('Jamii imesasishwa.'));
   }
 
   @override
@@ -65,20 +65,20 @@ class CommunityScreenState extends State<CommunityScreen> {
     if (context.session.isSignedIn &&
         context.session.state.termsAcceptedVersion != currentTermsVersion) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Jamii ya Wakulima'),
-        ),
+        appBar: AppBar(title: Text(tr('Jamii ya Wakulima'))),
         body: AppLayout(
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl),
             children: [
               EmptyState(
                 icon: Icons.gavel_outlined,
-                title: 'Kubali usalama wa jamii',
-                body:
-                    'Kabla ya kuchapisha au kujibu, soma Masharti ya Matumizi na Mwongozo wa Jamii. Usichapishe vitisho, chuki, spam, taarifa binafsi au ushauri hatari.',
-                actionLabel:
-                    _isAcceptingTerms ? 'Inahifadhi…' : 'Nakubali na Kuendelea',
+                title: tr('Kubali usalama wa jamii'),
+                body: tr(
+                  'Kabla ya kuchapisha au kujibu, soma Masharti ya Matumizi na Mwongozo wa Jamii. Usichapishe vitisho, chuki, spam, taarifa binafsi au ushauri hatari.',
+                ),
+                actionLabel: _isAcceptingTerms
+                    ? tr('Inahifadhi…')
+                    : tr('Nakubali na Kuendelea'),
                 onAction: _isAcceptingTerms ? null : _acceptTerms,
               ),
               if (privacyPolicyUrl.isNotEmpty) ...[
@@ -88,12 +88,12 @@ class CommunityScreenState extends State<CommunityScreen> {
                   children: [
                     TextButton(
                       onPressed: () => _openCommunityPolicy('/terms'),
-                      child: const Text('Masharti ya Matumizi'),
+                      child: Text(tr('Masharti ya Matumizi')),
                     ),
                     TextButton(
                       onPressed: () =>
                           _openCommunityPolicy('/community-guidelines'),
-                      child: const Text('Mwongozo wa Jamii'),
+                      child: Text(tr('Mwongozo wa Jamii')),
                     ),
                   ],
                 ),
@@ -108,7 +108,7 @@ class CommunityScreenState extends State<CommunityScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Jamii ya Wakulima'),
+        title: Text(tr('Jamii ya Wakulima')),
         actions: const [SearchActionButton(scope: SearchScope.community)],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -117,7 +117,7 @@ class CommunityScreenState extends State<CommunityScreen> {
           AppNavigator.pushCreateCommunityPost(context);
         },
         icon: const Icon(Icons.add),
-        label: const Text('Swali'),
+        label: Text(tr('Swali')),
       ),
       body: AppLayout(
         child: ListenableBuilder(
@@ -148,8 +148,8 @@ class CommunityScreenState extends State<CommunityScreen> {
                       padding: const EdgeInsets.all(AppSpacing.xl),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
-                          const ContextualSearchBar(
-                            hint: 'Tafuta kwenye jamii',
+                          ContextualSearchBar(
+                            hint: tr('Tafuta kwenye jamii'),
                             scope: SearchScope.community,
                           ),
                           const SizedBox(height: AppSpacing.lg),
@@ -175,14 +175,21 @@ class CommunityScreenState extends State<CommunityScreen> {
                           child: EmptyState(
                             icon: Icons.forum_outlined,
                             title: selectedFilter == 'Zote'
-                                ? 'Hakuna machapisho bado'
-                                : 'Hakuna machapisho kwa "$_selectedFilter"',
+                                ? tr('Hakuna machapisho bado')
+                                : tr(
+                                    'Hakuna machapisho kwa "{selectedFilter}"',
+                                    {'selectedFilter': tr(_selectedFilter)},
+                                  ),
                             body: selectedFilter == 'Zote'
-                                ? 'Kuwa wa kwanza kuuliza swali au shiriki uzoefu wako na wakulima wengine.'
-                                : 'Jaribu chaguo lingine la mada au angalia machapisho yote.',
+                                ? tr(
+                                    'Kuwa wa kwanza kuuliza swali au shiriki uzoefu wako na wakulima wengine.',
+                                  )
+                                : tr(
+                                    'Jaribu chaguo lingine la mada au angalia machapisho yote.',
+                                  ),
                             actionLabel: selectedFilter == 'Zote'
-                                ? 'Tuma Swali'
-                                : 'Ona Zote',
+                                ? tr('Tuma Swali')
+                                : tr('Ona Zote'),
                             onAction: () {
                               if (selectedFilter == 'Zote') {
                                 AppNavigator.pushCreateCommunityPost(context);
@@ -279,23 +286,23 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       await session.addCommunityReplyRecord(_postId, reply);
       _replyController.clear();
       if (!mounted) return;
-      showSuccessSnack(context, 'Jibu limehifadhiwa.');
+      showSuccessSnack(context, tr('Jibu limehifadhiwa.'));
     } on CommunityException catch (error) {
       if (!mounted) return;
       // The draft is deliberately left in the composer so a retry does not
       // force the user to retype their reply.
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: _sendReply,
       );
     } catch (_) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        'Imeshindikana kutuma jibu. Angalia mtandao wako.',
-        actionLabel: 'Jaribu tena',
+        tr('Imeshindikana kutuma jibu. Angalia mtandao wako.'),
+        actionLabel: tr('Jaribu tena'),
         onAction: _sendReply,
       );
     } finally {
@@ -322,23 +329,23 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       showSuccessSnack(
         context,
         reportAuthor
-            ? 'Ripoti ya mtumiaji imepokelewa.'
-            : 'Ripoti ya post imepokelewa.',
+            ? tr('Ripoti ya mtumiaji imepokelewa.')
+            : tr('Ripoti ya post imepokelewa.'),
       );
     } on CommunityException catch (error) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: () => _reportPost(reportAuthor: reportAuthor),
       );
     } catch (_) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        'Imeshindikana kutuma ripoti. Angalia mtandao wako.',
-        actionLabel: 'Jaribu tena',
+        tr('Imeshindikana kutuma ripoti. Angalia mtandao wako.'),
+        actionLabel: tr('Jaribu tena'),
         onAction: () => _reportPost(reportAuthor: reportAuthor),
       );
     } finally {
@@ -350,10 +357,11 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     if (_isBlocking) return;
     final confirmed = await confirmAction(
       context,
-      title: 'Zuia ${widget.post.author}?',
-      message:
-          'Hutaona tena machapisho ya mtumiaji huyu kwenye jamii. Unaweza kuwasiliana na msaada ukitaka kuondoa kizuizi.',
-      confirmLabel: 'Zuia',
+      title: tr('Zuia {author}?', {'author': widget.post.author}),
+      message: tr(
+        'Hutaona tena machapisho ya mtumiaji huyu kwenye jamii. Unaweza kuwasiliana na msaada ukitaka kuondoa kizuizi.',
+      ),
+      confirmLabel: tr('Zuia'),
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -363,14 +371,14 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       await dependencies.communityService.blockAuthor(_postId);
       await dependencies.refreshCatalog();
       if (!mounted) return;
-      showSuccessSnack(context, 'Mtumiaji amezuiwa.');
+      showSuccessSnack(context, tr('Mtumiaji amezuiwa.'));
       Navigator.of(context).pop();
     } on CommunityException catch (error) {
       if (!mounted) return;
-      showErrorSnack(context, error.message);
+      showErrorSnack(context, tr(error.message));
     } catch (_) {
       if (!mounted) return;
-      showErrorSnack(context, 'Imeshindikana kumzuia mtumiaji.');
+      showErrorSnack(context, tr('Imeshindikana kumzuia mtumiaji.'));
     } finally {
       if (mounted) setState(() => _isBlocking = false);
     }
@@ -383,10 +391,10 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     final replies = _replies(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Majadiliano'),
+        title: Text(tr('Majadiliano')),
         actions: [
           PopupMenuButton<String>(
-            tooltip: 'Usalama wa jamii',
+            tooltip: tr('Usalama wa jamii'),
             enabled: !_isReporting && !_isBlocking,
             onSelected: (action) {
               if (action == 'report_post') _reportPost();
@@ -399,15 +407,17 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
               PopupMenuItem(
                 value: 'report_post',
                 enabled: !reported,
-                child: Text(reported ? 'Post imeripotiwa' : 'Ripoti post'),
+                child: Text(
+                  reported ? tr('Post imeripotiwa') : tr('Ripoti post'),
+                ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'report_author',
-                child: Text('Ripoti mtumiaji'),
+                child: Text(tr('Ripoti mtumiaji')),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'block_author',
-                child: Text('Zuia mtumiaji'),
+                child: Text(tr('Zuia mtumiaji')),
               ),
             ],
           ),
@@ -426,10 +436,11 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
                   DiscussionActionPanel(post: post),
                   const SizedBox(height: AppSpacing.xxl),
                   Text(
-                    'Majibu ya wakulima',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    tr('Majibu ya wakulima'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   if (replies.isEmpty)
@@ -438,11 +449,13 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         child: Text(
-                          'Hakuna majibu bado. Kuwa wa kwanza kusaidia mkulima mwenzako.',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: context.colors.muted,
-                                  ),
+                          tr(
+                            'Hakuna majibu bado. Kuwa wa kwanza kusaidia mkulima mwenzako.',
+                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: context.colors.muted),
                         ),
                       ),
                     ),
@@ -465,7 +478,7 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
       bottomNavigationBar: ChatComposerBar(
         controller: _replyController,
         isLoading: _isSendingReply,
-        hintText: 'Andika jibu la kusaidia…',
+        hintText: tr('Andika jibu la kusaidia…'),
         sendButtonKey: const ValueKey('community-send-reply'),
         onSend: _sendReply,
       ),
@@ -474,15 +487,15 @@ class CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
 }
 
 Future<String?> _selectCommunityReportReason(BuildContext context) {
-  const reasons = <String, String>{
-    'spam': 'Taka au matangazo yasiyofaa',
-    'harassment': 'Unyanyasaji au vitisho',
-    'hate': 'Chuki dhidi ya kundi',
-    'sexual': 'Maudhui ya kingono',
-    'violence': 'Vurugu au maudhui hatari',
-    'misinformation': 'Taarifa hatari au ya kupotosha',
-    'privacy': 'Taarifa binafsi imewekwa wazi',
-    'other': 'Sababu nyingine',
+  final reasons = <String, String>{
+    'spam': tr('Taka au matangazo yasiyofaa'),
+    'harassment': tr('Unyanyasaji au vitisho'),
+    'hate': tr('Chuki dhidi ya kundi'),
+    'sexual': tr('Maudhui ya kingono'),
+    'violence': tr('Vurugu au maudhui hatari'),
+    'misinformation': tr('Taarifa hatari au ya kupotosha'),
+    'privacy': tr('Taarifa binafsi imewekwa wazi'),
+    'other': tr('Sababu nyingine'),
   };
   return showModalBottomSheet<String>(
     context: context,
@@ -495,7 +508,7 @@ Future<String?> _selectCommunityReportReason(BuildContext context) {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(
-              'Kwa nini unaripoti?',
+              tr('Kwa nini unaripoti?'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
@@ -566,7 +579,10 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final contentType = _contentTypeForXFile(picked);
     if (contentType == null) {
       if (!mounted) return;
-      showSnack(context, 'Aina ya picha haikubaliki. Tumia JPG, PNG au WEBP.');
+      showSnack(
+        context,
+        tr('Aina ya picha haikubaliki. Tumia JPG, PNG au WEBP.'),
+      );
       return;
     }
     final bytes = await picked.readAsBytes();
@@ -592,10 +608,10 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     // Validate both fields in one pass so the user sees every problem at once,
     // then focus the first offending field.
     final contentError = content.length < 12
-        ? 'Andika maelezo ya kutosha (angalau herufi 12) kuhusu changamoto.'
+        ? tr('Andika maelezo ya kutosha (angalau herufi 12) kuhusu changamoto.')
         : null;
     final locationError = location.isEmpty
-        ? 'Weka eneo lako ili wakulima wakuelewe vizuri.'
+        ? tr('Weka eneo lako ili wakulima wakuelewe vizuri.')
         : null;
     if (contentError != null || locationError != null) {
       AppFeedback.error();
@@ -626,7 +642,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         if (imagePath == null && mounted) {
           showErrorSnack(
             context,
-            'Imeshindikana kupakia picha; post itatumwa bila picha.',
+            tr('Imeshindikana kupakia picha; post itatumwa bila picha.'),
           );
         }
       }
@@ -640,23 +656,23 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       await session.addCommunityPostRecord(post);
       if (!mounted) return;
       Navigator.of(context).pop();
-      showSuccessSnack(context, 'Post imetumwa kwenye jamii.');
+      showSuccessSnack(context, tr('Post imetumwa kwenye jamii.'));
     } on CommunityException catch (error) {
       // Previously there was no catch here at all: a failed post threw, the
       // draft stayed on screen, and the user got no explanation.
       if (!mounted) return;
       showErrorSnack(
         context,
-        error.message,
-        actionLabel: 'Jaribu tena',
+        tr(error.message),
+        actionLabel: tr('Jaribu tena'),
         onAction: _submit,
       );
     } catch (_) {
       if (!mounted) return;
       showErrorSnack(
         context,
-        'Imeshindikana kutuma post. Angalia mtandao wako.',
-        actionLabel: 'Jaribu tena',
+        tr('Imeshindikana kutuma post. Angalia mtandao wako.'),
+        actionLabel: tr('Jaribu tena'),
         onAction: _submit,
       );
     } finally {
@@ -667,7 +683,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tuma Swali')),
+      appBar: AppBar(title: Text(tr('Tuma Swali'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -675,8 +691,8 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             AppTextField(
               controller: _contentController,
               focusNode: _contentFocus,
-              labelText: 'Swali au changamoto',
-              hintText: 'Mfano: Majani ya nyanya yana madoa ya njano…',
+              labelText: tr('Swali au changamoto'),
+              hintText: tr('Mfano: Majani ya nyanya yana madoa ya njano…'),
               minLines: 4,
               maxLines: 7,
               enabled: !_isSubmitting,
@@ -690,8 +706,8 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
             AppTextField(
               controller: _locationController,
               focusNode: _locationFocus,
-              labelText: 'Eneo',
-              hintText: 'Mfano: Morogoro',
+              labelText: tr('Eneo'),
+              hintText: tr('Mfano: Morogoro'),
               prefixIcon: const Icon(Icons.place_outlined),
               enabled: !_isSubmitting,
               errorText: _locationError,
@@ -703,7 +719,10 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               },
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Chagua mada', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              tr('Chagua mada'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
@@ -720,7 +739,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                           ? context.colors.primary
                           : context.colors.borderSubtle,
                     ),
-                    label: Text(tag),
+                    label: Text(tr(tag)),
                     onSelected: (selected) {
                       AppFeedback.selection();
                       setState(() {
@@ -735,8 +754,10 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Ongeza picha (hiari)',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              tr('Ongeza picha (hiari)'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.md),
             if (_pickedImageBytes != null)
               Stack(
@@ -754,7 +775,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                   IconButton.filled(
                     onPressed: _isSubmitting ? null : _removeImage,
                     icon: const Icon(Icons.close),
-                    tooltip: 'Ondoa picha',
+                    tooltip: tr('Ondoa picha'),
                   ),
                 ],
               )
@@ -767,7 +788,7 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                         _pickImage();
                       },
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Chagua picha'),
+                label: Text(tr('Chagua picha')),
               ),
             const SizedBox(height: AppSpacing.xxl),
             FilledButton.icon(
@@ -785,7 +806,9 @@ class CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.send),
-              label: Text(_isSubmitting ? 'Inatuma…' : 'Tuma kwenye Jamii'),
+              label: Text(
+                _isSubmitting ? tr('Inatuma…') : tr('Tuma kwenye Jamii'),
+              ),
             ),
           ],
         ),

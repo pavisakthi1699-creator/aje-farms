@@ -116,14 +116,14 @@ class _SearchScreenState extends State<SearchScreen> {
         return;
       }
       setState(() {
-        _error = error.message;
+        _error = tr(error.message);
         _loading = false;
         _activeRequestKey = null;
       });
     } catch (_) {
       if (!mounted || requestId != _requestId) return;
       setState(() {
-        _error = 'Utafutaji haukukamilika. Jaribu tena.';
+        _error = tr('Utafutaji haukukamilika. Jaribu tena.');
         _loading = false;
         _activeRequestKey = null;
       });
@@ -209,19 +209,22 @@ class _SearchScreenState extends State<SearchScreen> {
     final remaining = response.results.skip(5).toList();
     final groups = <(String, Set<SearchResultKind>)>[
       (
-        'Mafunzo',
+        tr('Mafunzo'),
         {
           SearchResultKind.course,
           SearchResultKind.lesson,
           SearchResultKind.problem,
         },
       ),
-      ('Nyaraka', {SearchResultKind.document}),
-      ('Jamii', {SearchResultKind.community}),
+      (tr('Nyaraka'), {SearchResultKind.document}),
+      (tr('Jamii'), {SearchResultKind.community}),
     ];
     return [
       if (best.isNotEmpty) ...[
-        Text('Matokeo bora', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          tr('Matokeo bora'),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: AppSpacing.sm),
         for (final result in best)
           _SearchResultTile(
@@ -265,7 +268,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return _openResult(result, allowCatalogRefresh: false);
           }
           if (!mounted) return;
-          showErrorSnack(context, 'Kozi hii haiwezi kufunguka kwa sasa.');
+          showErrorSnack(context, tr('Kozi hii haiwezi kufunguka kwa sasa.'));
         }
       case SearchResultKind.lesson || SearchResultKind.document:
         final course = dependencies.learningRepository.courses
@@ -301,7 +304,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return _openResult(result, allowCatalogRefresh: false);
           }
           if (!mounted) return;
-          showErrorSnack(context, 'Maudhui hayawezi kufunguka kwa sasa.');
+          showErrorSnack(context, tr('Maudhui hayawezi kufunguka kwa sasa.'));
         }
       case SearchResultKind.problem:
         final problem = dependencies.learningRepository.problemCategories
@@ -329,7 +332,10 @@ class _SearchScreenState extends State<SearchScreen> {
             return _openResult(result, allowCatalogRefresh: false);
           }
           if (!mounted) return;
-          showErrorSnack(context, 'Mjadala huu hauwezi kufunguka kwa sasa.');
+          showErrorSnack(
+            context,
+            tr('Mjadala huu hauwezi kufunguka kwa sasa.'),
+          );
         }
     }
   }
@@ -350,7 +356,7 @@ class _SearchScreenState extends State<SearchScreen> {
         _response?.query == normalizeSearchText(query) &&
             _response?.scope == _scope;
     return Scaffold(
-      appBar: AppBar(title: const Text('Tafuta')),
+      appBar: AppBar(title: Text(tr('Tafuta'))),
       body: AppLayout(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
@@ -363,13 +369,13 @@ class _SearchScreenState extends State<SearchScreen> {
             AppTextField(
               controller: _controller,
               autofocus: true,
-              labelText: 'Utafutaji',
-              hintText: 'Tafuta mada, kozi, somo au jamii',
+              labelText: tr('Utafutaji'),
+              hintText: tr('Tafuta mada, kozi, somo au jamii'),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: 'Futa utafutaji',
+                      tooltip: tr('Futa utafutaji'),
                       icon: const Icon(Icons.close),
                       onPressed: () {
                         _controller.clear();
@@ -398,7 +404,7 @@ class _SearchScreenState extends State<SearchScreen> {
               const SizedBox(height: AppSpacing.xl),
               Semantics(
                 liveRegion: true,
-                label: 'Inatafuta',
+                label: tr('Inatafuta'),
                 child: const LinearProgressIndicator(),
               ),
             ],
@@ -410,8 +416,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: Semantics(
                     liveRegion: true,
-                    child: const Text(
-                      'Utafutaji wa mtandaoni umesitishwa kwa muda mfupi. Subiri kisha ujaribu tena.',
+                    child: Text(
+                      tr(
+                        'Utafutaji wa mtandaoni umesitishwa kwa muda mfupi. Subiri kisha ujaribu tena.',
+                      ),
                     ),
                   ),
                 ),
@@ -422,9 +430,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 liveRegion: true,
                 child: EmptyState(
                   icon: Icons.search_off_outlined,
-                  title: 'Utafutaji haukukamilika',
+                  title: tr('Utafutaji haukukamilika'),
                   body: _error!,
-                  actionLabel: 'Jaribu tena',
+                  actionLabel: tr('Jaribu tena'),
                   onAction: _searchNow,
                 ),
               )
@@ -444,17 +452,19 @@ class _SearchScreenState extends State<SearchScreen> {
                 _response?.results.isEmpty == true)
               Semantics(
                 liveRegion: true,
-                child: const EmptyState(
+                child: EmptyState(
                   icon: Icons.search_off_outlined,
-                  title: 'Hakuna matokeo yaliyopatikana',
-                  body: 'Jaribu neno lingine au chagua kichujio tofauti.',
+                  title: tr('Hakuna matokeo yaliyopatikana'),
+                  body: tr('Jaribu neno lingine au chagua kichujio tofauti.'),
                 ),
               )
             else if (responseMatchesQuery && _response != null) ...[
               Semantics(
                 liveRegion: true,
                 child: Text(
-                  '${_response!.results.length} matokeo yamepatikana.',
+                  tr('{results} matokeo yamepatikana.', {
+                    'results': _response!.results.length,
+                  }),
                   style: accessibleCaption(context),
                 ),
               ),
@@ -466,7 +476,9 @@ class _SearchScreenState extends State<SearchScreen> {
               Semantics(
                 liveRegion: true,
                 child: Text(
-                  'Matokeo zaidi yapo. Ongeza maelezo kwenye utafutaji wako.',
+                  tr(
+                    'Matokeo zaidi yapo. Ongeza maelezo kwenye utafutaji wako.',
+                  ),
                   style: accessibleCaption(context),
                 ),
               ),
@@ -494,10 +506,12 @@ class _OfflineSearchNotice extends StatelessWidget {
       liveRegion: true,
       child: Card(
         color: context.colors.surfacePeach,
-        child: const ListTile(
-          leading: Icon(Icons.cloud_off_outlined),
+        child: ListTile(
+          leading: const Icon(Icons.cloud_off_outlined),
           title: Text(
-            'Matokeo yanatoka kwenye maudhui yaliyohifadhiwa. Huenda si kamili.',
+            tr(
+              'Matokeo yanatoka kwenye maudhui yaliyohifadhiwa. Huenda si kamili.',
+            ),
           ),
         ),
       ),
@@ -516,7 +530,10 @@ class _SearchSuggestions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Mada maarufu', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          tr('Mada maarufu'),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.sm,
@@ -525,7 +542,7 @@ class _SearchSuggestions extends StatelessWidget {
             for (final topic in topics.take(8))
               ActionChip(
                 avatar: const Icon(Icons.trending_up, size: 18),
-                label: Text(topic),
+                label: Text(tr(topic)),
                 onPressed: () => onSelected(topic),
               ),
           ],
@@ -555,21 +572,21 @@ class _SearchResultTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.all(AppSpacing.lg),
         leading: Icon(_icon, color: context.colors.primary),
-        title: Text(result.title),
+        title: Text(tr(result.title)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (result.metadata.isNotEmpty) Text(result.metadata),
+            if (result.metadata.isNotEmpty) Text(tr(result.metadata)),
             if (result.snippet?.isNotEmpty == true)
               Text(
-                result.snippet!,
+                tr(result.snippet!),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
         trailing: result.isPremium
-            ? const Icon(Icons.lock_outline, semanticLabel: 'Premium')
+            ? Icon(Icons.lock_outline, semanticLabel: tr('Premium'))
             : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

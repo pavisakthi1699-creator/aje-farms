@@ -32,12 +32,12 @@ class ExpertPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Ongea na Mtaalamu',
+              tr('Ongea na Mtaalamu'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Pata ushauri binafsi kupitia WhatsApp yetu.',
+              tr('Pata ushauri binafsi kupitia WhatsApp yetu.'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -48,7 +48,7 @@ class ExpertPanel extends StatelessWidget {
                 onTap();
               },
               icon: const Icon(Icons.chat),
-              label: const Text('Tuma Ujumbe WhatsApp'),
+              label: Text(tr('Tuma Ujumbe WhatsApp')),
               style: FilledButton.styleFrom(
                 backgroundColor: context.colors.whatsapp,
                 foregroundColor: context.colors.onPrimary,

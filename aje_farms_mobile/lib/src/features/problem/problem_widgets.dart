@@ -28,17 +28,19 @@ class ProblemCategoryTile extends StatelessWidget {
                 child: Icon(category.icon, color: category.color),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text(category.title,
-                  style: Theme.of(context).textTheme.titleSmall ??
-                      const TextStyle()),
+              Text(
+                tr(category.title),
+                style:
+                    Theme.of(context).textTheme.titleSmall ?? const TextStyle(),
+              ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  category.summary,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.colors.muted,
-                        height: 1.25,
-                      ),
+                  tr(category.summary),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: context.colors.muted, height: 1.25),
                 ),
               ),
               Wrap(
@@ -54,7 +56,7 @@ class ProblemCategoryTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                       child: Text(
-                        example,
+                        tr(example),
                         style: accessibleCaption(
                           context,
                           color: category.color,
@@ -99,16 +101,18 @@ class UnknownProblemTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Sijui tatizo',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      tr('Sijui tatizo'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      'Mwalimu AI itakusaidia kuandaa maelezo',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.colors.muted,
-                          ),
+                      tr('Mwalimu AI itakusaidia kuandaa maelezo'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -139,7 +143,9 @@ class TrendingTopics extends StatelessWidget {
     AppNavigator.pushAiChat(
       context,
       initialPromptTopic: topic,
-      initialPrompt: 'Nahitaji ushauri kuhusu $topic.',
+      initialPrompt: tr('Nahitaji ushauri kuhusu {topic}.', {
+        'topic': tr(topic),
+      }),
     );
   }
 
@@ -165,8 +171,10 @@ class TrendingTopics extends StatelessWidget {
         itemBuilder: (_, index) {
           final topic = topics[index];
           return AccessibleTappable(
-            label: topic,
-            hint: 'Uliza Mwalimu AI kuhusu ${topic.toLowerCase()}',
+            label: tr(topic),
+            hint: tr('Uliza Mwalimu AI kuhusu {value}', {
+              'value': tr(topic).toLowerCase(),
+            }),
             onTap: () => _openTopic(context, topic),
             child: InteractiveInk(
               borderRadius: AppRadius.lg,
@@ -188,7 +196,7 @@ class TrendingTopics extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      topic,
+                      tr(topic),
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,

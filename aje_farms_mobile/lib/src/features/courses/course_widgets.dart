@@ -40,14 +40,21 @@ class LearningSummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Maktaba yako',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    tr('Maktaba yako'),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '$completedLessons kati ya $totalLessons yamekamilika kwenye mafunzo yako.',
+                    tr(
+                      '{completedLessons} kati ya {totalLessons} yamekamilika kwenye mafunzo yako.',
+                      {
+                        'completedLessons': completedLessons,
+                        'totalLessons': totalLessons,
+                      },
+                    ),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
@@ -78,7 +85,7 @@ class CourseCard extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Fungua kozi ya ${course.title}',
+      label: tr('Fungua kozi ya {title}', {'title': course.title}),
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -131,7 +138,10 @@ class CourseCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(AppRadius.pill),
                           ),
                           child: Text(
-                            '$completed/$total masomo',
+                            tr('{completed}/{total} masomo', {
+                              'completed': completed,
+                              'total': total,
+                            }),
                             style: accessibleCaption(
                               context,
                               color: context.colors.onPrimary,
@@ -160,8 +170,10 @@ class CourseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Semantics(
-                      label:
-                          '${(progress * 100).round()}% ya ${course.title} imekamilika',
+                      label: tr('{percent}% ya {title} imekamilika', {
+                        'percent': (progress * 100).round(),
+                        'title': course.title,
+                      }),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                         child: LinearProgressIndicator(
@@ -177,8 +189,10 @@ class CourseCard extends StatelessWidget {
                       children: [
                         Text(
                           progress > 0
-                              ? '${(progress * 100).round()}% imekamilika'
-                              : 'Tayari kuanza',
+                              ? tr('{percent}% imekamilika', {
+                                  'percent': (progress * 100).round(),
+                                })
+                              : tr('Tayari kuanza'),
                           style:
                               Theme.of(context).textTheme.labelLarge?.copyWith(
                                     color: context.colors.primary,
@@ -192,8 +206,10 @@ class CourseCard extends StatelessWidget {
                               Icon(Icons.lock_outline,
                                   size: 16, color: context.colors.muted),
                               const SizedBox(width: AppSpacing.xs),
-                              Text('Premium',
-                                  style: accessibleCaption(context)),
+                              Text(
+                                tr('Premium'),
+                                style: accessibleCaption(context),
+                              ),
                             ],
                           ),
                       ],
@@ -205,7 +221,7 @@ class CourseCard extends StatelessWidget {
                         AppNavigator.pushCourse(context, course);
                       },
                       icon: const Icon(Icons.visibility_outlined),
-                      label: const Text('Anza Kujifunza'),
+                      label: Text(tr('Anza Kujifunza')),
                       style: FilledButton.styleFrom(
                           backgroundColor: context.colors.charcoal),
                     ),
@@ -222,7 +238,7 @@ class CourseCard extends StatelessWidget {
                               );
                             },
                             icon: const Icon(Icons.smart_toy_outlined),
-                            label: const Text('Uliza AI'),
+                            label: Text(tr('Uliza AI')),
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
@@ -233,7 +249,7 @@ class CourseCard extends StatelessWidget {
                               AppNavigator.pushWhatsApp(context);
                             },
                             icon: const Icon(Icons.support_agent),
-                            label: const Text('Mtaalamu'),
+                            label: Text(tr('Mtaalamu')),
                           ),
                         ),
                       ],
@@ -277,7 +293,7 @@ class CourseProgressSummary extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Mwendelezo wa kozi',
+                    tr('Mwendelezo wa kozi'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -317,12 +333,17 @@ String courseProgressMessage({
   required int total,
 }) {
   if (completed == 0) {
-    return 'Anza na somo la kwanza kisha fuata mpangilio wa masomo.';
+    return tr('Anza na somo la kwanza kisha fuata mpangilio wa masomo.');
   }
   if (completed < total) {
-    return 'Umekamilisha somo $completed kati ya $total. Endelea na somo linalofuata.';
+    return tr(
+      'Umekamilisha somo {completed} kati ya {total}. Endelea na somo linalofuata.',
+      {'completed': completed, 'total': total},
+    );
   }
-  return 'Umemaliza masomo yote. Unaweza kurudia masomo au kumuuliza Mwalimu AI swali la kozi.';
+  return tr(
+    'Umemaliza masomo yote. Unaweza kurudia masomo au kumuuliza Mwalimu AI swali la kozi.',
+  );
 }
 
 class LessonTile extends StatelessWidget {
@@ -390,10 +411,10 @@ class LessonTile extends StatelessWidget {
                         lesson.isPremium
                             // There is no in-app unlock; an admin verifies the
                             // account before a locked lesson opens.
-                            ? 'Inasubiri uthibitisho'
+                            ? tr('Inasubiri uthibitisho')
                             : isCompleted
-                                ? 'Umekamilisha'
-                                : 'Bado hujaanza',
+                                ? tr('Umekamilisha')
+                                : tr('Bado hujaanza'),
                         style:
                             Theme.of(context).textTheme.labelMedium?.copyWith(
                                   color: statusColor,
@@ -506,8 +527,8 @@ class LessonPreviewSheet extends StatelessWidget {
                   icon: const Icon(Icons.play_circle_outline),
                   label: Text(
                     lesson.resourceUrl == null
-                        ? 'Video bado haijachapishwa'
-                        : 'Tazama Video',
+                        ? tr('Video bado haijachapishwa')
+                        : tr('Tazama Video'),
                   ),
                 ),
               ],
@@ -527,7 +548,7 @@ class LessonPreviewSheet extends StatelessWidget {
                       );
                     } on LearningProgressException catch (error) {
                       if (context.mounted) {
-                        showSnack(context, error.message);
+                        showSnack(context, tr(error.message));
                       }
                     }
                   }
@@ -536,7 +557,7 @@ class LessonPreviewSheet extends StatelessWidget {
                   showSnack(context, '${lesson.type.label}: ${lesson.title}');
                 },
                 icon: Icon(lesson.type.icon),
-                label: const Text('Kamilisha Somo'),
+                label: Text(tr('Kamilisha Somo')),
               ),
             ],
           ),
@@ -574,7 +595,9 @@ class _SourceBookLinkState extends State<_SourceBookLink> {
     return Semantics(
       button: isReading,
       label: isReading
-          ? 'Fungua kitabu cha chanzo ${widget.lesson.sourceTitle}'
+          ? tr('Fungua kitabu cha chanzo {sourceTitle}', {
+              'sourceTitle': widget.lesson.sourceTitle,
+            })
           : null,
       child: InkWell(
         onTap: isReading && !_isOpening ? _open : null,
@@ -595,7 +618,9 @@ class _SourceBookLinkState extends State<_SourceBookLink> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Chanzo: ${widget.lesson.sourceTitle}',
+                      tr('Chanzo: {sourceTitle}', {
+                        'sourceTitle': widget.lesson.sourceTitle,
+                      }),
                       style: Theme.of(context)
                           .textTheme
                           .bodySmall
@@ -603,7 +628,9 @@ class _SourceBookLinkState extends State<_SourceBookLink> {
                     ),
                     if (isReading)
                       Text(
-                        _isOpening ? 'Inaandaa kitabu…' : 'Soma kitabu kizima',
+                        _isOpening
+                            ? tr('Inaandaa kitabu…')
+                            : tr('Soma kitabu kizima'),
                         style:
                             Theme.of(context).textTheme.labelMedium?.copyWith(
                                   color: context.colors.primary,
@@ -636,7 +663,7 @@ Future<void> _openSourceBook(BuildContext context, Lesson lesson) async {
   final lessonId = lesson.id;
   final catalogService = context.dependencies.catalogService;
   if (lessonId == null || catalogService is! BackendCatalogService) {
-    showSnack(context, 'Kitabu cha chanzo hakipatikani.');
+    showSnack(context, tr('Kitabu cha chanzo hakipatikani.'));
     return;
   }
 
@@ -645,13 +672,13 @@ Future<void> _openSourceBook(BuildContext context, Lesson lesson) async {
   try {
     sourceUrl = await catalogService.lessonSourceDocumentUrl(lessonId);
   } on CatalogException catch (error) {
-    if (context.mounted) showSnack(context, error.message);
+    if (context.mounted) showSnack(context, tr(error.message));
     return;
   }
 
   final uri = Uri.tryParse(sourceUrl);
   if (uri == null) {
-    if (context.mounted) showSnack(context, 'Kiungo cha kitabu si sahihi.');
+    if (context.mounted) showSnack(context, tr('Kiungo cha kitabu si sahihi.'));
     return;
   }
   if (!context.mounted) return;
@@ -682,7 +709,7 @@ Future<void> _openVideo(BuildContext context, Lesson lesson) async {
     try {
       playableUrl = await catalogService.lessonVideoUrl(lessonId);
     } on CatalogException catch (error) {
-      if (context.mounted) showSnack(context, error.message);
+      if (context.mounted) showSnack(context, tr(error.message));
       return;
     }
   }
@@ -691,7 +718,7 @@ Future<void> _openVideo(BuildContext context, Lesson lesson) async {
   if (uri == null ||
       !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
     if (context.mounted) {
-      showSnack(context, 'Video haikuweza kufunguka. Jaribu tena baadaye.');
+      showSnack(context, tr('Video haikuweza kufunguka. Jaribu tena baadaye.'));
     }
   }
 }
@@ -729,12 +756,14 @@ class AskAiPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Una swali gani?',
+              tr('Una swali gani?'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Mwalimu AI yuko tayari kujibu maswali kuhusu $courseTitle',
+              tr('Mwalimu AI yuko tayari kujibu maswali kuhusu {courseTitle}', {
+                'courseTitle': courseTitle,
+              }),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -744,7 +773,7 @@ class AskAiPanel extends StatelessWidget {
                 onTap();
               },
               icon: const Icon(Icons.smart_toy_outlined),
-              label: const Text('Uliza AI Sasa'),
+              label: Text(tr('Uliza AI Sasa')),
             ),
           ],
         ),
